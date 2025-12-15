@@ -6,14 +6,17 @@ from datetime import datetime
 class AdminUserBase(BaseModel):
     # These are the fields Super Users will input when creating a new admin.
     phone_number: str
-    name: str
+    first_name: str
+    last_name: str
 
 class AdminUserCreate(AdminUserBase):
+    is_superuser: Optional[bool] = False
     password: str 
     #Temporary password to be changed on first login.
 
 class AdminUserUpdate(BaseModel):
-    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     phone_number: Optional[str] = None
     is_active: Optional[bool] = None
 

@@ -35,7 +35,8 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)) -> Token:
 
         # Additional custom claims
         "is_superuser": user_in_db.is_superuser,
-        "is_active": user_in_db.is_active
+        "is_active": user_in_db.is_active,
+        "force_password_change": user_in_db.force_password_change,
     }
     access_token = create_access_token(data=user_data_for_token, expires_delta=access_token_expires)  
     return {"access_token": access_token, "token_type": "bearer"}
