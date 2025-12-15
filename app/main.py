@@ -19,7 +19,6 @@ app.include_router(api_router, prefix="/api/v1")
 def root():
     return {"message": "Welcome to the API"}
 
-
 # Migration commands:
 # alembic revision --autogenerate -m "Initial migration"
 # alembic upgrade head

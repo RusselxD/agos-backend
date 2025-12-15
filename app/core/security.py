@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+from jose import jwt
 from passlib.context import CryptContext
 from .config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
@@ -18,6 +18,6 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(days=settings.ACCESS_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": int(expire.timestamp())})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
