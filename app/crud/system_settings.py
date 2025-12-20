@@ -1,4 +1,5 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.system_settings import SystemSettings
 from app.schemas.system_settings import SystemSettingsCreate, SystemSettingsUpdate
 from app.crud.base import CRUDBase
@@ -6,11 +7,14 @@ from typing import Any
 
 class CRUDSystemSettings(CRUDBase[SystemSettings, SystemSettingsCreate, SystemSettingsUpdate]):
     
-    def get(self, db: Session, key: str) -> SystemSettings | None:
-        return db.query(SystemSettings).filter(SystemSettings.key == key).first()
+    async def get(self, db: AsyncSession, key: str) -> SystemSettings | None:
+        result = await db.execute(
+            select(SystemSettings).filter(SystemSettings.key == key)
+        )
+        return result.scalars().first()
     
-    def get_value(self, db: Session, key: str) -> Any:
-        setting = self.get(db, key)
+    async def get_value(self, db: AsyncSession, key: str) -> Any:
+        setting = await self.get(db, key)
         if setting:
             return setting.json_value
         return None
