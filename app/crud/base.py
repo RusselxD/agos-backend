@@ -17,9 +17,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         )
         return result.scalars().first()
     
-    async def get_multi(self, db: AsyncSession, skip: int = 0, limit: int = 100) -> List[ModelType]:
+    async def get_all(self, db: AsyncSession) -> List[ModelType]:
         result = await db.execute(
-            select(self.model).offset(skip).limit(limit)
+            select(self.model)
         )
         return result.scalars().all()
     

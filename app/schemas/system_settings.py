@@ -14,3 +14,11 @@ class SystemSettingsUpdate(SystemSettingsBase):
 class SystemSettingsResponse(SystemSettingsBase):
     class Config:
         from_attributes = True
+
+class SensorConfigResponse(BaseModel):
+    installation_height: float
+    warning_threshold: float
+    critical_threshold: float
+
+    class Config:
+        from_attributes = True

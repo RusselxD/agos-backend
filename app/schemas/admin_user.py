@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from uuid import UUID
 
 # --- BASE MODEL (Shared Fields) ---
 class AdminUserBase(BaseModel):
@@ -28,11 +29,10 @@ class AdminChangePassword(BaseModel):
     current_password: str
     new_password: str
 
-
 # --- 3.1 PUBLIC RESPONSE (What the client sees) ---
 class AdminUserResponse(AdminUserBase):
     # Inherits phone_number and name
-    id: int
+    id: UUID
     is_superuser: bool
     is_active: bool
     
