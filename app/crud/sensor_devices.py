@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
-    async def get(self, db: AsyncSession, id: int = 1) -> SensorDeviceResponse | None:
+    async def get_device_status(self, db: AsyncSession, id: int = 1) -> SensorDeviceResponse | None:
         result = await db.execute(
             select(SensorDevice).filter(SensorDevice.id == id)
         )

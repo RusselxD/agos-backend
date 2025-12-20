@@ -1,4 +1,4 @@
-from pydantic import BaseModel, computed_field, Field
+from pydantic import BaseModel
 from datetime import datetime
 
 class SensorReadingBase(BaseModel):
@@ -7,7 +7,7 @@ class SensorReadingBase(BaseModel):
 class SensorReadingCreate(SensorReadingBase):
     sensor_id: int
     raw_distance_cm: float
-    signal_strength: int | None = None  # RSSI in dBm (e.g., -30 to -90)
+    signal_strength: int | None = None  # RSSI in dBm (e.g., -40 to -85)
     signal_quality: str | None = None  # 'excellent', 'good', 'fair', 'poor'
 
 class SensorReadingResponse(SensorReadingBase):
@@ -25,3 +25,7 @@ class SensorReadingPaginatedResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class SensorDataRecordedResponse(BaseModel):
+    timestamp: datetime
+    status: str
