@@ -1,26 +1,28 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.sensor_devices import SensorDeviceResponse
 from app.models.sensor_devices import SensorDevice
 from app.models.sensor_readings import SensorReading
 from app.crud.base import CRUDBase
 from datetime import datetime, timedelta
 from fastapi import HTTPException
+from sqlalchemy import select
 
 class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
-    def get(self, db: Session, id: int = 1) -> SensorDeviceResponse | None:
-        sensor_device = db.query(SensorDevice).filter(SensorDevice.id == id).first()
+    async def get(self, db: AsyncSession, id: int = 1) -> SensorDeviceResponse | None:
+        result = await db.execute(
+            select(SensorDevice).filter(SensorDevice.id == id)
+        )
+        sensor_device = result.scalars().first()
 
         if not sensor_device:
             raise HTTPException(status_code=404, detail="Sensor device not found")
 
         # Get latest reading
-        latest_reading = (
-            db.query(SensorReading)
-            .filter(SensorReading.sensor_id == id)
-            .order_by(SensorReading.timestamp.desc())
-            .first()
+        result = await db.execute(
+            select(SensorReading).filter(SensorReading.sensor_id == id).order_by(SensorReading.timestamp.desc())
         )
+        latest_reading = result.scalars().first()
 
         # Default values if no readings
         if not latest_reading:

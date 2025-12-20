@@ -15,10 +15,6 @@ app.add_middleware(
 
 app.include_router(api_router, prefix="/api/v1")
 
-@app.get("/")
-def root():
-    return {"message": "Welcome to the API"}
-
 # Migration commands:
 # alembic revision --autogenerate -m "Initial migration"
 # alembic upgrade head
