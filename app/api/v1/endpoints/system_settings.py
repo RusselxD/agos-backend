@@ -16,10 +16,10 @@ def get_system_setting(key: str, db: Session = Depends(get_db)) -> SystemSetting
 
 @router.get("/{key}/value", response_model=Any)
 def get_system_setting_value(key: str, db: Session = Depends(get_db)) -> Any:
-    settings = system_settings_crud.get(db, key)
-    if not settings:
+    json_value = system_settings_crud.get_value(db, key)
+    if not json_value:
         raise HTTPException(status_code=404, detail="System settings not found")
-    return settings.json_value
+    return json_value
 
 @router.put("/{key}", response_model=Any)
 def update_system_setting(key: str, value: SystemSettingsUpdate, db: Session = Depends(get_db)) -> Any:
