@@ -6,10 +6,14 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
+
+from app.crud.admin_user import admin_user as admin_user_crud
+from app.crud.sensor_devices import sensor_device as sensor_device_crud
+from app.crud.system_settings import system_settings as system_settings_crud
+
 from app.schemas.admin_user import AdminUserCreate
 from app.schemas.system_settings import SystemSettingsCreate
-from app.crud.admin_user import admin_user as admin_user_crud
-from app.crud.system_settings import system_settings as system_settings_crud
+from app.schemas.sensor_devices import SensorDeviceCreate
 
 def seed_superuser(db: Session):
     test_user = AdminUserCreate(
@@ -35,6 +39,15 @@ def seed_settings(db: Session):
 
     system_settings_crud.create_multi(db, objs_in=settings_list)
     print("Seeded system settings.")
+
+def seed_sensor_device(db: Session):
+    initial_sensor = SensorDeviceCreate(
+        device_name="rpi-water-level-sensor-001",
+        location="Creek 1"
+    )
+
+    sensor_device_crud.create(db, obj_in=initial_sensor)
+    print("Seeded initial sensor device.")
 
 def seed_db():
     db: Session = SessionLocal()

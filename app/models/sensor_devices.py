@@ -1,5 +1,6 @@
-from sqlalchemy import Column, String,  DateTime, ForeignKey, Integer, Numeric
+from sqlalchemy import Column, String,  DateTime, Integer
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
 from .base import Base
 
@@ -9,5 +10,6 @@ class SensorDevice(Base):
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     device_name = Column(String(100), nullable=False)
     location = Column(String(100), nullable=False)
-    last_seen = Column(DateTime(timezone=True), nullable=True) # for connection status (online/offline)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    sensor_readings = relationship("SensorReading", back_populates="sensor_device", cascade="all, delete-orphan")
