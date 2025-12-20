@@ -7,7 +7,7 @@ class SensorDeviceBase(BaseModel):
 class SensorDeviceResponse(SensorDeviceBase):
     connection: str
     last_updated: str
-    signal: str
+    signal: str | None
 
     class Config:
         from_attributes = True
