@@ -22,7 +22,8 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
             else_='stable'
         ).label('status')
 
-        change_rate = (SensorReading.water_level_cm - prev_water_level).label('change_rate')
+        # Calculate change rate, handling NULL for first reading
+        change_rate = func.coalesce(SensorReading.water_level_cm - prev_water_level, 0).label('change_rate')
 
         skip = (page - 1) * page_size
         items = (

@@ -4,6 +4,7 @@ from app.models.sensor_devices import SensorDevice
 from app.models.sensor_readings import SensorReading
 from app.crud.base import CRUDBase
 from datetime import datetime, timedelta
+from fastapi import HTTPException
 
 class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
@@ -11,7 +12,7 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
         sensor_device = db.query(SensorDevice).filter(SensorDevice.id == id).first()
 
         if not sensor_device:
-            return None
+            raise HTTPException(status_code=404, detail="Sensor device not found")
 
         # Get latest reading
         latest_reading = (
