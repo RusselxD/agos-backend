@@ -28,5 +28,7 @@ Instrumentator().instrument(app).expose(app)
 # Start Prometheus and Grafana
 # docker-compose up
 
+# Visit localhost:3000 to access Grafana dashboard
+
 # To check database size, run the following SQL command in PostgreSQL:
 # SELECT pg_size_pretty(pg_database_size('agos_db'));
