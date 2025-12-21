@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from decimal import Decimal
 
 class SensorReadingBase(BaseModel):
     timestamp: datetime
@@ -33,6 +34,32 @@ class SensorReadingMinimalResponse(BaseModel):
     water_level_cm: float
     prev_water_level: float | None
 
+# Response sent to the sensor device after recording a reading
 class SensorDataRecordedResponse(BaseModel):
     timestamp: datetime
     status: str
+
+# ================================================= #
+# == Schemas for sensor reading summary endpoint == #
+# ================================================= #
+class WaterLevelSummary(BaseModel):
+    current_cm: float
+    change_rate: float
+    trend: str  # 'rising', 'falling', 'stable'
+
+class AlertSummary(BaseModel):
+    level: str # 'normal', 'warning', 'critical'
+    distance_to_warning_cm: float
+    distance_to_critical_cm: float
+    distance_from_critical_cm: float
+    percentage_of_critical: float
+
+class SensorReadingSummary(BaseModel):
+    timestamp: datetime
+    water_level: WaterLevelSummary
+    alert: AlertSummary
+
+class SensorReadingSummaryResponse(BaseModel):
+    status: str # either "success" or "error"
+    message: str # detailed message (for success, it's just "Retrieved successfully")
+    sensor_reading: SensorReadingSummary | None = None

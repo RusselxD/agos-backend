@@ -1,3 +1,4 @@
+import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.sensor_readings import SensorReading
 from app.schemas.sensor_reading import SensorReadingMinimalResponse, SensorReadingCreate
@@ -9,9 +10,19 @@ from typing import List
 class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
 
     # For getting the latest reading for a specific sensor
-    async def get_latest_reading(self, db: AsyncSession, sensor_id: int) -> SensorReading | None:
+    async def get_latest_reading(self, db: AsyncSession, sensor_id: int = 1) -> SensorReading | None:
         result = await db.execute(
             select(SensorReading).filter(SensorReading.sensor_id == sensor_id).order_by(SensorReading.timestamp.desc())
+        )
+        return result.scalars().first()
+
+    # For getting the previous reading before a specific timestamp
+    async def get_previous_reading(self, db: AsyncSession, before_timestamp: datetime) -> SensorReading | None:
+        result = await db.execute(
+            select(SensorReading)
+            .filter(SensorReading.timestamp < before_timestamp)
+            .order_by(SensorReading.timestamp.desc())
+            .limit(1)
         )
         return result.scalars().first()
 

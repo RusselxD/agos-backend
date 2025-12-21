@@ -14,11 +14,15 @@ class ConnectionManager:
             print(f"Client disconnected. Total connections: {len(self.active)}")
 
     async def broadcast(self, message: dict):
+        disconnected = []
         for ws in self.active[:]:  # Create a copy to iterate safely
             try:
                 await ws.send_json(message)
             except Exception as e:
                 print(f"Error broadcasting to client: {e}")
-                await self.disconnect(ws)
+                disconnected.append(ws)
+
+        for ws in disconnected:
+            await self.disconnect(ws)
 
 ws_manager = ConnectionManager()

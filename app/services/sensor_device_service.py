@@ -5,6 +5,7 @@ from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
 from datetime import datetime, timedelta
 from fastapi import HTTPException
 from app.schemas.sensor_devices import SensorDeviceResponse
+from app.core.config import settings
 
 class SensorDeviceService:
     
@@ -25,7 +26,7 @@ class SensorDeviceService:
                 last_updated=None,
                 signal=None
             )
-        
+
         # Calculate connection status
         now = datetime.now(latest_reading.timestamp.tzinfo)
         time_since = now - latest_reading.timestamp
@@ -36,9 +37,9 @@ class SensorDeviceService:
             Warning Period: 6 minutes (Warning)
             Beyond 6 minutes: (Offline)
         """
-        if time_since <= timedelta(minutes=4):
+        if time_since <= timedelta(minutes=settings.SENSOR_GRACE_PERIOD_MINUTES):
             connection = "Online"
-        elif time_since <= timedelta(minutes=6):
+        elif time_since <= timedelta(minutes=settings.SENSOR_WARNING_PERIOD_MINUTES):
             connection = "Warning"
         else:
             connection = "Offline"

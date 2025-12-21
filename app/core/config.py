@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_DAYS: int = 2
+    SENSOR_GRACE_PERIOD_MINUTES: int = 4
+    SENSOR_WARNING_PERIOD_MINUTES: int = 8
 
     FRONTEND_URLS: Union[list[str], str] = ["http://localhost:5173"]
 

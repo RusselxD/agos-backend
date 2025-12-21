@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from app.services.sensor_device import sensor_device_service
+from app.services.sensor_device_service import sensor_device_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas.sensor_devices import SensorDeviceResponse
 from app.core.database import get_db
