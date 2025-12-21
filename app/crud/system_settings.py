@@ -12,7 +12,7 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, SystemSettingsCreate, SystemSe
             select(SystemSettings).filter(SystemSettings.key == key)
         )
         return result.scalars().first()
-    
+
     async def get_value(self, db: AsyncSession, key: str) -> Any:
         setting = await self.get(db, key)
         if setting:
