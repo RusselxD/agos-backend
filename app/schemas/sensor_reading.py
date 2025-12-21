@@ -26,6 +26,13 @@ class SensorReadingPaginatedResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# For internal use in CRUD function sensor_reading.get_items_paginated
+class SensorReadingMinimalResponse(BaseModel):
+    id: int
+    timestamp: datetime
+    water_level_cm: float
+    prev_water_level: float | None
+
 class SensorDataRecordedResponse(BaseModel):
     timestamp: datetime
     status: str
