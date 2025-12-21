@@ -12,21 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
     
-    _sensor_config_cache: Optional[SensorConfigResponse] = None  # cached sensor configuration
-    _cache_timestamp: Optional[datetime] = None                  # timestamp of when the cache was last updated
-    _cache_ttl_timedelta = timedelta(minutes=60)                 # defines how long the cache is valid (Time To Live)
-
-    async def _get_sensor_config(self, db: AsyncSession) -> SensorConfigResponse:
-        now = datetime.now()
-
-        # Return cached config if still valid
-        if (self._sensor_config_cache and self._cache_timestamp and now - self._cache_timestamp < self._cache_ttl_timedelta):
-            return self._sensor_config_cache
-        
-        sensor_config_data = await system_settings_crud.get_value(db, key="sensor_config")
-        self._sensor_config_cache = SensorConfigResponse.model_validate(sensor_config_data)
-        self._cache_timestamp = now
-        return self._sensor_config_cache
+    
 
     async def get_items_paginated(self, db: AsyncSession, page: int = 1, page_size: int = 10) -> SensorReadingPaginatedResponse:
 
@@ -66,24 +52,22 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
         has_more = len(items) > page_size
         return SensorReadingPaginatedResponse(items=items[:page_size], has_more=has_more)
     
-    async def create_record(self, db: AsyncSession, obj_in: SensorReadingCreate) -> SensorDataRecordedResponse:
-        obj_in_data = obj_in.model_dump() # Convert Pydantic model to dict
-
-        if not await sensor_device_crud.get(db, id=obj_in.sensor_id):
-            return SensorDataRecordedResponse(timestamp=datetime.now(timezone.utc), status="Error: Sensor device not found")
-
-        # Get cached sensor installation height
-        sensor_height = (await self._get_sensor_config(db)).installation_height
+    async def create_record(self, db: AsyncSession, obj_in: SensorReadingCreate, water_level_cm) -> SensorReading:
         
+        # Convert Pydantic model to dict
+        data = obj_in.model_dump()
+
         # Create SensorReading DB object
-        db_obj = SensorReading(**obj_in_data)
-        db_obj.water_level_cm = sensor_height - db_obj.raw_distance_cm
+        db_obj = SensorReading(**data)
+
+        db_obj.water_level_cm = water_level_cm
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
-        return SensorDataRecordedResponse(timestamp=db_obj.created_at, status="Success: Reading recorded")
+        return db_obj
         
-    async def create_multi(self, db: AsyncSession, objs_in: list[SensorReadingCreate]) -> list[SensorReadingResponse]:
+        
+    async def create_bulk_record(self, db: AsyncSession, objs_in: list[SensorReadingCreate]) -> SensorDataRecordedResponse:
         sensor_height = (await self._get_sensor_config(db)).installation_height
         
         db_objs = []
@@ -95,6 +79,6 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
         
         db.add_all(db_objs)
         await db.commit()
-        return db_objs
+        return SensorDataRecordedResponse(timestamp=datetime.now(timezone.utc), status="Success: Bulk Reading recorded")
     
 sensor_reading = CRUDSensorReading(SensorReading)
