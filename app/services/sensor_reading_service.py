@@ -2,7 +2,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.cache_service import cache_service
 from app.models.sensor_readings import SensorReading
 from datetime import datetime, timezone
-from sqlalchemy import func
 from app.core.ws_manager import ws_manager
 from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
 from app.crud.sensor_devices import sensor_device as sensor_device_crud
@@ -11,9 +10,9 @@ from app.schemas.sensor_reading import AlertSummary, SensorReadingSummaryRespons
 class SensorReadingService:
 
     async def get_items_paginated(self, db: AsyncSession, page: int = 1, page_size: int = 10) -> SensorReadingPaginatedResponse:
-        
+
         db_items = await sensor_reading_crud.get_items_paginated(db, page=page, page_size=page_size)
-        
+
         items = []
         # Process each item to determine status and change rate
         for item in db_items[:page_size]:

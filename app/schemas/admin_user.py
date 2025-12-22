@@ -35,6 +35,8 @@ class AdminUserResponse(AdminUserBase):
     id: UUID
     is_superuser: bool
     is_active: bool
+    last_login: datetime | None = None
+    created_by: Optional[str]
     
     # Configuration to handle data from the SQLAlchemy ORM model
     class Config:

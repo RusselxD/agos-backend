@@ -1,6 +1,7 @@
 import uuid
 from sqlalchemy import Column, Boolean, String, UUID, DateTime, Text, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
 from .base import Base
 
@@ -21,3 +22,7 @@ class AdminUser(Base):
     deactivated_at = Column(DateTime(timezone=True), nullable=True)
     deactivated_by = Column(UUID(as_uuid=True), ForeignKey("admin_users.id"), nullable=True)
     deactivation_reason = Column(Text, nullable=True)
+
+    admin_creator = relationship("AdminUser", remote_side=[id], foreign_keys=[created_by])
+    admin_deactivator = relationship("AdminUser", remote_side=[id], foreign_keys=[deactivated_by])
+    admin_audit_logs = relationship("AdminAuditLog", back_populates="admin_user", cascade="all, delete-orphan")

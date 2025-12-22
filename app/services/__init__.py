@@ -3,3 +3,4 @@ from .sensor_device_service import sensor_device_service
 from .auth_service import auth_service
 from .websocket_service import web_socket_service
 from .cache_service import cache_service
+from .admin_audit_log_service import admin_audit_log_service
