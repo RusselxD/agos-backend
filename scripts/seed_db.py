@@ -55,7 +55,9 @@ async def seed_settings(db):
 async def seed_sensor_device(db):
     initial_sensor = SensorDeviceCreate(
         device_name="WLS-RPI-001",
-        location="Creek 1"
+        location="Creek 1",
+        longitude=121.97,
+        latitude=14.69
     )
 
     await sensor_device_crud.create(db, obj_in=initial_sensor)

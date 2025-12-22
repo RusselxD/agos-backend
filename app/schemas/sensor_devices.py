@@ -5,6 +5,8 @@ class SensorDeviceBase(BaseModel):
     location: str
 
 class SensorDeviceCreate(SensorDeviceBase):
+    longitude: float
+    latitude: float
     pass
 
 class SensorDeviceResponse(SensorDeviceBase):

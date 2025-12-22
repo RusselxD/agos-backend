@@ -10,7 +10,7 @@ from app.core.config import settings
 class SensorDeviceService:
     
     async def get_device_status(self, db: AsyncSession, id: int = 1) -> SensorDeviceResponse | None:
-        sensor_device = await sensor_device_crud.get_device(db, id=id)
+        sensor_device = await sensor_device_crud.get(db, id=id)
 
         if not sensor_device:
             raise HTTPException(status_code=404, detail="Sensor device not found")
