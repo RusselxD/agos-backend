@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from datetime import datetime
-from decimal import Decimal
 
 class SensorReadingBase(BaseModel):
     timestamp: datetime

@@ -4,6 +4,9 @@ class SensorDeviceBase(BaseModel):
     device_name: str
     location: str
 
+class SensorDeviceCreate(SensorDeviceBase):
+    pass
+
 class SensorDeviceResponse(SensorDeviceBase):
     connection: str
     last_updated: str

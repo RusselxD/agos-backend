@@ -5,6 +5,8 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 from datetime import timedelta
 from app.schemas.token import Token
+from datetime import datetime, timezone
+
 
 class AuthService:
     
@@ -29,7 +31,11 @@ class AuthService:
             "force_password_change": user_in_db.force_password_change,
         }
 
-        access_token = create_access_token(data=user_data_for_token, expires_delta=access_token_expires)  
+        # Update last login
+        user_in_db.last_login = datetime.now(timezone.utc)
+        await db.commit()
+
+        access_token = create_access_token(data=user_data_for_token, expires_delta=access_token_expires)
         return Token(access_token=access_token, token_type="bearer")
 
 auth_service = AuthService()
