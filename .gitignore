@@ -59,3 +59,11 @@ logs/
 
 # OS
 Thumbs.db
+
+# Stream storage (don't commit large files)
+app/storage/hls_output/*
+app/storage/captured_frames/*
+
+# Keep the directories
+!app/storage/hls_output/.gitkeep
+!app/storage/captured_frames/.gitkeep

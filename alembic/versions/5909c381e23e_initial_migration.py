@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: 7c582b0c38f3
+Revision ID: 5909c381e23e
 Revises: 
-Create Date: 2025-12-22 23:44:29.017176
+Create Date: 2025-12-24 03:08:43.648641
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '7c582b0c38f3'
+revision: str = '5909c381e23e'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -42,6 +42,16 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_admin_users_id'), 'admin_users', ['id'], unique=False)
     op.create_index(op.f('ix_admin_users_phone_number'), 'admin_users', ['phone_number'], unique=True)
+    op.create_table('model_readings',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('timestamp', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('status', sa.String(), nullable=False),
+    sa.Column('confidence', sa.Float(), nullable=False),
+    sa.Column('image_path', sa.String(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_model_readings_id'), 'model_readings', ['id'], unique=False)
     op.create_table('sensor_devices',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('device_name', sa.String(length=100), nullable=False),
@@ -101,6 +111,8 @@ def downgrade() -> None:
     op.drop_table('system_settings')
     op.drop_index(op.f('ix_sensor_devices_id'), table_name='sensor_devices')
     op.drop_table('sensor_devices')
+    op.drop_index(op.f('ix_model_readings_id'), table_name='model_readings')
+    op.drop_table('model_readings')
     op.drop_index(op.f('ix_admin_users_phone_number'), table_name='admin_users')
     op.drop_index(op.f('ix_admin_users_id'), table_name='admin_users')
     op.drop_table('admin_users')

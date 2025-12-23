@@ -12,7 +12,10 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
     # For getting the latest reading for a specific sensor
     async def get_latest_reading(self, db: AsyncSession, sensor_id: int = 1) -> SensorReading | None:
         result = await db.execute(
-            select(SensorReading).filter(SensorReading.sensor_id == sensor_id).order_by(SensorReading.timestamp.desc())
+            select(SensorReading)
+            .filter(SensorReading.sensor_id == sensor_id)
+            .order_by(SensorReading.timestamp.desc())
+            .limit(1)
         )
         return result.scalars().first()
 

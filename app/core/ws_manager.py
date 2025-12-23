@@ -17,12 +17,21 @@ class ConnectionManager:
         disconnected = []
         for ws in self.active[:]:  # Create a copy to iterate safely
             try:
+                # Check application state if possible (FastAPI/Starlette specific)
+                if ws.client_state.name != "CONNECTED":
+                    disconnected.append(ws)
+                    continue
+                    
                 await ws.send_json(message)
+            except RuntimeError:
+                # This catches 'Unexpected ASGI message' (Client already closed)
+                disconnected.append(ws)
             except Exception as e:
                 print(f"Error broadcasting to client: {e}")
                 disconnected.append(ws)
 
         for ws in disconnected:
-            await self.disconnect(ws)
+            if ws in self.active:
+                self.active.remove(ws)
 
 ws_manager = ConnectionManager()

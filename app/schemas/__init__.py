@@ -5,3 +5,4 @@ from .system_settings import SystemSettingsBase, SystemSettingsCreate, SystemSet
 from .sensor_devices import SensorDeviceBase, SensorDeviceCreate, SensorDeviceResponse
 from .sensor_reading import SensorReadingBase, SensorReadingCreate, SensorReadingResponse
 from .weather_condition import WeatherConditionResponse
+from .model_readings import ModelReadingBase, ModelReadingCreate, ModelReadingResponse
