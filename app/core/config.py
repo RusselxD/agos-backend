@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     FRAME_QUALITY: int = 3  # 1-31, lower is better
 
     # HLS Settings
-    HLS_TIME: int = 6  # seconds per segment (Increased to prevent keyframe mismatch)
+    HLS_TIME: int = 2  # seconds per segment (Increased to prevent keyframe mismatch)
     HLS_LIST_SIZE: int = 5  # number of segments in playlist
 
     DATABASE_URL: str
