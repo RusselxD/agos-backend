@@ -1,17 +1,13 @@
-# app/services/stream/stream_processor.py
 import asyncio
 import subprocess
 import logging
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
-import signal
 import shutil
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
-
 
 class StreamProcessor:
     """
@@ -21,10 +17,10 @@ class StreamProcessor:
     1. WRAPPER: Wraps the external 'ffmpeg.exe' binary so Python can control it.
     2. LIFECYCLE: Starts, stops, and auto-restarts the video processing job.
     3. PROCESSING: Tells FFmpeg to take ONE input stream and split it into TWO outputs:
-       - Output A: HLS Video segments (.ts files) for the web player.
-       - Output B: Periodic snapshots (.jpg files) for the ML Service.
+        - Output A: HLS Video segments (.ts files) for the web player.
+        - Output B: Periodic snapshots (.jpg files) for the ML Service.
     """
-    
+
     def __init__(self):
         self.process: Optional[subprocess.Popen] = None
         self.is_running = False
@@ -79,7 +75,7 @@ class StreamProcessor:
             self.ffmpeg_path,
             
             # --- INPUT CONFIGURATION ---
-            '-re',                      # Read input at native frame rate (don't rush)
+            # '-re',                      # Remove this for better buffering
             '-i', settings.STREAM_URL,  # The Source (RTSP/RTMP/HTTP)
             
             # Resilience: Keep trying to connect if network blips
@@ -90,13 +86,13 @@ class StreamProcessor:
             # --- OUTPUT 1: HLS STREAM (For Frontend) ---
             # This allows the web browser to play the video.
             '-map', '0:v',             # Take video track from input 0
-            '-c:v', 'libx264',         # Codec: H.264 (Standard web video)
-            '-preset', 'ultrafast',    # Speed: Sacrifice compression for low CPU usage
+            '-c:v', 'copy',         # Change from 'libx264' to 'copy' (no re-encoding)
+            # '-preset', 'ultrafast',    # Speed: Sacrifice compression for low CPU usage
             
             # Keyframe Logic: Force a "cut point" exactly every X frames.
             # This ensures segments are perfectly aligned for the player.
-            '-g', str(settings.HLS_TIME * 30), 
-            '-sc_threshold', '0',      # Disable scene detection (keeps timing constant)
+            # '-g', str(settings.HLS_TIME * 30), 
+            # '-sc_threshold', '0',      # Disable scene detection (keeps timing constant)
             
             '-f', 'hls',               # Format: Apple HLS
             '-hls_time', str(settings.HLS_TIME),       # Segment length (e.g., 6s)
@@ -115,9 +111,9 @@ class StreamProcessor:
             '-strftime', '1',          # Allow using time patterns in filename
             str(frame_pattern),        # Output path template
         ]
-        
+
         return cmd
-    
+
     async def start(self):
         """
         The 'Ignition Switch'.
@@ -141,6 +137,13 @@ class StreamProcessor:
                     file_path.unlink()
                 except Exception as e:
                     logger.warning(f"Failed to delete old file {file_path}: {e}")
+
+        logger.info("Cleaning up old captured frames...")
+        for file_path in self.frames_dir.glob("*.jpg"):
+            try:
+                file_path.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to delete old frame {file_path}: {e}")
         
         logger.info("Starting stream processor...")
         self.is_running = True
@@ -156,6 +159,7 @@ class StreamProcessor:
         while self.is_running and self.restart_count < self.max_restarts:
             try:
                 cmd = self._build_ffmpeg_command()
+                logger.info(f"FFmpeg command: {' '.join(cmd)}")
                 
                 logger.info(f"Starting FFmpeg process (attempt {self.restart_count + 1})")
                 
@@ -223,7 +227,6 @@ class StreamProcessor:
             "ffmpeg_found": self.ffmpeg_path is not None,
             "ffmpeg_path": self.ffmpeg_path,
         }
-
 
 # Global instance
 stream_processor = StreamProcessor()

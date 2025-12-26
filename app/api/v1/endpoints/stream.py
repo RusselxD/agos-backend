@@ -1,14 +1,10 @@
-# app/api/v1/endpoints/stream/stream.py
 import logging
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse
 from pathlib import Path
 
-from app.schemas.stream import (
-    StreamStatus,
-    FrameResponse,
-    FrameListResponse
-)
+from app.schemas import StreamStatus, FrameResponse, FrameListResponse
+
 from app.services.stream import stream_processor, frame_manager
 from app.core.config import settings
 

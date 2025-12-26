@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.system_settings import SensorConfigResponse
+from app.schemas import SensorConfigResponse
 from app.crud.system_settings import system_settings as system_settings_crud
 
 class CacheService:

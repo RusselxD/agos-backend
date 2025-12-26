@@ -13,10 +13,10 @@ from app.crud.admin_audit_log import admin_audit_logs as admin_audit_logs_crud
 
 from app.models.admin_user import AdminUser
 
-from app.schemas.admin_user import AdminUserCreate
-from app.schemas.admin_audit_log import AdminAuditLogCreate
-from app.schemas.system_settings import SystemSettingsCreate
-from app.schemas.sensor_devices import SensorDeviceCreate
+from app.schemas import AdminUserCreate
+from app.schemas import AdminAuditLogCreate
+from app.schemas import SystemSettingsCreate
+from app.schemas import SensorDeviceCreate
 
 async def seed_superuser(db):
     test_user = AdminUserCreate(

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from app.schemas.system_settings import SystemSettingsResponse, SystemSettingsUpdate
+from app.schemas import SystemSettingsResponse, SystemSettingsUpdate
 from app.crud.system_settings import system_settings as system_settings_crud
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db

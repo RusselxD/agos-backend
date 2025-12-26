@@ -11,14 +11,14 @@ class Settings(BaseSettings):
     STREAM_URL: str
     HLS_OUTPUT_DIR: str = "app/storage/hls_output"
     FRAMES_OUTPUT_DIR: str = "app/storage/captured_frames"
-    FRAME_CAPTURE_INTERVAL_SECONDS: int
+    FRAME_CAPTURE_INTERVAL_SECONDS: int = 60 * 2  # seconds
     FRAME_WIDTH: int = 640
     FRAME_HEIGHT: int = 360
     FRAME_QUALITY: int = 3  # 1-31, lower is better
 
     # HLS Settings
-    HLS_TIME: int = 2  # seconds per segment (Increased to prevent keyframe mismatch)
-    HLS_LIST_SIZE: int = 5  # number of segments in playlist
+    HLS_TIME: int = 6  # seconds per segment (Increased to prevent keyframe mismatch)
+    HLS_LIST_SIZE: int = 10  # number of segments in playlist
 
     DATABASE_URL: str
     SECRET_KEY: str

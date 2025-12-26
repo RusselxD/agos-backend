@@ -1,7 +1,7 @@
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.admin_user import AdminUser
-from app.schemas.admin_user import AdminUserCreate, AdminUserUpdate, AdminUserResponse
+from app.schemas import AdminUserCreate, AdminUserUpdate, AdminUserResponse
 from app.crud.base import CRUDBase
 from app.core.security import get_password_hash
 from sqlalchemy import select

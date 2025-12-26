@@ -1,8 +1,5 @@
-# app/schemas/stream/stream.py
 from pydantic import BaseModel, Field
-from typing import Optional, List
-from datetime import datetime
-
+from typing import List
 
 class StreamStatus(BaseModel):
     """Stream processor status"""

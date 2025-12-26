@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.schemas.admin_user import AdminUserResponse
+from app.schemas import AdminUserResponse
 from typing import List
 from app.crud.admin_user import admin_user as admin_user_crud
 from sqlalchemy.ext.asyncio import AsyncSession

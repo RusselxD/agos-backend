@@ -4,7 +4,7 @@ from app.core.security import verify_password, create_access_token
 from fastapi import HTTPException, status
 from app.core.config import settings
 from datetime import timedelta
-from app.schemas.token import Token
+from app.schemas import Token
 from datetime import datetime, timezone
 
 

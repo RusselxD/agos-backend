@@ -1,7 +1,7 @@
 import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.sensor_readings import SensorReading
-from app.schemas.sensor_reading import SensorReadingMinimalResponse, SensorReadingCreate
+from app.schemas import SensorReadingMinimalResponse, SensorReadingCreate
 from app.crud.base import CRUDBase
 from app.models.sensor_devices import SensorDevice
 from sqlalchemy import func, select

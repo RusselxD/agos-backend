@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.admin_audit_log import AdminAuditLogPaginatedResponse
+from app.schemas import AdminAuditLogPaginatedResponse
 from app.core.database import get_db
 from app.services import admin_audit_log_service
 
