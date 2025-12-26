@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas import SensorReadingSummaryResponse
+from app.schemas import SensorWebSocketResponse
 from app.services.cache_service import cache_service
 from app.models.sensor_readings import SensorReading
 from datetime import datetime, timezone
@@ -67,7 +67,7 @@ class SensorReadingService:
         # Run the calculations and prepare summary
         calculated_reading_summary = await self.calculate_record_summary(db, db_reading)
 
-        sensor_reading_summary_response = SensorReadingSummaryResponse(
+        sensor_reading_summary_response = SensorWebSocketResponse(
             status = "success", 
             message = "Retrieved successfully",
             sensor_reading = calculated_reading_summary

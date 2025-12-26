@@ -1,6 +1,6 @@
 import logging
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pathlib import Path
 
 from app.schemas import StreamStatus, FrameResponse, FrameListResponse
@@ -126,6 +126,21 @@ async def serve_hls_file(filename: str):
     # Determine content type
     if filename.endswith('.m3u8'):
         media_type = "application/vnd.apple.mpegurl"
+        # Read file into memory to avoid Content-Length mismatch if file changes
+        try:
+            content = hls_path.read_text(encoding="utf-8")
+            return Response(
+                content=content,
+                media_type=media_type,
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Access-Control-Allow-Origin": "*"
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error reading HLS playlist: {e}")
+            raise HTTPException(status_code=500, detail="Error reading playlist")
+
     elif filename.endswith('.ts'):
         media_type = "video/mp2t"
     else:

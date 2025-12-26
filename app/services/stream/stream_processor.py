@@ -96,8 +96,8 @@ class StreamProcessor:
             
             '-f', 'hls',               # Format: Apple HLS
             '-hls_time', str(settings.HLS_TIME),       # Segment length (e.g., 6s)
-            '-hls_list_size', str(settings.HLS_LIST_SIZE), # Keep only last 5 segments
-            '-hls_flags', 'delete_segments+append_list',   # Delete old segments to save disk space
+            '-hls_list_size', str(settings.HLS_LIST_SIZE), # Keep only last N segments
+            '-hls_flags', 'delete_segments',               # Delete old segments to save disk space
             '-hls_segment_filename', str(self.hls_dir / 'segment_%03d.ts'),
             str(hls_path),             # The "Menu" file (.m3u8)
             
@@ -150,6 +150,19 @@ class StreamProcessor:
         
         # 2. BACKGROUND TASK: Run the process loop without blocking Python
         asyncio.create_task(self._run_ffmpeg())
+
+        # 3. WAIT FOR READINESS
+        # We wait briefly for FFmpeg to produce the first playlist file.
+        # This prevents the frontend from getting 404s if it connects immediately.
+        print("⏳ Waiting for stream to initialize...")
+        hls_path = self.hls_dir / "stream.m3u8"
+        for _ in range(30): # Wait up to 30 seconds (FFmpeg can be slow to probe)
+            if hls_path.exists():
+                print("✅ Stream processor started and ready!")
+                return
+            await asyncio.sleep(1)
+            
+        print("⚠️ Stream processor started, but playlist not yet ready (check logs).")
     
     async def _run_ffmpeg(self):
         """
@@ -202,8 +215,8 @@ class StreamProcessor:
     
     async def stop(self):
         """Gracefully shuts down the FFmpeg process."""
-        logger.info("Stopping stream processor...")
         self.is_running = False
+        print("✅ Stream processor stopping...")
         
         if self.process and self.process.poll() is None:
             try:
@@ -215,8 +228,6 @@ class StreamProcessor:
                 self.process.wait()
             except Exception as e:
                 logger.error(f"Error stopping process: {e}")
-        
-        logger.info("Stream processor stopped")
     
     def get_status(self) -> dict:
         """Returns the health status of the processor."""

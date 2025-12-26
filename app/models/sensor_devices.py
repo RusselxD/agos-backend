@@ -14,4 +14,5 @@ class SensorDevice(Base):
     latitude = Column(Float, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    weather_conditions = relationship("Weather", back_populates="sensor_device", cascade="all, delete-orphan")
     sensor_readings = relationship("SensorReading", back_populates="sensor_device", cascade="all, delete-orphan")

@@ -13,6 +13,17 @@ class ConnectionManager:
             self.active.remove(ws)
             print(f"Client disconnected. Total connections: {len(self.active)}")
 
+    """
+        Broadcast Message Format:
+        {
+            type: str
+            data: dict
+        }
+
+        Sensor Reading Broadcast Type: "sensor_update"
+        Model Reading Broadcast Type: "blockage_detection_update"
+        Weather Condition Broadcast Type: "weather_update"
+    """
     async def broadcast(self, message: dict):
         disconnected = []
         for ws in self.active[:]:  # Create a copy to iterate safely
