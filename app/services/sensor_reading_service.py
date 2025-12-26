@@ -1,13 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.reading_summary_response.sensor_reading_summary import SensorReadingSummaryResponse
+from app.schemas import SensorReadingSummaryResponse
 from app.services.cache_service import cache_service
 from app.models.sensor_readings import SensorReading
 from datetime import datetime, timezone
 from app.core.ws_manager import ws_manager
 from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
 from app.crud.sensor_devices import sensor_device as sensor_device_crud
-from app.schemas.sensor_reading import SensorReadingResponse, SensorReadingCreate, SensorReadingPaginatedResponse, SensorDataRecordedResponse
-from app.schemas.reading_summary_response.sensor_reading_summary import SensorReadingSummary, WaterLevelSummary, AlertSummary
+from app.schemas import SensorReadingResponse, SensorReadingCreate, SensorReadingPaginatedResponse, SensorDataRecordedResponse
+from app.schemas import SensorReadingSummary, WaterLevelSummary, AlertSummary
 
 class SensorReadingService:
 

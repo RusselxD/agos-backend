@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.sensor_reading import SensorReadingPaginatedResponse, SensorReadingCreate, SensorDataRecordedResponse
+from app.schemas import SensorReadingPaginatedResponse, SensorReadingCreate, SensorDataRecordedResponse
 from app.core.database import get_db
 from app.services import sensor_reading_service
 from typing import List

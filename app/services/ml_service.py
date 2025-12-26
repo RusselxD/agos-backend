@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import random
 from pathlib import Path
 from datetime import datetime, timezone
@@ -10,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends
 from app.core.database import AsyncSessionLocal
 from app.core.ws_manager import ws_manager
+from app.schemas import ModelReadingSummary
 
 from app.core.config import settings
 
@@ -28,7 +28,8 @@ class MLService:
         self.frames_dir = Path(settings.FRAMES_OUTPUT_DIR)
         
         # Memory set to track which files we have already analyzed.
-        self.processed_files: Set[Path] = set() 
+        self.processed_files: Set[Path] = set()
+        self.last_processed_time: datetime = None
 
     async def start(self):
         """
@@ -75,17 +76,35 @@ class MLService:
                 current_files = set(self.frames_dir.glob("frame_*.jpg"))
                 
                 # 2. FILTER: Find files we haven't seen before
-                new_files = current_files - self.processed_files
+                new_files = sorted(list(current_files - self.processed_files))
                 
-                # 3. PROCESS: Run inference on new files
-                for file_path in new_files:
-                    await self._process_frame(file_path)
-                    self.processed_files.add(file_path)
+                # 3. PROCESS: Run inference ONLY on the newest file if many appeared
+                if new_files:
+                    latest_file = new_files[-1]
+                    
+                    # Rate limiting check: Strict Cool-down
+                    now = datetime.now(timezone.utc)
+                    should_process = True
+                    
+                    if self.last_processed_time:
+                        elapsed = (now - self.last_processed_time).total_seconds()
+                        # Strict check: Ensure at least ~115s have passed (5s buffer for jitter)
+                        if elapsed < settings.FRAME_CAPTURE_INTERVAL_SECONDS - 5:
+                            should_process = False
+
+                    if should_process:
+                        await self._process_frame(latest_file)
+                        self.last_processed_time = now
+                    
+                    # Mark all discovered files as processed so we don't look at them again
+                    # This prevents the loop from re-evaluating the same 100 files every cycle
+                    self.processed_files.update(current_files)
                 
-                # 4. CLEANUP: Keep memory clean
+                # 4. CLEANUP: Keep memory clean (only track what's actually on disk)
                 self.processed_files = self.processed_files.intersection(current_files)
                 
-                await asyncio.sleep(2)
+                # Poll every 10 seconds - responsive enough, but not busy-waiting
+                await asyncio.sleep(10)
                 
             except Exception as e:
                 print(f"Error in ML loop: {e}")
@@ -111,9 +130,15 @@ class MLService:
                 )
                 await model_readings_crud.create(db=db, obj_in=obj_in)
 
+            blockage_reading = ModelReadingSummary(
+                status="success", 
+                message="Retrieved successfully",
+                blockage_status = prediction
+            )
+
             await ws_manager.broadcast({
                 "type": "blockage_detection_update",
-                "data": {"status": prediction}
+                "data": blockage_reading.model_dump(mode='json')
             })
             
         except Exception as e:

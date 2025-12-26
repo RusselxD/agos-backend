@@ -1,6 +1,6 @@
 from app.models.admin_audit_log import AdminAuditLog
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.admin_audit_log import AdminAuditLogPaginatedResponse, AdminAuditLogResponse
+from app.schemas import AdminAuditLogPaginatedResponse, AdminAuditLogResponse
 from app.crud.admin_audit_log import admin_audit_logs as admin_audit_log_crud
 
 class AdminAuditLogService:

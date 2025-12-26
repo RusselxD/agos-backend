@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.system_settings import SystemSettings
-from app.schemas.system_settings import SystemSettingsCreate, SystemSettingsUpdate
+from app.schemas import SystemSettingsCreate, SystemSettingsUpdate
 from app.crud.base import CRUDBase
 from typing import Any
 

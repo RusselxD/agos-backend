@@ -1,4 +1,4 @@
-from app.schemas.reading_summary_response.model_reading import ModelReadingSummary
+from app.schemas import ModelReadingSummary
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.sensor_reading_service import sensor_reading_service
 from fastapi import WebSocket
@@ -6,7 +6,7 @@ from app.models.sensor_readings import SensorReading
 from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
 from app.crud.model_readings import model_readings as model_readings_crud
 from datetime import timedelta, datetime, timezone
-from app.schemas.reading_summary_response.sensor_reading_summary import SensorReadingSummaryResponse
+from app.schemas import SensorReadingSummaryResponse
 from app.core.config import settings
 
 class WebSocketService:

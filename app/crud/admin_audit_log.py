@@ -1,5 +1,5 @@
 from app.models.admin_audit_log import AdminAuditLog
-from app.schemas.admin_audit_log import AdminAuditLogCreate
+from app.schemas import AdminAuditLogCreate
 from app.crud.base import CRUDBase
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload

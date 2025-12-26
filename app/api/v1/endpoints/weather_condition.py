@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from app.services import weather_condition_service
-from app.schemas.weather_condition import WeatherConditionResponse
+from app.schemas import WeatherConditionResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 
