@@ -10,24 +10,23 @@ from app.api.v1.endpoints.websocket import router as ws_router
 from app.services.stream import stream_processor
 from prometheus_fastapi_instrumentator import Instrumentator
 from app.services.ml_service import ml_service
+from app.services.weather_service import weather_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize and cleanup services"""
     # Startup
     print("🚀 Starting application...")
     await stream_processor.start()
-    print("✅ Stream processor started")
     await ml_service.start()
-    
+    await weather_service.start()
+
     yield  # Application runs here
-    
+
     # Shutdown
     print("🛑 Shutting down application...")
     await stream_processor.stop()
-    print("✅ Stream processor stopped")
     await ml_service.stop()
-
+    await weather_service.stop()
 
 # Create FastAPI app with lifespan
 app = FastAPI(

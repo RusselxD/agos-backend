@@ -5,4 +5,5 @@ from .sensor_devices import SensorDevice
 from .sensor_readings import SensorReading
 from .model_readings import ModelReadings
 from .system_settings import SystemSettings
+from .weather import Weather
 from .base import Base

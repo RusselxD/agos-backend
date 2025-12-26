@@ -22,5 +22,5 @@ class SensorReadingSummary(BaseModel):
     water_level: WaterLevelSummary
     alert: AlertSummary
 
-class SensorReadingSummaryResponse(ReadingSummaryResponse):
+class SensorWebSocketResponse(ReadingSummaryResponse):
     sensor_reading: SensorReadingSummary | None = None

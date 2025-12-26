@@ -2,14 +2,12 @@ import asyncio
 import random
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import  Set
+from typing import Set
 from app.crud.model_readings import model_readings as model_readings_crud
 from app.schemas import ModelReadingCreate
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import Depends
 from app.core.database import AsyncSessionLocal
 from app.core.ws_manager import ws_manager
-from app.schemas import ModelReadingSummary
+from app.schemas import ModelWebSocketResponse
 
 from app.core.config import settings
 
@@ -53,13 +51,13 @@ class MLService:
                 self.processed_files = set(all_frames)
         
         self.is_running = True
-        print(f"🧠 ML Service started. Ignored {len(self.processed_files)} old frames. Watching for new ones...")
+        print(f"✅ ML Service started. Ignored {len(self.processed_files)} old frames. Watching for new ones...")
         asyncio.create_task(self._analysis_loop())
 
     async def stop(self):
         """Stop the background analysis loop."""
         self.is_running = False
-        print("🧠 ML Service stopping...")
+        print("✅ ML Service stopping...")
 
     async def _analysis_loop(self):
         """
@@ -130,7 +128,7 @@ class MLService:
                 )
                 await model_readings_crud.create(db=db, obj_in=obj_in)
 
-            blockage_reading = ModelReadingSummary(
+            blockage_reading = ModelWebSocketResponse(
                 status="success", 
                 message="Retrieved successfully",
                 blockage_status = prediction
@@ -140,7 +138,7 @@ class MLService:
                 "type": "blockage_detection_update",
                 "data": blockage_reading.model_dump(mode='json')
             })
-            
+
         except Exception as e:
             print(f"Failed to analyze frame {file_path}: {e}")
 

@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     DETECTION_GRACE_PERIOD_MINUTES: int = 5
     DETECTION_WARNING_PERIOD_MINUTES: int = 10
 
+    WEATHER_CONDITION_GRACE_PERIOD_MINUTES: int = 90 # 1.5 hours
+    WEATHER_CONDITION_WARNING_PERIOD_MINUTES: int = 120 # 2 hours
+
     FRONTEND_URLS: Union[list[str], str] = ["http://localhost:5173"]
 
     #runs implicitly before model initialization
