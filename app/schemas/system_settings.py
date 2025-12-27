@@ -22,3 +22,12 @@ class SensorConfigResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AlertThresholdsResponse(BaseModel):
+    tier_1_max: int
+    tier_2_min: int
+    tier_2_max: int
+    tier_3_min: int
+
+    class Config:
+        from_attributes = True

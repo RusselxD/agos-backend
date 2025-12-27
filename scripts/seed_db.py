@@ -46,6 +46,7 @@ async def seed_superuser(db):
 async def seed_settings(db):
     settings_list = [
         SystemSettingsCreate(key="sensor_config", json_value={"installation_height": 200, "warning_threshold": 100, "critical_threshold": 150}),
+        SystemSettingsCreate(key="alert_thresholds", json_value={"tier_1_max": 44, "tier_2_min": 45, "tier_2_max": 75, "tier_3_min": 76}),
         SystemSettingsCreate(key="data_retention_days", json_value=30),
     ]
 

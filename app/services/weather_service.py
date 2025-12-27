@@ -2,15 +2,14 @@ from datetime import datetime, timezone, timedelta
 import httpx
 from fastapi import HTTPException
 from app.models import Weather
-from app.schemas import WeatherCreate
-from app.schemas import WeatherConditionResponse, WeatherWebSocketResponse
+from app.schemas import WeatherCreate, WeatherStatus, WeatherWebSocketResponse, WeatherConditionResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from app.services.cache_service import cache_service
 from app.crud.weather import weather as weather_crud
-from app.core.ws_manager import ws_manager
 from app.core.config import settings
+from app.core.state import fusion_analysis_state
 from fastapi import Depends
 from app.core.database import get_db
 from app.core.database import AsyncSessionLocal
@@ -51,12 +50,20 @@ class WeatherService:
             weather_code, precipitation = await self._fetch_weather(db=db, sensor_id=sensor_id)
 
             # Save fetched data to the database
-            db_obj: Weather = await self._save_fetched_weather(db=db, sensor_id=sensor_id, precipitation=precipitation, weather_code=weather_code)
+            await self._save_fetched_weather(db=db, sensor_id=sensor_id, precipitation_mm=precipitation, weather_code=weather_code)
             print("✅ Initial weather data fetched and saved.")
         else:
             print("✅ Initial weather data is up-to-date. No fetch needed.")
 
+    """
+        This function is called periodically by the scheduler.
+        
+        This function fetches weather data from an external API, saves it to the database,
+        prepares a summary response, broadcasts via WebSocket, and updates fusion analysis state.
+    
+    """
     async def _fetch_and_update_weather(self, db: AsyncSession = Depends(get_db), sensor_id: int = 1):
+        from app.services.websocket_service import websocket_service
 
         async with AsyncSessionLocal() as db:
 
@@ -76,10 +83,19 @@ class WeatherService:
                 weather_condition=weather_summary
             )
 
-            await ws_manager.broadcast({
-                "type" : "weather_update",
-                "data" : weather_data.model_dump(mode='json')
-            })
+            await websocket_service.broadcast_update(
+                update_type="weather_update",
+                data=weather_data.model_dump(mode='json')
+            )
+
+            # Step 5: Update fusion analysis state
+            await fusion_analysis_state.calculate_weather_score(
+                weather_status=WeatherStatus(
+                    timestamp=db_obj.created_at,
+                    precipitation_mm=precipitation,
+                    weather_condition=weather_summary.condition
+                )
+            )
 
     async def _fetch_weather(self, db: AsyncSession, sensor_id: int) -> tuple[int, float]:
 
@@ -109,7 +125,7 @@ class WeatherService:
             weather_code=weather_code
         )
 
-        await weather_crud.create(db=db, obj_in=obj_in)
+        return await weather_crud.create(db=db, obj_in=obj_in)
 
     def _get_weather_condition(self, weather_code: int) -> str:
         if weather_code == 0: # Clear sky

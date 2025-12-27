@@ -1,4 +1,4 @@
-from app.schemas import ModelWebSocketResponse, WeatherWebSocketResponse, SensorWebSocketResponse
+from app.schemas import ModelWebSocketResponse, WeatherWebSocketResponse, SensorWebSocketResponse, FusionWebSocketResponse
 from app.schemas import WeatherConditionResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.sensor_reading_service import sensor_reading_service
@@ -10,6 +10,8 @@ from app.crud.model_readings import model_readings as model_readings_crud
 from app.crud.weather import weather as weather_crud
 from datetime import timedelta, datetime, timezone
 from app.core.config import settings
+from app.core.ws_manager import ws_manager
+from app.core.state import fusion_analysis_state
 
 class WebSocketService:
 
@@ -30,6 +32,12 @@ class WebSocketService:
         await websocket.send_json({
             "type": "weather_update",
             "data": initial_weather_condition_data.model_dump(mode='json')
+        })
+
+        initial_fusion_analysis_data = await self._get_initial_fusion_analysis_data()
+        await websocket.send_json({
+            "type": "fusion_analysis_update",
+            "data": initial_fusion_analysis_data.model_dump(mode='json')
         })
 
     async def _get_initial_sensor_reading_data(self, db: AsyncSession, sensor_id: int = 1) -> SensorWebSocketResponse:
@@ -84,7 +92,7 @@ class WebSocketService:
             message="Retrieved successfully",
             blockage_status=latest_model_reading["status"]
         )
-    
+
     async def _get_initial_weather_data(self, db: AsyncSession, sensor_id: int = 1) -> WeatherWebSocketResponse:
         latest_weather_condition = await weather_crud.get_latest_weather(db, sensor_id=sensor_id)
 
@@ -117,4 +125,18 @@ class WebSocketService:
             weather_condition=weather_condition
         )
 
-web_socket_service = WebSocketService()
+    async def _get_initial_fusion_analysis_data(self) -> FusionWebSocketResponse:
+        fusion_analysis_data = fusion_analysis_state.fusion_analysis
+        return FusionWebSocketResponse(
+            status="success",
+            message="Retrieved successfully",
+            fusion_analysis=fusion_analysis_data
+        )
+
+    async def broadcast_update(self, update_type: str, data: dict):
+        await ws_manager.broadcast({
+            "type": update_type,
+            "data": data
+        })
+
+websocket_service = WebSocketService()

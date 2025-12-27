@@ -11,6 +11,8 @@ from app.services.stream import stream_processor
 from prometheus_fastapi_instrumentator import Instrumentator
 from app.services.ml_service import ml_service
 from app.services.weather_service import weather_service
+from app.core.database import AsyncSessionLocal
+from app.core.state import fusion_analysis_state
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,6 +21,12 @@ async def lifespan(app: FastAPI):
     await stream_processor.start()
     await ml_service.start()
     await weather_service.start()
+
+    # Initialize Fusion Analysis State with latest data
+    async with AsyncSessionLocal() as db:
+        print("📊 Loading initial fusion analysis state...")
+        await fusion_analysis_state.load_initial_state(db)
+        print("✅ Fusion analysis state loaded.")
 
     yield  # Application runs here
 

@@ -6,8 +6,11 @@ from typing import Set
 from app.crud.model_readings import model_readings as model_readings_crud
 from app.schemas import ModelReadingCreate
 from app.core.database import AsyncSessionLocal
-from app.core.ws_manager import ws_manager
+from app.services.websocket_service import websocket_service
+from app.models.model_readings import ModelReadings
 from app.schemas import ModelWebSocketResponse
+from app.core.state import fusion_analysis_state
+from app.schemas import BlockageStatus
 
 from app.core.config import settings
 
@@ -119,6 +122,7 @@ class MLService:
             
             print(f"🔍 ML Result: {prediction[0].upper() + prediction[1:]} ({int(confidence*100)}%)")
             
+            # Store the result in the database
             async with AsyncSessionLocal() as db:
                 obj_in = ModelReadingCreate(
                     timestamp=datetime.now(timezone.utc).isoformat(),
@@ -126,18 +130,27 @@ class MLService:
                     confidence=confidence,
                     image_path=str(file_path)
                 )
-                await model_readings_crud.create(db=db, obj_in=obj_in)
+                db_obj: ModelReadings = await model_readings_crud.create(db=db, obj_in=obj_in)
 
+            # Broadcast the new prediction via WebSockets
             blockage_reading = ModelWebSocketResponse(
                 status="success", 
                 message="Retrieved successfully",
                 blockage_status = prediction
             )
 
-            await ws_manager.broadcast({
-                "type": "blockage_detection_update",
-                "data": blockage_reading.model_dump(mode='json')
-            })
+            await websocket_service.broadcast_update(
+                update_type="blockage_detection_update", 
+                data=blockage_reading.model_dump(mode='json')
+            )
+
+            # Update fusion analysis state
+            await fusion_analysis_state.calculate_visual_status_score(
+                blockage_status=BlockageStatus(
+                    status=prediction,
+                    timestamp=db_obj.timestamp
+                )
+            )
 
         except Exception as e:
             print(f"Failed to analyze frame {file_path}: {e}")

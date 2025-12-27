@@ -17,12 +17,18 @@ class ConnectionManager:
         Broadcast Message Format:
         {
             type: str
-            data: dict
+            data: {
+                status: str,
+                message: str,
+                data: (Actual data object depending on the type)
+            }
         }
 
         Sensor Reading Broadcast Type: "sensor_update"
         Model Reading Broadcast Type: "blockage_detection_update"
         Weather Condition Broadcast Type: "weather_update"
+
+        Fusion Analysis Broadcast Type: "fusion_analysis_update"
     """
     async def broadcast(self, message: dict):
         disconnected = []

@@ -1,7 +1,6 @@
-# app/api/v1/endpoints/websocket.py
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status, Depends
 from app.core.ws_manager import ws_manager
-from app.services.websocket_service import web_socket_service
+from app.services.websocket_service import websocket_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 
@@ -23,7 +22,7 @@ async def websocket_endpoint(websocket: WebSocket, db: AsyncSession = Depends(ge
     await ws_manager.connect(websocket)
     
     # Send initial data to the connected client
-    await web_socket_service.send_initial_data(websocket, db)
+    await websocket_service.send_initial_data(websocket, db)
 
     try:
         while True:

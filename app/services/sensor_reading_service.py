@@ -1,11 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas import SensorWebSocketResponse
+from app.schemas import SensorWebSocketResponse, WaterLevelStatus
 from app.services.cache_service import cache_service
 from app.models.sensor_readings import SensorReading
 from datetime import datetime, timezone
-from app.core.ws_manager import ws_manager
 from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
 from app.crud.sensor_devices import sensor_device as sensor_device_crud
+from app.core.state import fusion_analysis_state
 from app.schemas import SensorReadingResponse, SensorReadingCreate, SensorReadingPaginatedResponse, SensorDataRecordedResponse
 from app.schemas import SensorReadingSummary, WaterLevelSummary, AlertSummary
 
@@ -43,6 +43,7 @@ class SensorReadingService:
         return SensorReadingPaginatedResponse(items=items[:page_size], has_more=has_more)
 
     async def record_reading(self, db: AsyncSession, obj_in: SensorReadingCreate) -> SensorDataRecordedResponse:
+        from app.services.websocket_service import websocket_service
         
         # Verify sensor device exists
         if not await sensor_device_crud.get(db, id=obj_in.sensor_id):
@@ -67,18 +68,30 @@ class SensorReadingService:
         # Run the calculations and prepare summary
         calculated_reading_summary = await self.calculate_record_summary(db, db_reading)
 
+        # Broadcast to connected WebSocket clients
         sensor_reading_summary_response = SensorWebSocketResponse(
             status = "success", 
             message = "Retrieved successfully",
             sensor_reading = calculated_reading_summary
         )
 
-        # Broadcast to connected WebSocket clients
-        await ws_manager.broadcast({
-            "type": "sensor_update",
-            "data": sensor_reading_summary_response.model_dump(mode='json')
-        })
+        await websocket_service.broadcast_update(
+            update_type="sensor_update",
+            data=sensor_reading_summary_response.model_dump(mode='json')
+        )
 
+        # Update fusion analysis state
+        await fusion_analysis_state.calculate_water_level_score(
+            water_level_status=WaterLevelStatus(
+                water_level_cm=db_reading.water_level_cm,
+                timestamp = db_reading.timestamp,
+                critical_percentage = calculated_reading_summary.alert.percentage_of_critical,
+                trend = calculated_reading_summary.water_level.trend,
+                change_rate = calculated_reading_summary.water_level.change_rate
+            )
+        )
+
+        # Return acknowledgment to sensor device
         return SensorDataRecordedResponse(timestamp=db_reading.created_at, status="Success: Reading recorded")
 
     async def calculate_record_summary(self, db: AsyncSession, reading: SensorReading) -> SensorReadingSummary:
