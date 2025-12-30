@@ -6,7 +6,8 @@ from app.core.config import settings
 from datetime import timedelta
 from app.schemas import Token
 from datetime import datetime, timezone
-
+from app.models.admin_user import AdminUser
+from app.api.v1.dependencies import require_auth, CurrentUser
 
 class AuthService:
     
@@ -20,22 +21,32 @@ class AuthService:
                         detail="Invalid credentials",
                         headers={"WWW-Authenticate": "Bearer"},
                     )
+        
+        # Update last login
+        await admin_user_crud.update_last_login(db, user=user_in_db, last_login=datetime.now(timezone.utc))
 
-        access_token_expires = timedelta(days=settings.ACCESS_TOKEN_EXPIRE_DAYS)
+        access_token = self._create_token(user=user_in_db)
+        return Token(access_token=access_token, token_type="bearer")
+
+    async def change_user_password(self, db: AsyncSession, new_password: str, user: CurrentUser) -> Token:
+        user_id = user.id
+        user_in_db: AdminUser = await admin_user_crud.update_password(db, user_id=user_id, new_password=new_password)
+        
+        access_token = self._create_token(user=user_in_db)
+        return Token(access_token=access_token, token_type="bearer")
+
+    def _create_token(self, user: AdminUser) -> str:
         user_data_for_token = {
-            "sub": str(user_in_db.id), # Mandatory, used for identifying the user
+            "sub": str(user.id), # Mandatory, used for identifying the user
 
             # Additional custom claims
-            "is_superuser": user_in_db.is_superuser,
-            "is_active": user_in_db.is_active,
-            "force_password_change": user_in_db.force_password_change,
+            "is_superuser": user.is_superuser,
+            "is_active": user.is_active,
+            "force_password_change": user.force_password_change,
         }
 
-        # Update last login
-        user_in_db.last_login = datetime.now(timezone.utc)
-        await db.commit()
-
+        access_token_expires = timedelta(days=settings.ACCESS_TOKEN_EXPIRE_DAYS)
         access_token = create_access_token(data=user_data_for_token, expires_delta=access_token_expires)
-        return Token(access_token=access_token, token_type="bearer")
+        return access_token
 
 auth_service = AuthService()

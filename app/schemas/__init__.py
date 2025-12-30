@@ -6,7 +6,7 @@ from .sensor_devices import SensorDeviceCreate, SensorDeviceResponse
 from .sensor_reading import SensorReadingCreate, SensorReadingResponse, SensorReadingPaginatedResponse, SensorDataRecordedResponse, SensorReadingMinimalResponse
 from .model_readings import ModelReadingCreate, ModelReadingResponse
 from .admin_audit_log import AdminAuditLogCreate, AdminAuditLogPaginatedResponse, AdminAuditLogResponse
-from .auth import LoginRequest
+from .auth import LoginRequest, ChangePasswordRequest
 from .stream import StreamStatus, FrameResponse, FrameListResponse, FrameListItem
 from .weather import WeatherCreate, WeatherBase, WeatherConditionResponse
 

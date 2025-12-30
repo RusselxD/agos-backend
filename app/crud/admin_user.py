@@ -6,6 +6,8 @@ from app.crud.base import CRUDBase
 from app.core.security import get_password_hash
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
+from fastapi import HTTPException, status
+from datetime import datetime
 
 class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, AdminUserUpdate]):
     
@@ -46,5 +48,27 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, AdminUserUpdate]):
         await db.commit()
         await db.refresh(db_obj)
         return db_obj
+
+    async def update_password(self, db: AsyncSession, user_id: str, new_password: str) -> AdminUser:
+        result = await db.execute(
+            select(AdminUser).filter(AdminUser.id == user_id)
+        )
+        user = result.scalars().first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+    
+        user.hashed_password = get_password_hash(new_password)
+        user.force_password_change = False
+
+        await db.commit()
+        await db.refresh(user)
+        return user
+
+    async def update_last_login(self, db: AsyncSession, user: AdminUser, last_login: datetime) -> None:
+        user.last_login = last_login
+        await db.commit()
 
 admin_user = CRUDAdminUser(AdminUser)   
