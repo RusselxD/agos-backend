@@ -4,6 +4,9 @@ class LoginRequest(BaseModel):
     phone_number: str
     password: str
 
+class ChangePasswordRequest(BaseModel):
+    new_password: str
+
 # class LoginResponse(BaseModel):
 #     access_token: str
 #     token_type: str = "bearer"
