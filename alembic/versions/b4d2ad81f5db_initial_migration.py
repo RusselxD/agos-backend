@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: 0e416ca54f98
+Revision ID: b4d2ad81f5db
 Revises: 
-Create Date: 2025-12-28 02:46:56.969129
+Create Date: 2026-01-04 10:30:16.860732
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '0e416ca54f98'
+revision: str = 'b4d2ad81f5db'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -52,6 +52,15 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_model_readings_id'), 'model_readings', ['id'], unique=False)
+    op.create_table('responders_otp_verification',
+    sa.Column('phone_number', sa.String(length=20), nullable=False),
+    sa.Column('otp_hash', sa.String(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('attempt_count', sa.Integer(), nullable=False),
+    sa.PrimaryKeyConstraint('phone_number')
+    )
+    op.create_index(op.f('ix_responders_otp_verification_phone_number'), 'responders_otp_verification', ['phone_number'], unique=False)
     op.create_table('sensor_devices',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('device_name', sa.String(length=100), nullable=False),
@@ -84,6 +93,20 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['admin_id'], ['admin_users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('responders',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('phone_number', sa.String(length=20), nullable=False),
+    sa.Column('first_name', sa.String(length=50), nullable=False),
+    sa.Column('last_name', sa.String(length=50), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('status', sa.Enum('pending', 'approved', name='responder_status'), nullable=False),
+    sa.Column('id_photo_path', sa.String(length=255), nullable=False),
+    sa.Column('approved_by', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['approved_by'], ['admin_users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_responders_id'), 'responders', ['id'], unique=False)
+    op.create_index(op.f('ix_responders_phone_number'), 'responders', ['phone_number'], unique=True)
     op.create_table('sensor_readings',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('sensor_id', sa.Integer(), nullable=False),
@@ -117,12 +140,17 @@ def downgrade() -> None:
     op.drop_table('weather')
     op.drop_index(op.f('ix_sensor_readings_id'), table_name='sensor_readings')
     op.drop_table('sensor_readings')
+    op.drop_index(op.f('ix_responders_phone_number'), table_name='responders')
+    op.drop_index(op.f('ix_responders_id'), table_name='responders')
+    op.drop_table('responders')
     op.drop_table('password_reset_otps')
     op.drop_index(op.f('ix_admin_audit_logs_id'), table_name='admin_audit_logs')
     op.drop_table('admin_audit_logs')
     op.drop_table('system_settings')
     op.drop_index(op.f('ix_sensor_devices_id'), table_name='sensor_devices')
     op.drop_table('sensor_devices')
+    op.drop_index(op.f('ix_responders_otp_verification_phone_number'), table_name='responders_otp_verification')
+    op.drop_table('responders_otp_verification')
     op.drop_index(op.f('ix_model_readings_id'), table_name='model_readings')
     op.drop_table('model_readings')
     op.drop_index(op.f('ix_admin_users_phone_number'), table_name='admin_users')

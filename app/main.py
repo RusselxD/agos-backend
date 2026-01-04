@@ -9,8 +9,9 @@ from app.core.config import settings
 from app.api.v1.endpoints.websocket import router as ws_router
 from app.services.stream import stream_processor
 from prometheus_fastapi_instrumentator import Instrumentator
-from app.services.ml_service import ml_service
+from app.services import ml_service
 from app.services.weather_service import weather_service
+from app.services.database_cleanup_service import database_cleanup_service
 from app.core.database import AsyncSessionLocal
 from app.core.state import fusion_analysis_state
 
@@ -21,6 +22,7 @@ async def lifespan(app: FastAPI):
     await stream_processor.start()
     await ml_service.start()
     await weather_service.start()
+    await database_cleanup_service.start()
 
     # Initialize Fusion Analysis State with latest data
     async with AsyncSessionLocal() as db:
@@ -35,6 +37,7 @@ async def lifespan(app: FastAPI):
     await stream_processor.stop()
     await ml_service.stop()
     await weather_service.stop()
+    await database_cleanup_service.stop()
 
 # Create FastAPI app with lifespan
 app = FastAPI(
@@ -60,6 +63,11 @@ app.include_router(api_router, prefix="/api/v1")
 hls_path = Path(settings.HLS_OUTPUT_DIR)
 hls_path.mkdir(parents=True, exist_ok=True)
 app.mount("/hls", StaticFiles(directory=str(hls_path)), name="hls")
+
+# Serve other static storage files (e.g., responder IDs)
+storage_path = Path("app/storage")
+storage_path.mkdir(parents=True, exist_ok=True)
+app.mount("/app/storage", StaticFiles(directory=str(storage_path)), name="storage")
 
 # Add Prometheus metrics
 Instrumentator().instrument(app).expose(app)
