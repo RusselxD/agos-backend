@@ -5,6 +5,11 @@ from typing import Union
 
 class Settings(BaseSettings):
 
+    OTP_LENGTH: int = 6
+    OTP_ATTEMPT_LIMIT: int = 5
+    OTP_EXPIRY_MINUTES: int = 10
+    OTP_RESEND_COOLDOWN_SECONDS: int = 60
+
     FFMPEG_PATH: str = "ffmpeg"  # Default to 'ffmpeg' in PATH
 
     # Stream Configuration

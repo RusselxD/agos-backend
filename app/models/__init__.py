@@ -6,4 +6,6 @@ from .sensor_readings import SensorReading
 from .model_readings import ModelReadings
 from .system_settings import SystemSettings
 from .weather import Weather
+from .responders import Responders
+from .responders_otp_verification import RespondersOTPVerification
 from .base import Base
