@@ -130,7 +130,7 @@ class MLService:
                     confidence=confidence,
                     image_path=str(file_path)
                 )
-                db_obj: ModelReadings = await model_readings_crud.create(db=db, obj_in=obj_in)
+                db_obj: ModelReadings = await model_readings_crud.create_and_return(db=db, obj_in=obj_in)
 
             # Broadcast the new prediction via WebSockets
             blockage_reading = ModelWebSocketResponse(

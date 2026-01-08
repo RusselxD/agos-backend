@@ -11,9 +11,12 @@ from app.schemas import SensorReadingSummary, WaterLevelSummary, AlertSummary
 
 class SensorReadingService:
 
-    async def get_items_paginated(self, db: AsyncSession, page: int = 1, page_size: int = 10) -> SensorReadingPaginatedResponse:
+    async def get_items_paginated(self, 
+                                db: AsyncSession, 
+                                page: int = 1, 
+                                page_size: int = 10) -> SensorReadingPaginatedResponse:
 
-        db_items = await sensor_reading_crud.get_items_paginated(db, page=page, page_size=page_size)
+        db_items = await sensor_reading_crud.get_items_paginated(db=db, page=page, page_size=page_size)
 
         items = []
         # Process each item to determine status and change rate
@@ -46,11 +49,11 @@ class SensorReadingService:
         from app.services.websocket_service import websocket_service
         
         # Verify sensor device exists
-        if not await sensor_device_crud.get(db, id=obj_in.sensor_id):
+        if not await sensor_device_crud.get(db=db, id=obj_in.sensor_id):
             return SensorDataRecordedResponse(timestamp=datetime.now(timezone.utc), status="Error: Sensor device not found")
 
         # Get cached sensor installation height and calculate water level
-        sensor_height = (await cache_service.get_sensor_config(db)).installation_height
+        sensor_height = (await cache_service.get_sensor_config(db=db)).installation_height
         water_level_cm = sensor_height - obj_in.raw_distance_cm
 
         # Convert Pydantic model to dict
@@ -61,13 +64,10 @@ class SensorReadingService:
         db_obj.water_level_cm = water_level_cm
 
         # Save to database
-        db_reading = await sensor_reading_crud.create_record(
-            db, db_obj=db_obj,
-        )
+        db_reading = await sensor_reading_crud.create_record(db=db, db_obj=db_obj)
 
         # Run the calculations and prepare summary
-        calculated_reading_summary = await self.calculate_record_summary(db, db_reading)
-
+        calculated_reading_summary = await self.calculate_record_summary(db=db, reading=db_reading)
         # Broadcast to connected WebSocket clients
         sensor_reading_summary_response = SensorWebSocketResponse(
             status = "success", 
@@ -96,12 +96,11 @@ class SensorReadingService:
 
     async def calculate_record_summary(self, db: AsyncSession, reading: SensorReading) -> SensorReadingSummary:
 
-        prev_reading = await sensor_reading_crud.get_previous_reading(db, reading.timestamp)
+        prev_reading = await sensor_reading_crud.get_previous_reading(db=db, before_timestamp=reading.timestamp)
         current_cm = reading.water_level_cm
 
-        water_level_summary = self._calculate_water_level_summary(current_cm, prev_reading)
-        alert_summary = await self._calculate_alert_summary(current_cm, db)
-
+        water_level_summary = self._calculate_water_level_summary(current_cm=current_cm, prev_reading=prev_reading)
+        alert_summary = await self._calculate_alert_summary(current_cm=current_cm, db=db)
         return SensorReadingSummary(
             timestamp = reading.timestamp,
             water_level = water_level_summary,
@@ -127,7 +126,7 @@ class SensorReadingService:
         )
 
     async def _calculate_alert_summary(self, current_cm: float, db: AsyncSession) -> AlertSummary:
-        sensor_config = await cache_service.get_sensor_config(db)\
+        sensor_config = await cache_service.get_sensor_config(db=db)
         
         current_cm = float(current_cm)
         warn = float(sensor_config.warning_threshold)

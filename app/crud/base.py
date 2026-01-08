@@ -17,19 +17,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         )
         return result.scalars().first()
     
-    # async def get_multi(self, db: AsyncSession, skip: int = 0, limit: int = 10) -> List[ModelType]:
-    #     result = await db.execute(
-    #         select(self.model).offset(skip).limit(limit)
-    #     )
-    #     return result.scalars().all()
-
     async def get_all(self, db: AsyncSession) -> List[ModelType]:
         result = await db.execute(
             select(self.model)
         )
         return result.scalars().all()
     
-    async def create(self, db: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
+    async def create_and_return(self, db: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = obj_in.model_dump()
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
@@ -37,6 +31,12 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await db.refresh(db_obj)
         return db_obj
     
+    async def create_only(self, db: AsyncSession, obj_in: CreateSchemaType) -> None:
+        obj_in_data = obj_in.model_dump()
+        db_obj = self.model(**obj_in_data)
+        db.add(db_obj)
+        await db.commit()
+
     async def create_multi(self, db: AsyncSession, objs_in: List[CreateSchemaType]) -> List[ModelType]:
         db_objs = []
         for obj_in in objs_in:

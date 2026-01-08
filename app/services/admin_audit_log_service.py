@@ -4,9 +4,9 @@ from app.schemas import AdminAuditLogPaginatedResponse, AdminAuditLogResponse
 from app.crud.admin_audit_log import admin_audit_logs as admin_audit_log_crud
 
 class AdminAuditLogService:
-    async def get_admin_logs_paginated(self, db: AsyncSession, page: int = 1, page_size: int = 10) -> AdminAuditLogPaginatedResponse:
+    async def get_admin_logs_paginated(self, db: AsyncSession, page: int, page_size: int) -> AdminAuditLogPaginatedResponse:
 
-        db_items: list[AdminAuditLog] = await admin_audit_log_crud.get_paginated(db, page, page_size)
+        db_items: list[AdminAuditLog] = await admin_audit_log_crud.get_paginated(db=db, page=page, page_size=page_size)
 
         items = [
             AdminAuditLogResponse(

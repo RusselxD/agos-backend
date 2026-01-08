@@ -8,3 +8,4 @@ from .weather_service import weather_service
 from .responder_service import responder_service
 from .ml_service import ml_service
 from .upload_service import upload_service
+from .stream import stream_processor, frame_manager

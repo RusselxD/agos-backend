@@ -9,12 +9,12 @@ from app.core.config import settings
 class SensorDeviceService:
     
     async def get_device_status(self, db: AsyncSession, id: int = 1) -> SensorDeviceResponse | None:
-        sensor_device = await sensor_device_crud.get(db, id=id)
+        sensor_device = await sensor_device_crud.get(db=db, id=id)
 
         if not sensor_device:
             raise HTTPException(status_code=404, detail="Sensor device not found")
 
-        latest_reading = await sensor_reading_crud.get_latest_reading(db, sensor_id=id)
+        latest_reading = await sensor_reading_crud.get_latest_reading(db=db, sensor_id=id)
 
         # Default values if no readings yet
         if not latest_reading:
@@ -30,12 +30,6 @@ class SensorDeviceService:
         now = datetime.now(latest_reading.timestamp.tzinfo)
         time_since = now - latest_reading.timestamp
 
-        """
-            Sensor sends data every 3 minutes.
-            Grace Period: 4 minutes (Online)
-            Warning Period: 6 minutes (Warning)
-            Beyond 6 minutes: (Offline)
-        """
         if time_since <= timedelta(minutes=settings.SENSOR_GRACE_PERIOD_MINUTES):
             connection = "Online"
         elif time_since <= timedelta(minutes=settings.SENSOR_WARNING_PERIOD_MINUTES):
@@ -53,6 +47,7 @@ class SensorDeviceService:
             signal=None
         )
 
+        # Normal response with signal quality
         return SensorDeviceResponse(
             device_name=sensor_device.device_name,
             location=sensor_device.location,

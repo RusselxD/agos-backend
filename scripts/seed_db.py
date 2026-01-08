@@ -32,7 +32,7 @@ async def seed_superuser(db):
         print("ℹ️  Test admin user already exists. Skipping seeding.")
         return
     
-    new_user: AdminUser = await admin_user_crud.create(db, obj_in=test_user)
+    new_user: AdminUser = await admin_user_crud.create_and_return(db=db, obj_in=test_user)
     await db.flush()  # Flush to get the ID before creating log
     print("✅ Seeded test admin user.")
 
@@ -40,7 +40,7 @@ async def seed_superuser(db):
         admin_user_id=new_user.id,
         action="Super Admin created by the system."
     )
-    await admin_audit_logs_crud.create(db, obj_in=seeded_user_log)
+    await admin_audit_logs_crud.create_only(db=db, obj_in=seeded_user_log)
     print("✅ Seeded admin audit log.")
 
 async def seed_settings(db):
@@ -61,7 +61,7 @@ async def seed_sensor_device(db):
         latitude=14.69
     )
 
-    await sensor_device_crud.create(db, obj_in=initial_sensor)
+    await sensor_device_crud.create_only(db=db, obj_in=initial_sensor)
     print("✅ Seeded initial sensor device.")
 
 async def seed_db():

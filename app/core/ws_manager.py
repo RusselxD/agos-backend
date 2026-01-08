@@ -4,13 +4,13 @@ class ConnectionManager:
     def __init__(self):
         self.active: list[WebSocket] = []
 
-    async def connect(self, ws: WebSocket):
-        self.active.append(ws)
+    async def connect(self, websocket: WebSocket):
+        self.active.append(websocket)
         print(f"Client connected. Total connections: {len(self.active)}")
     
-    async def disconnect(self, ws: WebSocket):
-        if ws in self.active:
-            self.active.remove(ws)
+    async def disconnect(self, websocket: WebSocket):
+        if websocket in self.active:
+            self.active.remove(websocket)
             print(f"Client disconnected. Total connections: {len(self.active)}")
 
     """

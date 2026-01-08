@@ -10,7 +10,9 @@ router = APIRouter()
 
 @router.post("/login", response_model=Token)
 async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)) -> Token:
-    return await auth_service.authenticate_user(db, login_data.phone_number, login_data.password)
+    return await auth_service.authenticate_user(db=db, 
+                                                phone_number=login_data.phone_number, 
+                                                password=login_data.password)
 
 @router.post("/change-password", response_model=Token)
 async def change_password(
@@ -19,6 +21,5 @@ async def change_password(
     user: CurrentUser = Depends(require_auth)) -> Token:
     
     return await auth_service.change_user_password(db=db, new_password=request.new_password, user=user)
-
 
 # dependencies=[Depends(require_superuser)] for protecting the route if needed

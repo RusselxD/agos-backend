@@ -12,9 +12,9 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
     # For getting the latest reading for a specific sensor
     async def get_latest_reading(self, db: AsyncSession, sensor_id: int = 1) -> SensorReading | None:
         result = await db.execute(
-            select(SensorReading)
-            .filter(SensorReading.sensor_id == sensor_id)
-            .order_by(SensorReading.timestamp.desc())
+            select(self.model)
+            .filter(self.model.sensor_id == sensor_id)
+            .order_by(self.model.timestamp.desc())
             .limit(1)
         )
         return result.scalars().first()
@@ -22,9 +22,9 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
     # For getting the previous reading before a specific timestamp
     async def get_previous_reading(self, db: AsyncSession, before_timestamp: datetime) -> SensorReading | None:
         result = await db.execute(
-            select(SensorReading)
-            .filter(SensorReading.timestamp < before_timestamp)
-            .order_by(SensorReading.timestamp.desc())
+            select(self.model)
+            .filter(self.model.timestamp < before_timestamp)
+            .order_by(self.model.timestamp.desc())
             .limit(1)
         )
         return result.scalars().first()
@@ -33,19 +33,19 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
     async def get_items_paginated(self, db: AsyncSession, page: int = 1, page_size: int = 10) -> List[SensorReadingMinimalResponse]:
 
         # Use LAG window function to get previous reading's water level
-        prev_water_level = func.lag(SensorReading.water_level_cm).over(
-            order_by=SensorReading.timestamp
+        prev_water_level = func.lag(self.model.water_level_cm).over(
+            order_by=self.model.timestamp
         ).label("prev_water_level")
 
         skip = (page - 1) * page_size
         query = (
             select(
-                SensorReading.id,
-                SensorReading.timestamp, 
-                SensorReading.water_level_cm,
+                self.model.id,
+                self.model.timestamp, 
+                self.model.water_level_cm,
                 prev_water_level,
             )
-            .order_by(SensorReading.timestamp.desc())
+            .order_by(self.model.timestamp.desc())
             .join(SensorDevice)
             .offset(skip)
             .limit(page_size + 1)

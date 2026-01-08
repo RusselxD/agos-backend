@@ -5,7 +5,7 @@ from pathlib import Path
 
 from app.schemas import StreamStatus, FrameResponse, FrameListResponse
 
-from app.services.stream import stream_processor, frame_manager
+from app.services import stream_processor, frame_manager
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)

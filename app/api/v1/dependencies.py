@@ -18,8 +18,8 @@ class CurrentUser:
 
 async def require_auth(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_db)
-) -> CurrentUser:
+    db: AsyncSession = Depends(get_db)) -> CurrentUser:
+
     """Check if user is logged in (has valid token)"""
     token = credentials.credentials
     
@@ -67,8 +67,8 @@ async def require_auth(
 
 
 async def require_superuser(
-    current_user: CurrentUser = Depends(require_auth)
-) -> CurrentUser:
+    current_user: CurrentUser = Depends(require_auth)) -> CurrentUser:
+    
     """Check if user is logged in AND is a superuser"""
     if not current_user.is_superuser:
         raise HTTPException(

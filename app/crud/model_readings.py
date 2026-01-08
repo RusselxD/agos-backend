@@ -8,8 +8,8 @@ class CRUDModelReadings(CRUDBase[ModelReadings, ModelReadingCreate, None]):
     
     async def get_latest_reading(self, db: AsyncSession) -> ModelReadings | None:
         result = await db.execute(
-            select(ModelReadings.status, ModelReadings.timestamp)
-            .order_by(ModelReadings.timestamp.desc())
+            select(self.model.status, self.model.timestamp)
+            .order_by(self.model.timestamp.desc())
             .limit(1)
         )
         return result.mappings().first()

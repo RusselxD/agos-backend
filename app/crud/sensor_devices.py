@@ -7,7 +7,7 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
     async def get_coordinates(self, db: AsyncSession, id: int = 1) -> tuple[float, float] | None:
         result = await db.execute(
-            select(SensorDevice.latitude, SensorDevice.longitude).filter(SensorDevice.id == id)
+            select(self.model.latitude, self.model.longitude).filter(self.model.id == id)
         )
         row = result.first()
         if row:

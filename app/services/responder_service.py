@@ -18,20 +18,21 @@ class ResponderService:
     """
     async def verify_otp(self, verify_request: ResponderOTPVerifyRequest, db: AsyncSession) -> tuple[bool, str, bool]:
         
-        record: OTPModel = await responder_otp_verification_crud.get_by_phone_number(db, verify_request.phone_number)
+        record: OTPModel = await responder_otp_verification_crud.get_by_phone_number(db=db, 
+                                                                                    phone_number=verify_request.phone_number)
         if not record or not record.otp_hash:
             return False, "No OTP request found for this phone number.", True
         
         # expired OTP
         if record.expires_at < datetime.now(timezone.utc):
-            await responder_otp_verification_crud.delete(db, obj=record)
+            await responder_otp_verification_crud.delete(db=db, obj=record)
             return False, "OTP has expired. Please request a new one.", True
 
-        if not verify_otp(verify_request.otp, record.otp_hash):
+        if not verify_otp(plain_otp=verify_request.otp, hashed_otp=record.otp_hash):
             record.attempt_count += 1
             
             if record.attempt_count >= settings.OTP_ATTEMPT_LIMIT:
-                await responder_otp_verification_crud.delete(db, obj=record)
+                await responder_otp_verification_crud.delete(db=db, obj=record)
                 return False, "Too many incorrect attempts. Please request a new OTP.", True
             
             # Save the new attempt count
@@ -39,22 +40,22 @@ class ResponderService:
             return False, "Incorrect OTP Code.", False
 
         # 3. Success Logic: Cleanup
-        await responder_otp_verification_crud.delete(db, obj=record)
+        await responder_otp_verification_crud.delete(db=db, obj=record)
         return True, "", False
 
     async def send_otp(self, phone_number: str, db: AsyncSession) -> tuple[bool, str]:
         # 1. Check if we can send and get the existing record in one go
-        can_send, message, existing_record = await self._can_send_otp(phone_number, db)
+        can_send, message, existing_record = await self._can_send_otp(phone_number, db=db)
         if not can_send:
             return False, message
         
         # 2. If a record exists (but is valid to be replaced), delete it now
         if existing_record:
-            await responder_otp_verification_crud.delete(db, obj=existing_record)
+            await responder_otp_verification_crud.delete(db=db, obj=existing_record)
         
         # 3. Generate and Store
         otp = "".join(random.choices("0123456789", k=settings.OTP_LENGTH))
-        otp_hash = get_otp_hash(otp)
+        otp_hash = get_otp_hash(otp=otp)
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
         
         obj_in = ResponderOTPVerificationCreate(
@@ -62,17 +63,17 @@ class ResponderService:
             otp_hash=otp_hash,
             expires_at=expires_at,
         )
-        await responder_otp_verification_crud.create(db=db, obj_in=obj_in)
+        await responder_otp_verification_crud.create_only(db=db, obj_in=obj_in)
         
         print(f"OTP for {phone_number}: {otp}") # Test only
         return True, "OTP sent successfully."
 
     async def _can_send_otp(self, phone_number: str, db: AsyncSession) -> tuple[bool, str, OTPModel | None]:
         # Check registration
-        if await responder_crud.record_exists(db, phone_number):
+        if await responder_crud.record_exists(db=db, phone_number=phone_number):
             return False, "Phone number is already registered.", None
 
-        record = await responder_otp_verification_crud.get_by_phone_number(db, phone_number)
+        record = await responder_otp_verification_crud.get_by_phone_number(db=db, phone_number=phone_number)
         if not record:
             return True, "", None
 
@@ -98,6 +99,6 @@ class ResponderService:
         return True, "", record
 
     async def create_responder(self, responder_data: ResponderCreate, db: AsyncSession) -> None:
-        await responder_crud.create(db=db, obj_in=responder_data)
+        await responder_crud.create_only(db=db, obj_in=responder_data)
 
 responder_service = ResponderService()

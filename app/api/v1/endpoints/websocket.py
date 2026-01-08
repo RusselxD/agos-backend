@@ -19,13 +19,13 @@ async def websocket_endpoint(websocket: WebSocket, db: AsyncSession = Depends(ge
         return
 
     # Add the WebSocket connection to the manager
-    await ws_manager.connect(websocket)
+    await ws_manager.connect(websocket=websocket)
     
     # Send initial data to the connected client
-    await websocket_service.send_initial_data(websocket, db)
+    await websocket_service.send_initial_data(websocket=websocket, db=db)
 
     try:
         while True:
             await websocket.receive_text() # Keep the connection alive
     except WebSocketDisconnect:
-        await ws_manager.disconnect(websocket)
+        await ws_manager.disconnect(websocket=websocket)

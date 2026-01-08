@@ -9,7 +9,7 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, SystemSettingsCreate, SystemSe
     
     async def get(self, db: AsyncSession, key: str) -> SystemSettings | None:
         result = await db.execute(
-            select(SystemSettings).filter(SystemSettings.key == key)
+            select(self.model).filter(self.model.key == key)
         )
         return result.scalars().first()
 

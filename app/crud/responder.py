@@ -43,7 +43,7 @@ class CRUDResponder(CRUDBase[None, None, None]):
 
     async def record_exists(self, db, phone_number: str) -> bool:
         result = await db.execute(
-            select(exists().where(Responders.phone_number == phone_number))
+            select(exists().where(self.model.phone_number == phone_number))
         )
         return result.scalar()
 

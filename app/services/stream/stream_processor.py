@@ -76,6 +76,7 @@ class StreamProcessor:
             
             # --- INPUT CONFIGURATION ---
             # '-re',                      # Remove this for better buffering
+            '-rtsp_transport', 'tcp',   # Force TCP for reliability
             '-i', settings.STREAM_URL,  # The Source (RTSP/RTMP/HTTP)
             
             # Resilience: Keep trying to connect if network blips

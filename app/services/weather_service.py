@@ -100,7 +100,7 @@ class WeatherService:
     async def _fetch_weather(self, db: AsyncSession, sensor_id: int) -> tuple[int, float]:
 
         # Get sensor device coordinates from cache service
-        lat, lon = await cache_service.get_sensor_coords(db, sensor_id)
+        lat, lon = await cache_service.get_sensor_coords(db=db, sensor_id=sensor_id)
 
         if not lat or not lon:
             raise HTTPException(status_code=404, detail="Sensor device coordinates not found")
@@ -118,14 +118,14 @@ class WeatherService:
             except httpx.HTTPError as e:
                 raise HTTPException(status_code=500, detail=f"Error fetching weather data: {str(e)}")
 
-    async def _save_fetched_weather(self, db: AsyncSession, sensor_id: int, precipitation_mm: float, weather_code: int):
+    async def _save_fetched_weather(self, db: AsyncSession, sensor_id: int, precipitation_mm: float, weather_code: int) -> Weather:
         obj_in = WeatherCreate(
             sensor_id=sensor_id,
             precipitation_mm=precipitation_mm,
             weather_code=weather_code
         )
 
-        return await weather_crud.create(db=db, obj_in=obj_in)
+        return await weather_crud.create_and_return(db=db, obj_in=obj_in)
 
     def _get_weather_condition(self, weather_code: int) -> str:
         if weather_code == 0: # Clear sky

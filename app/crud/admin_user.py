@@ -32,7 +32,7 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, AdminUserUpdate]):
 
     async def get_by_phone(self, db: AsyncSession, phone_number: str):
         result = await db.execute(
-            select(AdminUser).filter(AdminUser.phone_number == phone_number)
+            select(self.model).filter(self.model.phone_number == phone_number)
         )
         return result.scalars().first()
     

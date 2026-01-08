@@ -43,14 +43,14 @@ class FusionAnalysisState:
         from datetime import datetime, timezone, timedelta
 
         # --- 1. Load Sensor Reading (Water Level) ---
-        latest_sensor = await sensor_reading_crud.get_latest_reading(db)
+        latest_sensor = await sensor_reading_crud.get_latest_reading(db=db)
         if latest_sensor:
             # Check if data is within the acceptable warning period (not too stale)
             is_valid = latest_sensor.timestamp >= datetime.now(timezone.utc) - timedelta(minutes=settings.SENSOR_WARNING_PERIOD_MINUTES)
             
             if is_valid:
                 # Calculate summary to get trend and critical percentage
-                summary = await sensor_reading_service.calculate_record_summary(db, latest_sensor)
+                summary = await sensor_reading_service.calculate_record_summary(db=db, reading=latest_sensor)
                 
                 self.water_level_status = WaterLevelStatus(
                     timestamp=latest_sensor.timestamp,
@@ -61,7 +61,7 @@ class FusionAnalysisState:
                 )
 
         # --- 2. Load Model Reading (Blockage) ---
-        latest_model = await model_readings_crud.get_latest_reading(db)
+        latest_model = await model_readings_crud.get_latest_reading(db=db)
         if latest_model:
             # Check if data is within the acceptable warning period
             model_timestamp = latest_model["timestamp"]
