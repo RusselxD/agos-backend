@@ -8,13 +8,13 @@ from app.core.config import settings
 
 class SensorDeviceService:
     
-    async def get_device_status(self, db: AsyncSession, id: int) -> SensorDeviceStatusResponse:
-        sensor_device: SensorDeviceResponse = await sensor_device_crud.get(db=db, id=id)
+    async def get_device_status(self, db: AsyncSession, sensor_device_id: int) -> SensorDeviceStatusResponse:
+        sensor_device: SensorDeviceResponse = await sensor_device_crud.get(db=db, id=sensor_device_id)
 
         if not sensor_device:
             raise HTTPException(status_code=404, detail="Sensor device not found")
 
-        latest_reading = await sensor_reading_crud.get_latest_reading(db=db, sensor_id=id)
+        latest_reading = await sensor_reading_crud.get_latest_reading(db=db, sensor_device_id=sensor_device_id)
 
         # Default values if no readings yet
         if not latest_reading:
