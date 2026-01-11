@@ -1,11 +1,9 @@
 from pydantic import BaseModel
 from datetime import datetime
 
-class WeatherBase(BaseModel):
+class WeatherCreate(BaseModel):
+    location_id: int
     precipitation_mm: float
-
-class WeatherCreate(WeatherBase):
-    sensor_id: int
     weather_code: int
 
 class WeatherConditionResponse(BaseModel):

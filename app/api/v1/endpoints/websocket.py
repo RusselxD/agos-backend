@@ -10,6 +10,7 @@ router = APIRouter()
 async def websocket_endpoint(websocket: WebSocket, db: AsyncSession = Depends(get_db)):
 
     token = websocket.query_params.get("token")
+    location_id = websocket.query_params.get("location_id")
     
     # Accept the WebSocket connection
     await websocket.accept()
@@ -17,15 +18,26 @@ async def websocket_endpoint(websocket: WebSocket, db: AsyncSession = Depends(ge
     if not token:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
         return
+    
+    if not location_id:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing location_id")
+        return
+    
+    # Convert location_id to int
+    try:
+        location_id = int(location_id)
+    except ValueError:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid location_id")
+        return
 
     # Add the WebSocket connection to the manager
-    await ws_manager.connect(websocket=websocket)
+    await ws_manager.connect(websocket=websocket, location_id=location_id)
     
     # Send initial data to the connected client
-    await websocket_service.send_initial_data(websocket=websocket, db=db)
+    await websocket_service.send_initial_data(websocket=websocket, db=db, location_id=location_id)
 
     try:
         while True:
             await websocket.receive_text() # Keep the connection alive
     except WebSocketDisconnect:
-        await ws_manager.disconnect(websocket=websocket)
+        await ws_manager.disconnect(websocket=websocket, location_id=location_id)

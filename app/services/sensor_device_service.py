@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas import SensorDeviceResponse
-from app.crud.sensor_devices import sensor_device as sensor_device_crud
+from app.schemas import SensorDeviceResponse, SensorDeviceStatusResponse
+from app.crud.sensor_device import sensor_device as sensor_device_crud
 from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
 from datetime import datetime, timedelta
 from fastapi import HTTPException
@@ -8,8 +8,8 @@ from app.core.config import settings
 
 class SensorDeviceService:
     
-    async def get_device_status(self, db: AsyncSession, id: int = 1) -> SensorDeviceResponse | None:
-        sensor_device = await sensor_device_crud.get(db=db, id=id)
+    async def get_device_status(self, db: AsyncSession, id: int) -> SensorDeviceStatusResponse:
+        sensor_device: SensorDeviceResponse = await sensor_device_crud.get(db=db, id=id)
 
         if not sensor_device:
             raise HTTPException(status_code=404, detail="Sensor device not found")
@@ -18,9 +18,9 @@ class SensorDeviceService:
 
         # Default values if no readings yet
         if not latest_reading:
-            return SensorDeviceResponse(
+            return SensorDeviceStatusResponse(
                 device_name=sensor_device.device_name,
-                location=sensor_device.location,
+                                location_name=sensor_device.location_name,
                 connection="Offline",
                 last_updated=None,
                 signal=None
@@ -39,18 +39,18 @@ class SensorDeviceService:
 
         # Response if the last reading is way off the grace period
         if connection == "Offline":
-            return SensorDeviceResponse(
+            return SensorDeviceStatusResponse(
             device_name=sensor_device.device_name,
-            location=sensor_device.location,
+                            location_name=sensor_device.location_name,
             connection=connection,
             last_updated=latest_reading.timestamp.isoformat(),
             signal=None
         )
 
         # Normal response with signal quality
-        return SensorDeviceResponse(
+        return SensorDeviceStatusResponse(
             device_name=sensor_device.device_name,
-            location=sensor_device.location,
+                            location_name=sensor_device.location_name,
             connection=connection,
             last_updated=latest_reading.timestamp.isoformat(),
             signal=latest_reading.signal_quality

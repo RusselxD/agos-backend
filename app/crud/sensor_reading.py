@@ -1,19 +1,19 @@
 import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.sensor_readings import SensorReading
+from app.models import SensorReading
 from app.schemas import SensorReadingMinimalResponse, SensorReadingCreate
 from app.crud.base import CRUDBase
-from app.models.sensor_devices import SensorDevice
+from app.models import SensorDevice
 from sqlalchemy import func, select
 from typing import List
 
 class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
 
     # For getting the latest reading for a specific sensor
-    async def get_latest_reading(self, db: AsyncSession, sensor_id: int = 1) -> SensorReading | None:
+    async def get_latest_reading(self, db: AsyncSession, sensor_device_id: int) -> SensorReading | None:
         result = await db.execute(
             select(self.model)
-            .filter(self.model.sensor_id == sensor_id)
+            .filter(self.model.sensor_device_id == sensor_device_id)
             .order_by(self.model.timestamp.desc())
             .limit(1)
         )

@@ -1,63 +1,129 @@
-from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas import SensorConfigResponse, AlertThresholdsResponse
+from app.schemas import SensorConfigResponse, AlertThresholdsResponse, LocationCoordinate, DevicePerLocation
 from app.crud.system_settings import system_settings as system_settings_crud
-from app.crud.sensor_devices import sensor_device as sensor_device_crud
+from app.crud.location import location as location_crud
+from app.crud.sensor_device import sensor_device as sensor_device_crud
+from app.crud.camera_device import camera_device as camera_device_crud
 
 class CacheService:
 
     def __init__(self):
-        self._sensor_coords_cache: Optional[tuple[float, float]] = None  # cached sensor coordinates
+        self._device_ids_cache: Optional[dict[int, DevicePerLocation]] = None  # cached device IDs per location
+
+        self._location_id_per_sensor_device_cache: Optional[dict[int, int]] = None # cached location id per sensor device id
+
+
+        self._location_coordinates_cache: Optional[list[LocationCoordinate]] = None  # cached location coordinates
         self._sensor_config_cache: Optional[SensorConfigResponse] = None  # cached sensor configuration
         self._alert_thresholds_cache: Optional[AlertThresholdsResponse] = None  # cached alert thresholds
 
-        self._cache_timestamp: Optional[datetime] = None                  # timestamp of when the cache was last updated
-        self._cache_ttl_timedelta = timedelta(hours=24)                 # defines how long the cache is valid (Time To Live)
-
+    # mutable cache
     async def update_alert_thresholds_cache(self, db: AsyncSession) -> None:
         alert_thresholds_data = await system_settings_crud.get_value(db=db, key="alert_thresholds")
         self._alert_thresholds_cache = AlertThresholdsResponse.model_validate(alert_thresholds_data)
-        self._cache_timestamp = datetime.now()
 
+    # mutable cache
     async def update_sensor_config_cache(self, db: AsyncSession) -> None:
         sensor_config_data = await system_settings_crud.get_value(db=db, key="sensor_config")
         self._sensor_config_cache = SensorConfigResponse.model_validate(sensor_config_data)
-        self._cache_timestamp = datetime.now()
 
-    async def update_sensor_coords_cache(self, db: AsyncSession, sensor_id: int = 1) -> None:
-        sensor_coords_data = await sensor_device_crud.get_coordinates(db=db, sensor_id=sensor_id)
-        self._sensor_coords_cache = sensor_coords_data
-        self._cache_timestamp = datetime.now()
+    # unmutable cache
+    async def update_location_coordinates_cache(self, db: AsyncSession) -> None:
+        rows = await location_crud.get_all_coordinates(db=db)
+        self._location_coordinates_cache = [
+            LocationCoordinate(id=row.id, latitude=row.latitude, longitude=row.longitude)
+            for row in rows
+        ]
+
+    # unmutable cache
+    async def update_device_ids_cache(self, db: AsyncSession) -> None:
+        location_ids = await location_crud.get_all_ids(db=db)
+        device_ids_cache = {}
+        for loc_id in location_ids:
+            camera_device_id = await camera_device_crud.get_id_by_location(db=db, location_id=loc_id)
+            sensor_device_id = await sensor_device_crud.get_id_by_location(db=db, location_id=loc_id)
+            device_ids_cache[loc_id] = DevicePerLocation(
+                camera_device_id=camera_device_id,
+                sensor_device_id=sensor_device_id
+            )
+        self._device_ids_cache = device_ids_cache
+
+    # unmutable cache
+    """
+        1. Gets all location IDs
+        2. For each location ID, gets the corresponding sensor device ID
+        3. Builds a dictionary mapping sensor device IDs to location IDs
+        4. Stores the dictionary in the cache attribute
+    """
+    async def update_location_id_per_sensor_device_cache(self, db: AsyncSession) -> None:
+        location_ids = await location_crud.get_all_ids(db=db)
+
+        location_id_per_sensor_device_cache = {}
+        for loc_id in location_ids:
+            sensor_device_id = await sensor_device_crud.get_id_by_location(db=db, location_id=loc_id)
+            location_id_per_sensor_device_cache[sensor_device_id] = loc_id
+        self._location_id_per_sensor_device_cache = location_id_per_sensor_device_cache
 
     async def get_sensor_config(self, db: AsyncSession) -> SensorConfigResponse:
-        now = datetime.now()
 
-        # Return cached config if still valid
-        if (self._sensor_config_cache and self._cache_timestamp and now - self._cache_timestamp < self._cache_ttl_timedelta):
-            return self._sensor_config_cache
-        
-        await self.update_sensor_config_cache(db=db)
+        if self._sensor_config_cache is None:
+            await self.update_sensor_config_cache(db=db)
+
         return self._sensor_config_cache
 
-    async def get_sensor_coords(self, db: AsyncSession, sensor_id: int = 1) -> tuple[float, float]:
-        now = datetime.now()
+    async def get_all_location_coordinates(self, db: AsyncSession) -> list[LocationCoordinate]:
 
-        # Return cached coordinates if still valid
-        if (self._sensor_coords_cache and self._cache_timestamp and now - self._cache_timestamp < self._cache_ttl_timedelta):
-            return self._sensor_coords_cache
+        if self._location_coordinates_cache is None:
+            await self.update_location_coordinates_cache(db=db)
 
-        await self.update_sensor_coords_cache(db=db, sensor_id=sensor_id)
-        return self._sensor_coords_cache
+        return self._location_coordinates_cache
+
+    async def get_device_ids_per_location(self, db: AsyncSession, location_id: int) -> DevicePerLocation:
+
+        if self._device_ids_cache is None:
+            await self.update_device_ids_cache(db=db)
+        
+        device_ids = self._device_ids_cache.get(location_id)
+        if device_ids is None:
+            raise ValueError(f"Device IDs for location id {location_id} not found in cached device IDs.")
+
+        return device_ids
+
+    async def get_location_id_per_sensor_device(self, db: AsyncSession, sensor_device_id: int) -> int:
+
+        if self._location_id_per_sensor_device_cache is None:
+            await self.update_location_id_per_sensor_device_cache(db=db)
+        
+        location_id = self._location_id_per_sensor_device_cache.get(sensor_device_id)
+        if location_id is None:
+            raise ValueError(f"Location ID for sensor device id {sensor_device_id} not found in cached location IDs.")
+
+        return location_id
+
+    async def get_location_coordinate(self, db: AsyncSession, location_id) -> LocationCoordinate:
+
+        if self._location_coordinates_cache is None:
+            await self.update_location_coordinates_cache(db=db)
+        
+        location_coords = next((loc for loc in self._location_coordinates_cache if loc.id == location_id), None)
+        if location_coords is None:
+            raise ValueError(f"Location with id {location_id} not found in cached coordinates.")
+
+        return location_coords
+
+    async def get_all_location_ids(self, db: AsyncSession) -> list[int]:
+
+        if self._location_coordinates_cache is None:
+            await self.update_location_coordinates_cache(db=db)
+
+        return [loc.id for loc in self._location_coordinates_cache]
 
     async def get_alert_thresholds(self, db: AsyncSession) -> AlertThresholdsResponse:
-        now = datetime.now()
-
-        # Return cached thresholds if still valid
-        if (self._alert_thresholds_cache and self._cache_timestamp and now - self._cache_timestamp < self._cache_ttl_timedelta):
-            return self._alert_thresholds_cache
         
-        await self.update_alert_thresholds_cache(db=db)
+        if self._alert_thresholds_cache is None:
+            await self.update_alert_thresholds_cache(db=db)
+
         return self._alert_thresholds_cache
 
 cache_service = CacheService()

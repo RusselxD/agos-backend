@@ -2,14 +2,19 @@ from pydantic import BaseModel
 
 class SensorDeviceBase(BaseModel):
     device_name: str
-    location: str
+    location_id: int
 
 class SensorDeviceCreate(SensorDeviceBase):
-    longitude: float
-    latitude: float
     pass
 
-class SensorDeviceResponse(SensorDeviceBase):
+
+class SensorDeviceResponse(BaseModel):
+    device_name: str
+    location_name: str
+
+class SensorDeviceStatusResponse(BaseModel):
+    device_name: str
+    location_name: str
     connection: str
     last_updated: str
     signal: str | None

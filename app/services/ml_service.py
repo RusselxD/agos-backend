@@ -7,9 +7,9 @@ from app.crud.model_readings import model_readings as model_readings_crud
 from app.schemas import ModelReadingCreate
 from app.core.database import AsyncSessionLocal
 from app.services.websocket_service import websocket_service
-from app.models.model_readings import ModelReadings
+from app.models.data_sources.model_readings import ModelReadings
 from app.schemas import ModelWebSocketResponse
-from app.core.state import fusion_analysis_state
+from app.core.state import fusion_state_manager
 from app.schemas import BlockageStatus
 
 from app.core.config import settings
@@ -118,17 +118,21 @@ class MLService:
         try:
             # Simulate a model prediction
             prediction = random.choices(["clear", "partial", "blocked"], weights=[0.7, 0.2, 0.1], k=1)[0]
-            confidence = round(random.uniform(0.75, 0.99), 2)
-            
-            print(f"🔍 ML Result: {prediction[0].upper() + prediction[1:]} ({int(confidence*100)}%)")
-            
+            percentage = round(random.uniform(0.75, 0.99), 2)
+            debris_count = random.randint(0, 20)
+
+            # print(f"🔍 ML Result: {prediction[0].upper() + prediction[1:]} ({int(percentage*100)}%)")
+            print(f"🔍 ML Result: {prediction.capitalize()} ({int(percentage*100)}%), Debris Count: {debris_count}")
+
             # Store the result in the database
             async with AsyncSessionLocal() as db:
                 obj_in = ModelReadingCreate(
-                    timestamp=datetime.now(timezone.utc).isoformat(),
-                    status=prediction, 
-                    confidence=confidence,
-                    image_path=str(file_path)
+                    camera_device_id=1,
+                    image_path=str(file_path),
+                    timestamp=datetime.now(timezone.utc),
+                    blockage_percentage=percentage * 100,
+                    blockage_status=prediction,
+                    total_debris_count=debris_count
                 )
                 db_obj: ModelReadings = await model_readings_crud.create_and_return(db=db, obj_in=obj_in)
 
@@ -141,15 +145,17 @@ class MLService:
 
             await websocket_service.broadcast_update(
                 update_type="blockage_detection_update", 
-                data=blockage_reading.model_dump(mode='json')
+                data=blockage_reading.model_dump(mode='json'),
+                location_id=1
             )
 
             # Update fusion analysis state
-            await fusion_analysis_state.calculate_visual_status_score(
+            await fusion_state_manager.recalculate_visual_status_score(
                 blockage_status=BlockageStatus(
                     status=prediction,
                     timestamp=db_obj.timestamp
-                )
+                ), 
+                location_id=1
             )
 
         except Exception as e:

@@ -2,13 +2,13 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-from .base import Base
+from ..base import Base
 
 class SensorReading(Base):
     __tablename__ = "sensor_readings"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    sensor_id = Column(Integer, ForeignKey("sensor_devices.id", ondelete="CASCADE"), nullable=False)
+    sensor_device_id = Column(Integer, ForeignKey("sensor_devices.id", ondelete="CASCADE"), nullable=False)
     water_level_cm = Column(Numeric(5, 2), nullable=False)
     raw_distance_cm = Column(Numeric(5, 2), nullable=False)
 

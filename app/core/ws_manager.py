@@ -2,16 +2,24 @@ from fastapi import WebSocket
 
 class ConnectionManager:
     def __init__(self):
-        self.active: list[WebSocket] = []
+        self.connections: dict[int, list[WebSocket]] = {}
+        # int is the location_id
 
-    async def connect(self, websocket: WebSocket):
-        self.active.append(websocket)
-        print(f"Client connected. Total connections: {len(self.active)}")
+    async def connect(self, websocket: WebSocket, location_id: int):
+        if location_id not in self.connections:
+            self.connections[location_id] = []
+
+        self.connections[location_id].append(websocket)
+        print(f"Client connected. Total connections: {len(self.connections[location_id])}")
     
-    async def disconnect(self, websocket: WebSocket):
-        if websocket in self.active:
-            self.active.remove(websocket)
-            print(f"Client disconnected. Total connections: {len(self.active)}")
+    async def disconnect(self, websocket: WebSocket, location_id: int):
+        if location_id in self.connections and websocket in self.connections[location_id]:
+            self.connections[location_id].remove(websocket)
+            print(f"Client disconnected. Total connections: {len(self.connections[location_id])}")
+
+            # Cleanup if no connections left for this location
+            if not self.connections[location_id]:
+                del self.connections[location_id]
 
     """
         Broadcast Message Format:
@@ -30,15 +38,19 @@ class ConnectionManager:
 
         Fusion Analysis Broadcast Type: "fusion_analysis_update"
     """
-    async def broadcast(self, message: dict):
+    async def broadcast_to_location(self, message: dict, location_id: int):
+
+        if location_id not in self.connections:
+            return  # No connections for this location
+
         disconnected = []
-        for ws in self.active[:]:  # Create a copy to iterate safely
+        for ws in self.connections[location_id][:]: # iterate over a copy of the list
             try:
                 # Check application state if possible (FastAPI/Starlette specific)
                 if ws.client_state.name != "CONNECTED":
                     disconnected.append(ws)
                     continue
-                    
+                
                 await ws.send_json(message)
             except RuntimeError:
                 # This catches 'Unexpected ASGI message' (Client already closed)
@@ -48,7 +60,9 @@ class ConnectionManager:
                 disconnected.append(ws)
 
         for ws in disconnected:
-            if ws in self.active:
-                self.active.remove(ws)
+            if ws in self.connections[location_id]:
+                self.connections[location_id].remove(ws)
+
+    
 
 ws_manager = ConnectionManager()

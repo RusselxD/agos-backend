@@ -1,11 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas import SensorWebSocketResponse, WaterLevelStatus
 from app.services.cache_service import cache_service
-from app.models.sensor_readings import SensorReading
+from app.models import SensorReading
 from datetime import datetime, timezone
 from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
-from app.crud.sensor_devices import sensor_device as sensor_device_crud
-from app.core.state import fusion_analysis_state
+from app.crud.sensor_device import sensor_device as sensor_device_crud
+from app.core.state import fusion_state_manager
 from app.schemas import SensorReadingResponse, SensorReadingCreate, SensorReadingPaginatedResponse, SensorDataRecordedResponse
 from app.schemas import SensorReadingSummary, WaterLevelSummary, AlertSummary
 
@@ -49,7 +49,7 @@ class SensorReadingService:
         from app.services.websocket_service import websocket_service
         
         # Verify sensor device exists
-        if not await sensor_device_crud.get(db=db, id=obj_in.sensor_id):
+        if not await sensor_device_crud.get(db=db, id=obj_in.sensor_device_id):
             return SensorDataRecordedResponse(timestamp=datetime.now(timezone.utc), status="Error: Sensor device not found")
 
         # Get cached sensor installation height and calculate water level
@@ -64,7 +64,7 @@ class SensorReadingService:
         db_obj.water_level_cm = water_level_cm
 
         # Save to database
-        db_reading = await sensor_reading_crud.create_record(db=db, db_obj=db_obj)
+        db_reading: SensorReading = await sensor_reading_crud.create_record(db=db, db_obj=db_obj)
 
         # Run the calculations and prepare summary
         calculated_reading_summary = await self.calculate_record_summary(db=db, reading=db_reading)
@@ -77,18 +77,20 @@ class SensorReadingService:
 
         await websocket_service.broadcast_update(
             update_type="sensor_update",
-            data=sensor_reading_summary_response.model_dump(mode='json')
+            data=sensor_reading_summary_response.model_dump(mode='json'),
+            location_id=await cache_service.get_location_id_per_sensor_device(db=db, sensor_device_id=db_reading.sensor_device_id)
         )
 
         # Update fusion analysis state
-        await fusion_analysis_state.calculate_water_level_score(
+        await fusion_state_manager.recalculate_water_level_score(
             water_level_status=WaterLevelStatus(
                 water_level_cm=db_reading.water_level_cm,
                 timestamp = db_reading.timestamp,
                 critical_percentage = calculated_reading_summary.alert.percentage_of_critical,
                 trend = calculated_reading_summary.water_level.trend,
                 change_rate = calculated_reading_summary.water_level.change_rate
-            )
+            ),
+            location_id=await cache_service.get_location_id_per_sensor_device(db=db, sensor_device_id=db_reading.sensor_device_id)
         )
 
         # Return acknowledgment to sensor device

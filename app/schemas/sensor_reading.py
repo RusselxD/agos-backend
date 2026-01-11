@@ -5,7 +5,7 @@ class SensorReadingBase(BaseModel):
     timestamp: datetime
 
 class SensorReadingCreate(SensorReadingBase):
-    sensor_id: int
+    sensor_device_id: int
     raw_distance_cm: float
     signal_strength: int | None = None  # RSSI in dBm (e.g., -40 to -85)
     signal_quality: str | None = None  # 'excellent', 'good', 'fair', 'poor'

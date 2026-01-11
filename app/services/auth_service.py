@@ -15,7 +15,7 @@ class AuthService:
 
         user_in_db = await admin_user_crud.get_by_phone(db=db, phone_number=phone_number)
 
-        if not user_in_db or not verify_password(password=password, hashed_password=user_in_db.hashed_password):
+        if not user_in_db or not verify_password(plain_password=password, hashed_password=user_in_db.hashed_password):
             raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
                         detail="Invalid credentials",
