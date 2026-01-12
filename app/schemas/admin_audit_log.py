@@ -9,14 +9,12 @@ class AdminAuditLogCreate(AdminAuditLogBase):
     admin_user_id: UUID
 
 class AdminAuditLogResponse(AdminAuditLogBase):
-    id: int
     created_at: datetime
-    first_name: str
-    last_name: str
+    admin_name: str
 
     class Config:
         from_attributes = True
 
 class AdminAuditLogPaginatedResponse(BaseModel):
-    items: list[AdminAuditLogResponse]
+    logs: list[AdminAuditLogResponse]
     has_more: bool

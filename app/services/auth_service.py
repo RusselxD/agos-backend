@@ -41,7 +41,7 @@ class AuthService:
 
             # Additional custom claims
             "is_superuser": user.is_superuser,
-            "is_active": user.is_active,
+            "is_enabled": user.is_enabled,
             "force_password_change": user.force_password_change,
         }
 

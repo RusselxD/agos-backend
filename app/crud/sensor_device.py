@@ -9,8 +9,10 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
     async def get(self, db: AsyncSession, id: int) ->  SensorDeviceResponse | None:
         sensor_devices = await db.execute(
-            select(self.model).filter(self.model.id == id)
+            select(self.model)
+            .filter(self.model.id == id)
             .options(joinedload(self.model.location))        
+            .execution_options(populate_existing=False)
         )
         sensor_device = sensor_devices.scalars().first()
 

@@ -10,8 +10,8 @@ from app.api.v1.endpoints.websocket import router as ws_router
 from app.services.stream import stream_processor
 from prometheus_fastapi_instrumentator import Instrumentator
 from app.services import ml_service
-from app.services.weather_service import weather_service
-from app.services.database_cleanup_service import database_cleanup_service
+from app.services import weather_service
+from app.services import database_cleanup_service
 from app.core.state import fusion_state_manager
 
 @asynccontextmanager
