@@ -16,7 +16,9 @@ class CRUDResponderOTPVerification(CRUDBase[ResponderOTPVerificationCreate, None
 
     async def get_by_phone_number(self, db, phone_number: str) -> OTPModel | None:
         result = await db.execute(
-            select(self.model).filter(self.model.phone_number == phone_number)
+            select(self.model)
+            .filter(self.model.phone_number == phone_number)
+            .execution_options(populate_existing=False)
         )
         return result.scalars().first()
 

@@ -10,10 +10,10 @@ security = HTTPBearer()
 
 class CurrentUser:
     """Holds the authenticated user's data from the token"""
-    def __init__(self, id: str, is_superuser: bool, is_active: bool, force_password_change: bool):
+    def __init__(self, id: str, is_superuser: bool, is_enabled: bool, force_password_change: bool):
         self.id = id
         self.is_superuser = is_superuser
-        self.is_active = is_active
+        self.is_enabled = is_enabled
         self.force_password_change = force_password_change
 
 async def require_auth(
@@ -35,7 +35,7 @@ async def require_auth(
             )
             
         is_superuser = payload.get("is_superuser", False)
-        is_active = payload.get("is_active", False)
+        is_enabled = payload.get("is_enabled", False)
         force_password_change = payload.get("force_password_change", False)
         
     except JWTError:
@@ -52,7 +52,7 @@ async def require_auth(
             detail="User not found"
         )
     
-    if not is_active:
+    if not is_enabled:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"
@@ -61,7 +61,7 @@ async def require_auth(
     return CurrentUser(
         id=user_id,
         is_superuser=is_superuser,
-        is_active=is_active,
+        is_enabled=is_enabled,
         force_password_change=force_password_change
     )
 

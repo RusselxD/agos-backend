@@ -11,16 +11,8 @@ class AdminUserBase(BaseModel):
     last_name: str
 
 class AdminUserCreate(AdminUserBase):
-    is_superuser: Optional[bool] = False
-    password: str 
-    #Temporary password to be changed on first login.
-
-class AdminUserUpdate(BaseModel):
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    phone_number: Optional[str] = None
-    is_active: Optional[bool] = None
-
+    created_by: UUID # ID of the superuser creating this admin
+    password: str # Temporary password to be changed on first login.
 class AdminUserLogin(BaseModel):
     phone_number: str
     password: str
@@ -29,38 +21,15 @@ class AdminChangePassword(BaseModel):
     current_password: str
     new_password: str
 
-# --- 3.1 PUBLIC RESPONSE (What the client sees) ---
+# Used in querying all admin users (Admins page)
 class AdminUserResponse(AdminUserBase):
     # Inherits phone_number and name
     id: UUID
     is_superuser: bool
-    is_active: bool
+    is_enabled: bool
     last_login: datetime | None = None
-    created_by: Optional[str]
+    created_by: Optional[str] # Full name of the superuser who created this admin, None if seeded
     
     # Configuration to handle data from the SQLAlchemy ORM model
     class Config:
         from_attributes = True 
-
-# # --- 3.2 RESPONSE FOR NEW CREATION (Displays temporary password) ---
-# class AdminUserNewCreation(AdminUserResponse):
-#     # Used specifically after Phase 2, Step 3, to display the generated password.
-#     temp_password: str
-
-# # --- 3.3 RESPONSE FOR DEACTIVATION LOG ---
-# class AdminDeactivationReason(BaseModel):
-#     deactivation_reason: Optional[str] = None
-
-# --- 4.1 DATABASE MODEL (Full representation of the user record) ---
-class AdminUserInDB(AdminUserResponse):
-    # Inherits all public fields from AdminUserResponse
-    
-    # Sensitive fields not shared with the client:
-    hashed_password: str
-    force_password_change: bool
-    created_by: Optional[int] = None # ID of the admin who created this user
-    
-    # Deactivation audit trail fields:
-    deactivated_at: Optional[datetime] = None
-    deactivated_by: Optional[int] = None
-    deactivation_reason: Optional[str] = None

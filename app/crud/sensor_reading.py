@@ -16,6 +16,7 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
             .filter(self.model.sensor_device_id == sensor_device_id)
             .order_by(self.model.timestamp.desc())
             .limit(1)
+            .execution_options(populate_existing=False) 
         )
         return result.scalars().first()
 
@@ -26,6 +27,7 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
             .filter(self.model.timestamp < before_timestamp)
             .order_by(self.model.timestamp.desc())
             .limit(1)
+            .execution_options(populate_existing=False)
         )
         return result.scalars().first()
 

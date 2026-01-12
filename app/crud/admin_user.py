@@ -1,53 +1,55 @@
-from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.admin_user import AdminUser
-from app.schemas import AdminUserCreate, AdminUserUpdate, AdminUserResponse
+from app.schemas import AdminUserCreate
 from app.crud.base import CRUDBase
 from app.core.security import get_password_hash
-from sqlalchemy import select
+from sqlalchemy import select, exists
 from sqlalchemy.orm import joinedload
 from fastapi import HTTPException, status
 from datetime import datetime
 
-class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, AdminUserUpdate]):
+class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
     
-    async def get_all_admins(self, db: AsyncSession) -> List[AdminUserResponse]:
-        items: List[AdminUser] = await db.execute(
+    async def get_all_admins(self, db: AsyncSession) -> list[AdminUser]:
+        items: list[AdminUser] = await db.execute(
             select(self.model)
             .options(joinedload(self.model.admin_creator))
+            .execution_options(populate_existing=False)
         )
-        result = [
-            AdminUserResponse(
-                id=item.id,
-                phone_number=item.phone_number,
-                first_name=item.first_name,
-                last_name=item.last_name,
-                is_superuser=item.is_superuser,
-                is_active=item.is_active,
-                last_login=item.last_login,
-                created_by=f"{item.admin_creator.first_name} {item.admin_creator.last_name}" if item.admin_creator else None
-            ) for item in items.scalars().all()
-        ]
-        return result
+        return items.scalars().unique().all()
 
-    async def get_by_phone(self, db: AsyncSession, phone_number: str):
+    async def get_by_phone(self, db: AsyncSession, phone_number: str) -> AdminUser | None:
         result = await db.execute(
-            select(self.model).filter(self.model.phone_number == phone_number)
+            select(self.model)
+            .filter(self.model.phone_number == phone_number)
+            .execution_options(populate_existing=False)
         )
         return result.scalars().first()
     
+    async def phone_exists(self, db: AsyncSession, phone_number: str) -> bool:
+        result = await db.execute(
+            select(exists().where(self.model.phone_number == phone_number))
+        )
+        return result.scalar()
+
     async def create(self, db: AsyncSession, obj_in: AdminUserCreate) -> AdminUser:
         db_obj = AdminUser(
             phone_number=obj_in.phone_number,
             first_name=obj_in.first_name,
             last_name=obj_in.last_name,
             hashed_password=get_password_hash(obj_in.password),
-            is_superuser=obj_in.is_superuser
+            created_by=obj_in.created_by
         )
         db.add(db_obj)
         await db.commit()
-        await db.refresh(db_obj)
-        return db_obj
+        
+        # Re-query with eager loading to include admin_creator
+        result = await db.execute(
+            select(self.model)
+            .options(joinedload(self.model.admin_creator))
+            .filter(self.model.id == db_obj.id)
+        )
+        return result.scalars().first()
 
     async def update_password(self, db: AsyncSession, user_id: str, new_password: str) -> AdminUser:
         result = await db.execute(
@@ -59,7 +61,7 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, AdminUserUpdate]):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
-    
+
         user.hashed_password = get_password_hash(new_password)
         user.force_password_change = False
 

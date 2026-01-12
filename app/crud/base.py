@@ -14,12 +14,14 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     async def get(self, db: AsyncSession, id: int) -> Optional[ModelType]:
         result = await db.execute(
             select(self.model).filter(self.model.id == id)
+            .execution_options(populate_existing=False)
         )
         return result.scalars().first()
     
     async def get_all(self, db: AsyncSession) -> List[ModelType]:
         result = await db.execute(
             select(self.model)
+            .execution_options(populate_existing=False)
         )
         return result.scalars().all()
     

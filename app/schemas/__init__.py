@@ -1,4 +1,4 @@
-from .admin_user import AdminUserResponse, AdminUserInDB, AdminUserCreate, AdminUserUpdate
+from .admin_user import AdminUserResponse, AdminUserCreate
 from .token import Token, TokenData
 from .admin_audit_log import AdminAuditLogCreate, AdminAuditLogResponse
 from .system_settings import SystemSettingsCreate, SystemSettingsResponse, SystemSettingsUpdate, SensorConfigResponse, AlertThresholdsResponse
