@@ -7,9 +7,10 @@ class SensorReadingBase(BaseModel):
 class SensorReadingCreate(SensorReadingBase):
     sensor_device_id: int
     raw_distance_cm: float
-    signal_strength: int | None = None  # RSSI in dBm (e.g., -40 to -85)
-    signal_quality: str | None = None  # 'excellent', 'good', 'fair', 'poor'
+    signal_strength: int  # RSSI in dBm (e.g., -40 to -85)
+    signal_quality: str  # 'excellent', 'good', 'fair', 'poor'
 
+# Used in sensor reading table
 class SensorReadingResponse(SensorReadingBase):
     id: int
     water_level_cm: float
@@ -18,6 +19,20 @@ class SensorReadingResponse(SensorReadingBase):
 
     class Config:
         from_attributes = True
+
+# Response model for exporting sensor readings to Excel/CSV
+class SensorReadingForExport(SensorReadingBase):
+    timestamp: str  # Override to use formatted string instead of datetime
+    water_level_cm: float
+    status: str
+    change_rate: float | None
+    signal_strength: int
+    signal_quality: str
+
+# Response model for exporting sensor readings grouped by device
+class SensorReadingForExportResponse(BaseModel):
+    sensor_device_name: str
+    readings: list[SensorReadingForExport]
 
 class SensorReadingPaginatedResponse(BaseModel):
     items: list[SensorReadingResponse]

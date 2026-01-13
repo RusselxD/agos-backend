@@ -6,6 +6,7 @@ from app.api.v1.endpoints import sensor_reading
 from app.api.v1.endpoints import sensor_device
 from app.api.v1.endpoints import responder
 from app.api.v1.endpoints import stream 
+from app.api.v1.endpoints import core
 from fastapi import APIRouter
 
 api_router = APIRouter()
@@ -16,5 +17,6 @@ api_router.include_router(admin_audit_log.router, prefix="/admin-audit-logs", ta
 api_router.include_router(system_settings.router, prefix="/system-settings", tags=["system-settings"])
 api_router.include_router(sensor_reading.router, prefix="/sensor-readings", tags=["sensor-readings"])
 api_router.include_router(sensor_device.router, prefix="/sensor-devices", tags=["sensor-devices"])
+api_router.include_router(core.router, prefix="/core", tags=["core"])
 api_router.include_router(stream.router, prefix="/stream", tags=["stream"])
 api_router.include_router(responder.router, prefix="/responder", tags=["responder"])

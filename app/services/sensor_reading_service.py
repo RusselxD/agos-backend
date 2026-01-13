@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas import SensorWebSocketResponse, WaterLevelStatus
+from app.schemas import SensorWebSocketResponse, WaterLevelStatus, SensorReadingForExport, SensorReadingForExportResponse
 from app.services.cache_service import cache_service
 from app.models import SensorReading
 from datetime import datetime, timezone
@@ -13,26 +13,17 @@ class SensorReadingService:
 
     async def get_items_paginated(self, 
                                 db: AsyncSession, 
+                                sensor_device_id: int,
                                 page: int = 1, 
-                                page_size: int = 10) -> SensorReadingPaginatedResponse:
+                                page_size: int = 10,
+                                ) -> SensorReadingPaginatedResponse:
 
-        db_items = await sensor_reading_crud.get_items_paginated(db=db, page=page, page_size=page_size)
+        db_items = await sensor_reading_crud.get_items_paginated(db=db, page=page, page_size=page_size, sensor_device_id=sensor_device_id)
 
         items = []
         # Process each item to determine status and change rate
         for item in db_items[:page_size]:
-            if item.prev_water_level is None:
-                change_rate = 0
-                status = "stable"
-            else:
-                change_rate = round(item.water_level_cm - item.prev_water_level, 2)
-            
-                if change_rate > 1:
-                    status = 'rising'
-                elif change_rate < -1:
-                    status = 'falling'
-                else:
-                    status = 'stable'
+            status, change_rate = self._get_status_and_change_rate(item.water_level_cm, item.prev_water_level)
 
             items.append(SensorReadingResponse(
                 id=item.id,
@@ -44,6 +35,43 @@ class SensorReadingService:
 
         has_more = len(db_items) > page_size
         return SensorReadingPaginatedResponse(items=items[:page_size], has_more=has_more)
+
+    async def get_avialable_reading_days(self, db: AsyncSession, sensor_device_id: int) -> list[str]:
+        return await sensor_reading_crud.get_available_reading_days(db=db, sensor_device_id=sensor_device_id)
+
+    async def get_readings_for_export(self, 
+                                    db: AsyncSession, 
+                                    start_datetime: datetime, 
+                                    end_datetime: datetime, 
+                                    sensor_device_id: int
+                                    ) -> SensorReadingForExportResponse:
+        
+        sensor_device_name = await sensor_device_crud.get_sensor_device_name(db=db, sensor_device_id=sensor_device_id)
+
+        records = await sensor_reading_crud.get_readings_for_export(
+            db=db, 
+            start_datetime=start_datetime, 
+            end_datetime=end_datetime
+        )
+        
+        readings = []
+        for record in records:
+
+            status, change_rate = self._get_status_and_change_rate(record.water_level_cm, record.prev_water_level)
+
+            readings.append(SensorReadingForExport(
+                timestamp=self._format_datetime_for_excel(record.timestamp),
+                water_level_cm=record.water_level_cm,
+                status=status,
+                change_rate=change_rate,
+                signal_strength=record.signal_strength,
+                signal_quality=record.signal_quality
+            ))
+        
+        return SensorReadingForExportResponse(
+            readings=readings,
+            sensor_device_name=sensor_device_name
+        )
 
     async def record_reading(self, db: AsyncSession, obj_in: SensorReadingCreate) -> SensorDataRecordedResponse:
         from app.services.websocket_service import websocket_service
@@ -148,6 +176,25 @@ class SensorReadingService:
             distance_from_critical_cm = round(max(0, current_cm - crit), 1),
             percentage_of_critical=round((current_cm / crit) * 100, 1)
         )
+
+    def _get_status_and_change_rate(self, current_cm: float, prev_cm: float | None) -> tuple[str, float]:
+        if prev_cm is None:
+            return "stable", 0.0
+
+        change_rate = round(current_cm - prev_cm, 2)
+
+        if change_rate > 1:
+            status = 'rising'
+        elif change_rate < -1:
+            status = 'falling'
+        else:
+            status = 'stable'
+
+        return status, change_rate
+
+    def _format_datetime_for_excel(self, dt: datetime) -> str:
+        # If dt is already a datetime object, just format it
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
     """
     Record multiple sensor readings in bulk.

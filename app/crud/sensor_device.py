@@ -7,6 +7,15 @@ from sqlalchemy.orm import joinedload
 
 class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
+    async def get_sensor_device_name(self, db: AsyncSession, sensor_device_id: int) -> str:
+        result = await db.execute(
+            select(self.model.device_name)
+            .filter(self.model.id == sensor_device_id)
+            .limit(1)
+        )
+        sensor_device_name = result.scalars().first()
+        return sensor_device_name
+
     async def get(self, db: AsyncSession, id: int) ->  SensorDeviceResponse | None:
         sensor_devices = await db.execute(
             select(self.model)

@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: ccecc89d0fc7
+Revision ID: 0b19c2cd56c8
 Revises: 
-Create Date: 2026-01-13 05:54:52.403615
+Create Date: 2026-01-13 09:12:47.255579
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'ccecc89d0fc7'
+revision: str = '0b19c2cd56c8'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -142,8 +142,8 @@ def upgrade() -> None:
     sa.Column('sensor_device_id', sa.Integer(), nullable=False),
     sa.Column('water_level_cm', sa.Numeric(precision=5, scale=2), nullable=False),
     sa.Column('raw_distance_cm', sa.Numeric(precision=5, scale=2), nullable=False),
-    sa.Column('signal_strength', sa.Integer(), nullable=True),
-    sa.Column('signal_quality', sa.String(length=20), nullable=True),
+    sa.Column('signal_strength', sa.Integer(), nullable=False),
+    sa.Column('signal_quality', sa.String(length=20), nullable=False),
     sa.Column('timestamp', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['sensor_device_id'], ['sensor_devices.id'], ondelete='CASCADE'),

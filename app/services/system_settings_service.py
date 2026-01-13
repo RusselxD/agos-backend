@@ -8,7 +8,7 @@ from app.crud.admin_audit_log import admin_audit_log as admin_audit_log_crud
 from app.schemas import AdminAuditLogCreate
 
 class SystemSettingsService:
-    
+
     async def update_setting(self, db: AsyncSession, key: str, value: SystemSettingsUpdate, current_user: CurrentUser) -> any:
         
         settings = await system_settings_crud.get(db=db, key=key)

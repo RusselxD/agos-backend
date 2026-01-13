@@ -13,9 +13,10 @@ class CacheService:
 
         self._location_id_per_sensor_device_cache: Optional[dict[int, int]] = None # cached location id per sensor device id
 
-
         self._location_coordinates_cache: Optional[list[LocationCoordinate]] = None  # cached location coordinates
+
         self._sensor_config_cache: Optional[SensorConfigResponse] = None  # cached sensor configuration
+        
         self._alert_thresholds_cache: Optional[AlertThresholdsResponse] = None  # cached alert thresholds
 
     # mutable cache

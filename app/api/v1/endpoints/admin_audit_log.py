@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.api.v1.dependencies import require_auth
 from app.schemas import AdminAuditLogPaginatedResponse
 from app.core.database import get_db
 from app.services import admin_audit_log_service
 
 router = APIRouter()
 
-@router.get("/paginated", response_model=AdminAuditLogPaginatedResponse)
+@router.get("/paginated", response_model=AdminAuditLogPaginatedResponse, dependencies=[Depends(require_auth)])
 async def get_admin_audit_logs_paginated(page: int = 1, 
                                         page_size: int = 10, 
                                         db: AsyncSession = Depends(get_db)) -> AdminAuditLogPaginatedResponse:
