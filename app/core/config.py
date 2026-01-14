@@ -5,6 +5,8 @@ from typing import Union
 
 class Settings(BaseSettings):
 
+    UTC_OFFSET_HOURS: int = 8
+
     OTP_LENGTH: int = 6
     OTP_ATTEMPT_LIMIT: int = 5
     OTP_EXPIRY_MINUTES: int = 10

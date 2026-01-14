@@ -5,6 +5,7 @@ from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
 from datetime import datetime, timedelta
 from fastapi import HTTPException
 from app.core.config import settings
+from app.services import sensor_reading_service
 
 class SensorDeviceService:
     
@@ -20,7 +21,7 @@ class SensorDeviceService:
         if not latest_reading:
             return SensorDeviceStatusResponse(
                 device_name=sensor_device.device_name,
-                                location_name=sensor_device.location_name,
+                location_name=sensor_device.location_name,
                 connection="Offline",
                 last_updated=None,
                 signal=None
@@ -41,7 +42,7 @@ class SensorDeviceService:
         if connection == "Offline":
             return SensorDeviceStatusResponse(
             device_name=sensor_device.device_name,
-                            location_name=sensor_device.location_name,
+            location_name=sensor_device.location_name,
             connection=connection,
             last_updated=latest_reading.timestamp.isoformat(),
             signal=None
@@ -50,10 +51,10 @@ class SensorDeviceService:
         # Normal response with signal quality
         return SensorDeviceStatusResponse(
             device_name=sensor_device.device_name,
-                            location_name=sensor_device.location_name,
+            location_name=sensor_device.location_name,
             connection=connection,
             last_updated=latest_reading.timestamp.isoformat(),
-            signal=latest_reading.signal_quality
+            signal=sensor_reading_service.get_signal_quality(latest_reading.signal_strength)
         )
 
 sensor_device_service = SensorDeviceService()

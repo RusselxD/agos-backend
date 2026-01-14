@@ -2,10 +2,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas import SensorWebSocketResponse, WaterLevelStatus, SensorReadingForExport, SensorReadingForExportResponse
 from app.services.cache_service import cache_service
 from app.models import SensorReading
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
 from app.crud.sensor_device import sensor_device as sensor_device_crud
 from app.core.state import fusion_state_manager
+from app.core.config import settings
 from app.schemas import SensorReadingResponse, SensorReadingCreate, SensorReadingPaginatedResponse, SensorDataRecordedResponse
 from app.schemas import SensorReadingSummary, WaterLevelSummary, AlertSummary
 
@@ -51,7 +52,8 @@ class SensorReadingService:
         records = await sensor_reading_crud.get_readings_for_export(
             db=db, 
             start_datetime=start_datetime, 
-            end_datetime=end_datetime
+            end_datetime=end_datetime,
+            sensor_device_id=sensor_device_id
         )
         
         readings = []
@@ -65,7 +67,7 @@ class SensorReadingService:
                 status=status,
                 change_rate=change_rate,
                 signal_strength=record.signal_strength,
-                signal_quality=record.signal_quality
+                signal_quality=self.get_signal_quality(record.signal_strength)
             ))
         
         return SensorReadingForExportResponse(
@@ -177,6 +179,18 @@ class SensorReadingService:
             percentage_of_critical=round((current_cm / crit) * 100, 1)
         )
 
+    def get_signal_quality(self, signal_strength: int) -> str:
+        if signal_strength >= -50:
+            quality = 'excellent'
+        elif signal_strength >= -60:
+            quality = 'good'
+        elif signal_strength >= -70:
+            quality = 'fair'
+        else:
+            quality = 'poor'
+
+        return quality
+    
     def _get_status_and_change_rate(self, current_cm: float, prev_cm: float | None) -> tuple[str, float]:
         if prev_cm is None:
             return "stable", 0.0
@@ -192,9 +206,11 @@ class SensorReadingService:
 
         return status, change_rate
 
+
     def _format_datetime_for_excel(self, dt: datetime) -> str:
-        # If dt is already a datetime object, just format it
-        return dt.strftime("%Y-%m-%d %H:%M:%S")
+        # Convert UTC to UTC+8 for display
+        local_dt = dt.astimezone(timezone(timedelta(hours=settings.UTC_OFFSET_HOURS)))
+        return local_dt.strftime("%Y-%m-%d %H:%M")
 
     """
     Record multiple sensor readings in bulk.

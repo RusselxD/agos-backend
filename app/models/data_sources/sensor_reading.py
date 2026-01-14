@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, Numeric
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
@@ -14,9 +14,8 @@ class SensorReading(Base):
 
     # Signal strength metrics
     signal_strength = Column(Integer, nullable=False)  # RSSI in dBm (e.g., -40 to -80)
-    signal_quality = Column(String(20), nullable=False)  # 'excellent', 'good', 'fair', 'poor'
 
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False) # when the reading was taken
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False) # when the record was created in the DB
+    timestamp = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()), nullable=False, index=True) # when the reading was taken
+    created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()), nullable=False) # when the record was created in the DB
 
     sensor_device = relationship("SensorDevice", back_populates="sensor_readings")

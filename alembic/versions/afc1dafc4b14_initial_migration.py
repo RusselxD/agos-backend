@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: d052a63226fa
+Revision ID: afc1dafc4b14
 Revises: 
-Create Date: 2026-01-14 07:20:08.598410
+Create Date: 2026-01-14 15:21:16.902351
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'd052a63226fa'
+revision: str = 'afc1dafc4b14'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -27,10 +27,10 @@ def upgrade() -> None:
     sa.Column('first_name', sa.String(length=50), nullable=False),
     sa.Column('last_name', sa.String(length=50), nullable=False),
     sa.Column('hashed_password', sa.String(), nullable=False),
-    sa.Column('is_superuser', sa.Boolean(), nullable=False),
-    sa.Column('is_enabled', sa.Boolean(), nullable=False),
-    sa.Column('force_password_change', sa.Boolean(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('is_superuser', sa.Boolean(), nullable=True),
+    sa.Column('is_enabled', sa.Boolean(), nullable=True),
+    sa.Column('force_password_change', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.Column('created_by', sa.UUID(), nullable=True),
     sa.Column('last_login', sa.DateTime(timezone=True), nullable=True),
     sa.Column('deactivated_at', sa.DateTime(timezone=True), nullable=True),
@@ -38,10 +38,9 @@ def upgrade() -> None:
     sa.Column('deactivation_reason', sa.Text(), nullable=True),
     sa.ForeignKeyConstraint(['created_by'], ['admin_users.id'], ),
     sa.ForeignKeyConstraint(['deactivated_by'], ['admin_users.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('phone_number')
     )
-    op.create_index(op.f('ix_admin_users_id'), 'admin_users', ['id'], unique=False)
-    op.create_index(op.f('ix_admin_users_phone_number'), 'admin_users', ['phone_number'], unique=True)
     op.create_table('locations',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
@@ -50,11 +49,10 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
     )
-    op.create_index(op.f('ix_locations_id'), 'locations', ['id'], unique=False)
     op.create_table('responders_otp_verification',
     sa.Column('phone_number', sa.String(length=20), nullable=False),
     sa.Column('otp_hash', sa.String(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('attempt_count', sa.Integer(), nullable=False),
     sa.PrimaryKeyConstraint('phone_number')
@@ -66,14 +64,13 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('key')
     )
     op.create_table('admin_audit_logs',
-    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('admin_user_id', sa.UUID(), nullable=False),
     sa.Column('action', sa.String(length=225), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.ForeignKeyConstraint(['admin_user_id'], ['admin_users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_admin_audit_logs_id'), 'admin_audit_logs', ['id'], unique=False)
     op.create_table('camera_devices',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('location_id', sa.Integer(), nullable=False),
@@ -82,7 +79,6 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('location_id')
     )
-    op.create_index(op.f('ix_camera_devices_id'), 'camera_devices', ['id'], unique=False)
     op.create_table('password_reset_otps',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('admin_id', sa.UUID(), nullable=False),
@@ -96,15 +92,14 @@ def upgrade() -> None:
     sa.Column('phone_number', sa.String(length=20), nullable=False),
     sa.Column('first_name', sa.String(length=50), nullable=False),
     sa.Column('last_name', sa.String(length=50), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=True),
     sa.Column('status', sa.Enum('pending', 'approved', name='responder_status'), nullable=False),
     sa.Column('id_photo_path', sa.String(length=255), nullable=False),
     sa.Column('approved_by', sa.UUID(), nullable=True),
     sa.ForeignKeyConstraint(['approved_by'], ['admin_users.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('phone_number')
     )
-    op.create_index(op.f('ix_responders_id'), 'responders', ['id'], unique=False)
-    op.create_index(op.f('ix_responders_phone_number'), 'responders', ['phone_number'], unique=True)
     op.create_table('sensor_devices',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('location_id', sa.Integer(), nullable=False),
@@ -113,71 +108,59 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('location_id')
     )
-    op.create_index(op.f('ix_sensor_devices_id'), 'sensor_devices', ['id'], unique=False)
     op.create_table('weather',
-    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('location_id', sa.Integer(), nullable=False),
     sa.Column('precipitation_mm', sa.Float(), nullable=False),
     sa.Column('weather_code', sa.Integer(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_weather_id'), 'weather', ['id'], unique=False)
     op.create_table('model_readings',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('camera_device_id', sa.Integer(), nullable=False),
     sa.Column('image_path', sa.String(), nullable=False),
-    sa.Column('timestamp', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('timestamp', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.Column('blockage_percentage', sa.Float(), nullable=False),
     sa.Column('blockage_status', sa.String(), nullable=False),
     sa.Column('total_debris_count', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['camera_device_id'], ['camera_devices.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_model_readings_id'), 'model_readings', ['id'], unique=False)
     op.create_table('sensor_readings',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('sensor_device_id', sa.Integer(), nullable=False),
     sa.Column('water_level_cm', sa.Numeric(precision=5, scale=2), nullable=False),
     sa.Column('raw_distance_cm', sa.Numeric(precision=5, scale=2), nullable=False),
     sa.Column('signal_strength', sa.Integer(), nullable=False),
-    sa.Column('signal_quality', sa.String(length=20), nullable=False),
-    sa.Column('timestamp', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('timestamp', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.ForeignKeyConstraint(['sensor_device_id'], ['sensor_devices.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_sensor_readings_id'), 'sensor_readings', ['id'], unique=False)
+    op.create_index(op.f('ix_sensor_readings_timestamp'), 'sensor_readings', ['timestamp'], unique=False)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index(op.f('ix_sensor_readings_timestamp'), table_name='sensor_readings')
     op.drop_index(op.f('ix_sensor_readings_id'), table_name='sensor_readings')
     op.drop_table('sensor_readings')
-    op.drop_index(op.f('ix_model_readings_id'), table_name='model_readings')
     op.drop_table('model_readings')
-    op.drop_index(op.f('ix_weather_id'), table_name='weather')
     op.drop_table('weather')
-    op.drop_index(op.f('ix_sensor_devices_id'), table_name='sensor_devices')
     op.drop_table('sensor_devices')
-    op.drop_index(op.f('ix_responders_phone_number'), table_name='responders')
-    op.drop_index(op.f('ix_responders_id'), table_name='responders')
     op.drop_table('responders')
     op.drop_table('password_reset_otps')
-    op.drop_index(op.f('ix_camera_devices_id'), table_name='camera_devices')
     op.drop_table('camera_devices')
-    op.drop_index(op.f('ix_admin_audit_logs_id'), table_name='admin_audit_logs')
     op.drop_table('admin_audit_logs')
     op.drop_table('system_settings')
     op.drop_index(op.f('ix_responders_otp_verification_phone_number'), table_name='responders_otp_verification')
     op.drop_table('responders_otp_verification')
-    op.drop_index(op.f('ix_locations_id'), table_name='locations')
     op.drop_table('locations')
-    op.drop_index(op.f('ix_admin_users_phone_number'), table_name='admin_users')
-    op.drop_index(op.f('ix_admin_users_id'), table_name='admin_users')
     op.drop_table('admin_users')
     # ### end Alembic commands ###

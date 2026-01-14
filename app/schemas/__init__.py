@@ -17,6 +17,7 @@ from .reading_summary_response import WeatherWebSocketResponse
 from .reading_summary_response import FusionWebSocketResponse
 
 from .location import LocationCoordinate, DevicePerLocation
+from .core import LocationDetails, DeviceDetails
 
 from .upload import UploadResponse
 

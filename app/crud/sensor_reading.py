@@ -72,7 +72,7 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
         dates = result.scalars().all()
         return [date.isoformat() for date in dates]
 
-    async def get_readings_for_export(self, db: AsyncSession, start_datetime: datetime, end_datetime: datetime) -> list[SensorReading]:
+    async def get_readings_for_export(self, db: AsyncSession, start_datetime: datetime, end_datetime: datetime, sensor_device_id: int) -> list[SensorReading]:
         # Use LAG window function to get previous reading's water level
         prev_water_level = func.lag(self.model.water_level_cm).over(
             order_by=self.model.timestamp
@@ -84,8 +84,8 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
                 self.model.water_level_cm,
                 prev_water_level,
                 self.model.signal_strength,
-                self.model.signal_quality
             )
+            .filter(self.model.sensor_device_id == sensor_device_id)
             .filter(self.model.timestamp >= start_datetime)
             .filter(self.model.timestamp <= end_datetime)
             .order_by(self.model.timestamp.desc())

@@ -6,7 +6,7 @@ from ..base import Base
 class SensorDevice(Base):
     __tablename__ = "sensor_devices"
 
-    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     location_id = Column(Integer, ForeignKey("locations.id"), nullable=False, unique=True)
     device_name = Column(String(100), nullable=False)
 

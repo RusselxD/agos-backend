@@ -7,14 +7,21 @@ from sqlalchemy.orm import joinedload
 
 class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
+    async def get_default_sensor_by_location(self, db: AsyncSession, location_id: int) -> SensorDevice | None:
+        result = await db.execute(
+            select(self.model.id, self.model.device_name)
+            .filter(self.model.location_id == location_id)
+            .limit(1)
+        )
+        return result.mappings().first()
+
     async def get_sensor_device_name(self, db: AsyncSession, sensor_device_id: int) -> str:
         result = await db.execute(
             select(self.model.device_name)
             .filter(self.model.id == sensor_device_id)
             .limit(1)
         )
-        sensor_device_name = result.scalars().first()
-        return sensor_device_name
+        return result.scalars().first()
 
     async def get(self, db: AsyncSession, id: int) ->  SensorDeviceResponse | None:
         sensor_devices = await db.execute(
@@ -39,7 +46,6 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
             .filter(self.model.location_id == location_id)
             .limit(1)
         )
-        sensor_device = result.scalars().first()
-        return sensor_device
+        return result.scalars().first()
 
 sensor_device = CRUDSensorDevice(SensorDevice)

@@ -8,7 +8,6 @@ class SensorReadingCreate(SensorReadingBase):
     sensor_device_id: int
     raw_distance_cm: float
     signal_strength: int  # RSSI in dBm (e.g., -40 to -85)
-    signal_quality: str  # 'excellent', 'good', 'fair', 'poor'
 
 # Used in sensor reading table
 class SensorReadingResponse(SensorReadingBase):

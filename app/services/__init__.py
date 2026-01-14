@@ -11,4 +11,5 @@ from .responder_service import responder_service
 from .ml_service import ml_service
 from .system_settings_service import system_settings_service
 from .upload_service import upload_service
+from .core_service import core_service
 from .stream import stream_processor, frame_manager
