@@ -170,7 +170,7 @@ class SensorReadingService:
 
         return AlertSummary(
             level=level,
-            distance_to_warning_cm = round(max(0, current_cm - warn), 1),
+            distance_to_warning_cm = round(warn - current_cm, 1),
             distance_from_warning_cm =  round(max(0, warn - current_cm), 1),
             distance_to_critical_cm = round(crit - current_cm, 1),
             distance_from_critical_cm = round(max(0, current_cm - crit), 1),

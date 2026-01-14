@@ -21,5 +21,3 @@ async def change_password(
     user: CurrentUser = Depends(require_auth)) -> Token:
     
     return await auth_service.change_user_password(db=db, new_password=request.new_password, user=user)
-
-# dependencies=[Depends(require_superuser)] for protecting the route if needed
