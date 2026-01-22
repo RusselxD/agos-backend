@@ -97,10 +97,15 @@ class MLService:
                     if should_process:
                         await self._process_frame(latest_file)
                         self.last_processed_time = now
-                    
-                    # Mark all discovered files as processed so we don't look at them again
-                    # This prevents the loop from re-evaluating the same 100 files every cycle
-                    self.processed_files.update(current_files)
+                        
+                        # Mark all discovered files as processed ONLY after we successfully processed (or decided to process)
+                        # This prevents "skipping" a file just because it arrived 1 second too early.
+                        self.processed_files.update(current_files)
+                    else:
+                        # If it's too soon, we do NOTHING.
+                        # We leave the file out of 'processed_files' so the next loop sees it again
+                        # and checks the time again.
+                        pass
                 
                 # 4. CLEANUP: Keep memory clean (only track what's actually on disk)
                 self.processed_files = self.processed_files.intersection(current_files)
