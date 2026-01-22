@@ -34,7 +34,7 @@ class WeatherService:
         self.scheduler.start()
         print("✅ Weather service scheduler started.")
 
-    def stop(self):
+    async def stop(self):
         self.scheduler.shutdown()
         print("✅ Weather service scheduler stopped.")
 
