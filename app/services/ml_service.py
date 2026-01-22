@@ -3,6 +3,7 @@ import random
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Set
+from app.core.cloudinary import upload_image
 from app.crud.model_readings import model_readings as model_readings_crud
 from app.schemas import ModelReadingCreate
 from app.core.database import AsyncSessionLocal
@@ -124,11 +125,18 @@ class MLService:
             # print(f"🔍 ML Result: {prediction[0].upper() + prediction[1:]} ({int(percentage*100)}%)")
             print(f"🔍 ML Result: {prediction.capitalize()} ({int(percentage*100)}%), Debris Count: {debris_count}")
 
+            # Upload image to Cloudinary
+            upload_result = await upload_image(str(file_path), filename=file_path.stem)
+
+            image_url = str(file_path)
+            if upload_result:
+                image_url = upload_result["secure_url"]
+
             # Store the result in the database
             async with AsyncSessionLocal() as db:
                 obj_in = ModelReadingCreate(
                     camera_device_id=1,
-                    image_path=str(file_path),
+                    image_path=image_url,
                     timestamp=datetime.now(timezone.utc),
                     blockage_percentage=percentage * 100,
                     blockage_status=prediction,

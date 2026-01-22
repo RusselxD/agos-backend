@@ -4,7 +4,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from contextlib import asynccontextmanager
-
+from app.core.cloudinary import upload_image, init_cloudinary
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.api.v1.endpoints.websocket import router as ws_router
@@ -19,11 +19,11 @@ from app.core.state import fusion_state_manager
 async def lifespan(app: FastAPI):
     # Startup
     print("🚀 Starting application...")
+    init_cloudinary()
     await stream_processor.start()
     await ml_service.start()
     await weather_service.start()
     await database_cleanup_service.start()
-
     # Initialize Fusion Analysis State with latest data
     print("📊 Loading initial fusion analysis state...")
     await fusion_state_manager.start_all_states()

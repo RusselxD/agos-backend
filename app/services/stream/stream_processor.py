@@ -71,12 +71,15 @@ class StreamProcessor:
         # Pattern %Y%m%d... tells FFmpeg to auto-name files by current time
         frame_pattern = self.frames_dir / "frame_%Y%m%d_%H%M%S.jpg"
         
-        cmd = [
-            self.ffmpeg_path,
-            
+        cmd = [self.ffmpeg_path]
+
+        # Conditional RTSP flags
+        if settings.STREAM_URL.lower().startswith("rtsp"):
+            cmd.extend(['-rtsp_transport', 'tcp'])
+
+        cmd.extend([
             # --- INPUT CONFIGURATION ---
             # '-re',                      # Remove this for better buffering
-            '-rtsp_transport', 'tcp',   # Force TCP for reliability
             '-i', settings.STREAM_URL,  # The Source (RTSP/RTMP/HTTP)
             
             # Resilience: Keep trying to connect if network blips
@@ -111,7 +114,7 @@ class StreamProcessor:
             '-f', 'image2',            # Format: Image Sequence
             '-strftime', '1',          # Allow using time patterns in filename
             str(frame_pattern),        # Output path template
-        ]
+        ])
 
         return cmd
 
