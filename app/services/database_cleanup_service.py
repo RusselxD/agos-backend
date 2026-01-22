@@ -16,7 +16,7 @@ class DatabaseCleanupService:
         self.scheduler.start()
         print("✅ Database cleanup service scheduler started.")
 
-    def stop(self):
+    async def stop(self):
         self.scheduler.shutdown()
         print("✅ Database cleanup service scheduler stopped.")
 

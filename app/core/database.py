@@ -7,7 +7,10 @@ engine = create_async_engine(
     settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
     echo=False,
     future=True,
-    connect_args={"server_settings": {"timezone": "UTC"}}
+    connect_args={
+        "server_settings": {"timezone": "UTC"},
+        "statement_cache_size": 0
+    }
 )
 AsyncSessionLocal = async_sessionmaker(
     engine,
