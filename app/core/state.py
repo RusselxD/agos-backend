@@ -241,6 +241,11 @@ class StateManager:
         if fusion_state:
             await fusion_state.calculate_visual_status_score(blockage_status=blockage_status)
 
+    async def recalculate_weather_score(self, weather_status: WeatherStatus, location_id: int) -> None:
+        fusion_state = self._fusion_analysis_states.get(location_id)
+        if fusion_state:
+            await fusion_state.calculate_weather_score(weather_status=weather_status)
+
     def start_fusion_analysis_state(self, location_id: int, sensor_device_id: int, camera_device_id: int) -> FusionAnalysisState:
         if location_id not in self._fusion_analysis_states:
             fusion_state = FusionAnalysisState(location_id=location_id, camera_device_id=camera_device_id, sensor_device_id=sensor_device_id)

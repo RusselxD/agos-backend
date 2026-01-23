@@ -180,27 +180,25 @@ class StreamProcessor:
                 
                 logger.info(f"Starting FFmpeg process (attempt {self.restart_count + 1})")
                 
-                # 3. LAUNCH: Redirect stdout/stderr to file to prevent buffer deadlocks
-                log_path = Path("app/storage/ffmpeg.log")
-                with open(log_path, "w") as log_file:
-                    self.process = subprocess.Popen(
-                        cmd,
-                        stdout=log_file,      # Write logs to file
-                        stderr=subprocess.STDOUT, # Merge errors into same file
-                        universal_newlines=True,
-                        shell=False,
-                        # Windows specific: Don't pop up a black CMD window
-                        creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
-                    )
+                # 3. LAUNCH: Inherit stdout/stderr so logs appear in Render/Docker console
+                self.process = subprocess.Popen(
+                    cmd,
+                    stdout=None,  # Inherit stdout
+                    stderr=None,  # Inherit stderr (FFmpeg writes logs here)
+                    universal_newlines=True,
+                    shell=False,
+                    # Windows specific: Don't pop up a black CMD window
+                    creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+                )
+                
+                # 4. WATCH: Check every second if it's still alive
+                while self.is_running:
+                    if self.process.poll() is not None:
+                        # Process died! Break loop to trigger restart logic
+                        logger.error(f"FFmpeg process died. Check console logs.")
+                        break
                     
-                    # 4. WATCH: Check every second if it's still alive
-                    while self.is_running:
-                        if self.process.poll() is not None:
-                            # Process died! Break loop to trigger restart logic
-                            logger.error(f"FFmpeg process died. Check logs at: {log_path}")
-                            break
-                        
-                        await asyncio.sleep(1)
+                    await asyncio.sleep(1)
                 
                 # If we get here, the process died.
                 self.restart_count += 1
