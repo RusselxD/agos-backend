@@ -16,7 +16,7 @@ class SensorDeviceStatusResponse(BaseModel):
     device_name: str
     location_name: str
     connection: str
-    last_updated: str
+    last_updated: str | None
     signal: str | None
 
     class Config:

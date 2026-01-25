@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 import shutil
+import threading
 
 from app.core.config import settings
 
@@ -35,11 +36,36 @@ class StreamProcessor:
             logger.info(f"Found FFmpeg at: {self.ffmpeg_path}")
         
         # 2. Prepare the workspace (Storage Folders)
-        # These folders effectively act as the "Buffer" between FFmpeg and the API/ML Service.
         self.hls_dir = Path(settings.HLS_OUTPUT_DIR)
         self.frames_dir = Path(settings.FRAMES_OUTPUT_DIR)
+        self.log_file_path = Path("app/storage/ffmpeg.log")
+        
         self.hls_dir.mkdir(parents=True, exist_ok=True)
         self.frames_dir.mkdir(parents=True, exist_ok=True)
+        self.log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def _log_monitor(self, process: subprocess.Popen, log_path: Path):
+        """
+        Background thread to read FFmpeg stdout and write to file.
+        Rotates (clears) the log file if it exceeds 1000 lines.
+        """
+        try:
+            # Open with 'w' to clear previous session logs (User requirement 1)
+            with open(log_path, "w") as f:
+                line_count = 0
+                # process.stdout is a TextIOWrapper because universal_newlines=True
+                for line in process.stdout:
+                    if line_count >= 1000:
+                        f.seek(0)
+                        f.truncate()
+                        f.write("--- Log Cleared (Limit Reached) ---\n")
+                        line_count = 0
+                    
+                    f.write(line)
+                    f.flush() # Ensure tail -f sees it immediately
+                    line_count += 1
+        except Exception as e:
+            logger.error(f"Log monitor thread failed: {e}")
     
     def _find_ffmpeg(self) -> Optional[str]:
         """Helper to find where ffmpeg.exe is installed on the system."""
@@ -180,16 +206,24 @@ class StreamProcessor:
                 
                 logger.info(f"Starting FFmpeg process (attempt {self.restart_count + 1})")
                 
-                # 3. LAUNCH: Inherit stdout/stderr so logs appear in Render/Docker console
+                # 3. LAUNCH: Use PIPE so we can intercept and control the logs
                 self.process = subprocess.Popen(
                     cmd,
-                    stdout=None,  # Inherit stdout
-                    stderr=None,  # Inherit stderr (FFmpeg writes logs here)
+                    stdout=subprocess.PIPE,   # We read this
+                    stderr=subprocess.STDOUT, # Merge stderr into stdout
                     universal_newlines=True,
                     shell=False,
                     # Windows specific: Don't pop up a black CMD window
                     creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
                 )
+                
+                # Start the background thread to handle logging and rotation
+                log_thread = threading.Thread(
+                    target=self._log_monitor, 
+                    args=(self.process, self.log_file_path),
+                    daemon=True # Dies if main process dies
+                )
+                log_thread.start()
                 
                 # 4. WATCH: Check every second if it's still alive
                 while self.is_running:

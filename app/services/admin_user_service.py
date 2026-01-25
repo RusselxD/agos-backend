@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from app.models.admin_user import AdminUser
 from app.api.v1.dependencies import CurrentUser
+from app.utils import format_name_proper
 
 class AdminUserService:
     
@@ -37,7 +38,11 @@ class AdminUserService:
         
         # Set created_by to current superuser's ID
         admin_user_create.created_by = current_user.id
-        
+
+        # format names to proper case
+        admin_user_create.first_name = format_name_proper(admin_user_create.first_name)
+        admin_user_create.last_name = format_name_proper(admin_user_create.last_name)
+
         user_in_db = await admin_user_crud.create(db=db, obj_in=admin_user_create)
 
         # Log the creation action

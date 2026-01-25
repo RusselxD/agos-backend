@@ -9,6 +9,7 @@ class CoreService:
     
     async def get_default_location(self, db) -> LocationDetails:
         default_location = await location_crud.get_default_location(db=db)
+        print(default_location)
         if not default_location:
             raise HTTPException(status_code=404, detail="Default location not found")
         

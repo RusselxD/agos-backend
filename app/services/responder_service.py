@@ -1,12 +1,19 @@
+from fastapi import HTTPException
+from app.api.v1.dependencies import CurrentUser
 from app.crud.responder import responder_otp_verification as responder_otp_verification_crud
 from app.crud.responder import responder as responder_crud
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 from app.models.responders_otp_verification import RespondersOTPVerification as OTPModel
 from app.core.config import settings
-from app.schemas import ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderCreate
+from app.schemas import ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderCreate, ResponderListResponse
 import random
 from app.core.security import get_otp_hash, verify_otp
+from app.schemas import ResponderListItem, ResponderDetailsResponse
+from app.schemas.admin_audit_log import AdminAuditLogCreate
+from app.crud.admin_audit_log import admin_audit_log as admin_audit_log_crud
+from app.models.responders import Responders as Responder
+from app.utils import format_name_proper
 
 class ResponderService:
 
@@ -98,7 +105,62 @@ class ResponderService:
         # Case 4: Valid record exists, but cooldown passed - allow replacement
         return True, "", record
 
+    async def get_all_responders(self, db: AsyncSession) -> ResponderListResponse:
+        responders = await responder_crud.get_all(db=db)
+        result = [
+            ResponderListItem(
+                id=responder.id,
+                first_name=responder.first_name,
+                last_name=responder.last_name,
+                phone_number=responder.phone_number,
+                status=responder.status
+            ) for responder in responders
+        ]
+        return ResponderListResponse(responders=result)
+    
     async def create_responder(self, responder_data: ResponderCreate, db: AsyncSession) -> None:
+        # format names properly
+        responder_data.first_name = format_name_proper(responder_data.first_name)
+        responder_data.last_name = format_name_proper(responder_data.last_name)
+
         await responder_crud.create_only(db=db, obj_in=responder_data)
+
+    async def get_responder_details(self, responder_id: str, db: AsyncSession) -> ResponderDetailsResponse | None:
+        responder: Responder = await responder_crud.get_details(db=db, id=responder_id)
+        
+        if not responder:
+            raise HTTPException(status_code=404, detail="Responder not found.")
+        
+        return ResponderDetailsResponse(
+            id=responder.id,
+            first_name=responder.first_name,
+            last_name=responder.last_name,
+            phone_number=responder.phone_number,
+            id_photo_path=responder.id_photo_path,
+            status=responder.status,
+            created_at=responder.created_at,
+            approved_by=f"{responder.admin_user.first_name} {responder.admin_user.last_name}" if responder.approved_by else None,
+            approved_at=responder.approved_at
+        )
+
+    async def approve_responder_registration(self, responder_id: str, db: AsyncSession, user: CurrentUser) -> None:
+        responder: Responder = await responder_crud.get(db=db, id=responder_id)
+        
+        if not responder:
+            raise HTTPException(status_code=404, detail="Responder not found.")
+        
+        if responder.status == 'approved':
+            raise HTTPException(status_code=400, detail="Responder is already approved.")
+
+        await responder_crud.approve_responder(db=db, responder=responder, user_id=user.id)
+
+        # Log the admin who approved
+        await admin_audit_log_crud.create_only(
+            db=db,
+            obj_in=AdminAuditLogCreate(
+                admin_user_id=user.id,
+                action=f"Approved {responder.first_name} {responder.last_name} for responder"
+            )
+        )
 
 responder_service = ResponderService()

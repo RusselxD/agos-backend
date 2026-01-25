@@ -12,9 +12,10 @@ class Responders(Base):
     phone_number = Column(String(20), unique=True, nullable=False)
     first_name = Column(String(50), nullable=False)
     last_name = Column(String(50), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()))
     status = Column(Enum('pending', 'approved', name='responder_status'), nullable=False, default='pending')
     id_photo_path = Column(String(255), nullable=False)
     approved_by = Column(UUID(as_uuid=True), ForeignKey("admin_users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()))
+    approved_at = Column(DateTime(timezone=True), nullable=True)
 
     admin_user = relationship("AdminUser", back_populates="responders_approved")

@@ -23,7 +23,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             select(self.model)
             .execution_options(populate_existing=False)
         )
-        return result.scalars().all()
+        return result.scalars().unique().all()
     
     async def create_and_return(self, db: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = obj_in.model_dump()

@@ -41,7 +41,6 @@ class AuthService:
                 action="Changed password"
             )
         )
-        print("Password changed for user ID:", user_id)
 
         access_token = self._create_token(user=user_in_db)
         return Token(access_token=access_token, token_type="bearer")

@@ -16,7 +16,7 @@ class CRUDAdminAuditLogs(CRUDBase[AdminAuditLog, AdminAuditLogCreate, None]):
             .options(joinedload(self.model.admin_user))  # Eager load the relationship
             .offset(skip)
             .limit(page_size + 1)
-            .execution_options(synchronize_session="fetch") # Disable tracking
+            .execution_options(populate_existing=False) # Disable tracking
         )
         return result.scalars().unique().all()
 

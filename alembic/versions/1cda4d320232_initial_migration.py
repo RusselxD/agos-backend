@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: 44259532b8b0
+Revision ID: 1cda4d320232
 Revises: 
-Create Date: 2026-01-22 21:32:22.297048
+Create Date: 2026-01-25 17:28:37.213250
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '44259532b8b0'
+revision: str = '1cda4d320232'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -92,10 +92,11 @@ def upgrade() -> None:
     sa.Column('phone_number', sa.String(length=20), nullable=False),
     sa.Column('first_name', sa.String(length=50), nullable=False),
     sa.Column('last_name', sa.String(length=50), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=True),
     sa.Column('status', sa.Enum('pending', 'approved', name='responder_status'), nullable=False),
     sa.Column('id_photo_path', sa.String(length=255), nullable=False),
     sa.Column('approved_by', sa.UUID(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=True),
+    sa.Column('approved_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['approved_by'], ['admin_users.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('phone_number')

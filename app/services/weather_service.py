@@ -102,7 +102,7 @@ class WeatherService:
                         precipitation_mm=condition.precipitation_mm,
                         weather_condition=weather_summary.condition
                     ), 
-
+                    location_id=condition.location_id
                 )
 
     async def _fetch_weather(self, db: AsyncSession) -> list[WeatherCreate]:

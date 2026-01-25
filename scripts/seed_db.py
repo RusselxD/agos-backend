@@ -38,7 +38,7 @@ async def seed_db():
             print("✅ Seeded settings")
 
             # -- Location ---
-            db.add(Location(name="Test Location", latitude=14.69, longitude=121.97))
+            db.add(Location(name="Valenzuela Site 1", latitude=14.69, longitude=121.97))
             print("✅ Seeded location")
             
             # --- Sensor Device ---
