@@ -144,7 +144,7 @@ class ResponderService:
         )
 
     async def approve_responder_registration(self, responder_id: str, db: AsyncSession, user: CurrentUser) -> None:
-        responder: Responder = await responder_crud.get(db=db, id=responder_id)
+        responder: Responder = await responder_crud.get_with_lock(db=db, id=responder_id)
         
         if not responder:
             raise HTTPException(status_code=404, detail="Responder not found.")
@@ -162,5 +162,7 @@ class ResponderService:
                 action=f"Approved {responder.first_name} {responder.last_name} for responder"
             )
         )
+
+        await db.commit()  # Commit here for idempotency
 
 responder_service = ResponderService()

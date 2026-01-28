@@ -33,6 +33,7 @@ async def seed_db():
                 SystemSettings(key="sensor_config", json_value={"installation_height": 200, "warning_threshold": 100, "critical_threshold": 150}),
                 SystemSettings(key="alert_thresholds", json_value={"tier_1_max": 44, "tier_2_min": 45, "tier_2_max": 75, "tier_3_min": 76}),
                 SystemSettings(key="data_retention_days", json_value=30),
+                SystemSettings(key="auto_send_sms_when_critical", json_value=False),
             ]
             db.add_all(settings)
             print("✅ Seeded settings")

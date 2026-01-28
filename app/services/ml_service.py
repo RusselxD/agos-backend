@@ -127,7 +127,6 @@ class MLService:
             percentage = round(random.uniform(0.75, 0.99), 2)
             debris_count = random.randint(0, 20)
 
-            # print(f"🔍 ML Result: {prediction[0].upper() + prediction[1:]} ({int(percentage*100)}%)")
             print(f"🔍 ML Result: {prediction.capitalize()} ({int(percentage*100)}%), Debris Count: {debris_count}")
 
             # Upload image to Cloudinary

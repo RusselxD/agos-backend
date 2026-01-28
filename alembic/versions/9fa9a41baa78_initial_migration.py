@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: 1cda4d320232
+Revision ID: 9fa9a41baa78
 Revises: 
-Create Date: 2026-01-25 17:28:37.213250
+Create Date: 2026-01-28 20:33:47.505424
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '1cda4d320232'
+revision: str = '9fa9a41baa78'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -114,6 +114,11 @@ def upgrade() -> None:
     sa.Column('location_id', sa.Integer(), nullable=False),
     sa.Column('precipitation_mm', sa.Float(), nullable=False),
     sa.Column('weather_code', sa.Integer(), nullable=False),
+    sa.Column('temperature_2m', sa.Float(), nullable=False),
+    sa.Column('relative_humidity_2m', sa.Float(), nullable=False),
+    sa.Column('wind_speed_10m', sa.Float(), nullable=False),
+    sa.Column('wind_direction_10m', sa.Float(), nullable=False),
+    sa.Column('cloud_cover', sa.Float(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ),
     sa.PrimaryKeyConstraint('id')

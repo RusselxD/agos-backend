@@ -7,6 +7,7 @@ from app.api.v1.endpoints import sensor_device
 from app.api.v1.endpoints import responder
 from app.api.v1.endpoints import stream 
 from app.api.v1.endpoints import core
+from app.api.v1.endpoints import weather
 from fastapi import APIRouter
 
 api_router = APIRouter()
@@ -20,3 +21,4 @@ api_router.include_router(sensor_device.router, prefix="/sensor-devices", tags=[
 api_router.include_router(core.router, prefix="/core", tags=["core"])
 api_router.include_router(stream.router, prefix="/stream", tags=["stream"])
 api_router.include_router(responder.router, prefix="/responder", tags=["responder"])
+api_router.include_router(weather.router, prefix="/weather", tags=["weather"])

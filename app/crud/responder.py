@@ -59,7 +59,7 @@ class CRUDResponder(CRUDBase[None, None, None]):
         responder.approved_at = datetime.now(timezone.utc)
         responder.approved_by = user_id
         db.add(responder)
-        await db.commit()
+        # commited at the service layer for idempotency
 
     # used in checking existing phone numbers
     async def record_exists(self, db: AsyncSession, phone_number: str) -> bool:

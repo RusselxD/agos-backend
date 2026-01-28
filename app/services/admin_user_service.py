@@ -50,7 +50,7 @@ class AdminUserService:
             admin_user_id=current_user.id,
             action=f"Added {user_in_db.first_name} {user_in_db.last_name} as a new admin."
         ))
-
+    
         return AdminUserResponse(
             id=user_in_db.id,
             phone_number=user_in_db.phone_number,

@@ -21,7 +21,7 @@ async def get_system_setting(key: str, db: AsyncSession = Depends(get_db)) -> Sy
 async def get_system_setting_value(key: str, db: AsyncSession = Depends(get_db)) -> any:
     json_value = await system_settings_crud.get_value(db=db, key=key)
 
-    if not json_value:
+    if json_value is None:
         raise HTTPException(status_code=404, detail="System settings not found")
     
     return json_value

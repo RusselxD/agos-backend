@@ -25,6 +25,14 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         )
         return result.scalars().unique().all()
     
+    async def get_with_lock(self, db: AsyncSession, id: str) -> ModelType:
+        result = await db.execute(
+            select(self.model)
+            .filter(self.model.id == id)
+            .with_for_update()
+        )
+        return result.scalars().first()
+
     async def create_and_return(self, db: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = obj_in.model_dump()
         db_obj = self.model(**obj_in_data)

@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     WEATHER_CONDITION_GRACE_PERIOD_MINUTES: int = 90 # 1.5 hours
     WEATHER_CONDITION_WARNING_PERIOD_MINUTES: int = 120 # 2 hours
 
-    FRONTEND_URLS: Union[list[str], str] = ["http://localhost:5173"]
+    FRONTEND_URLS: Union[list[str], str]
 
     #runs implicitly before model initialization
     @field_validator('FRONTEND_URLS', mode='before')

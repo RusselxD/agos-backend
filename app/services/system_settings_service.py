@@ -18,6 +18,17 @@ class SystemSettingsService:
     
         # Store old value for audit log
         old_value = settings.json_value
+
+        # Normalize types for specific settings keys
+        if key == "auto_send_sms_when_critical":
+            # Ensure we always store a real boolean in the DB
+            raw = value.json_value
+            if isinstance(raw, str):
+                lowered = raw.strip().lower()
+                if lowered in ["true", "1", "yes", "on"]:
+                    value.json_value = True
+                elif lowered in ["false", "0", "no", "off"]:
+                    value.json_value = False
         
         updated_settings = await system_settings_crud.update(db=db, db_obj=settings, obj_in=value)
 
@@ -52,6 +63,13 @@ class SystemSettingsService:
                 if old_value.get(tier_key) != new_value.get(tier_key):
                     changes.append(f"{tier_key} from {old_value.get(tier_key)}% to {new_value.get(tier_key)}%")
             return f"Updated alert thresholds: {', '.join(changes)}" if changes else f"Updated alert thresholds (no changes)"
+        
+        elif key == "auto_send_sms_when_critical":
+            return (
+                "Enabled auto-send SMS when critical"
+                if new_value
+                else "Disabled auto-send SMS when critical"
+            )
         
         # Fallback for unknown keys
         return f"Updated system setting '{key}' from {old_value} to {new_value}"
