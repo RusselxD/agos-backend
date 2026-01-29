@@ -51,3 +51,7 @@ class SensorReadingMinimalResponse(BaseModel):
 class SensorDataRecordedResponse(BaseModel):
     timestamp: datetime
     status: str
+
+class SensorReadingTrendResponse(BaseModel):
+    labels: list[str]
+    levels: list[float]

@@ -4,8 +4,8 @@ from app.models import SensorReading
 from app.schemas import SensorReadingMinimalResponse, SensorReadingCreate, SensorReadingForExport
 from app.crud.base import CRUDBase
 from app.models import SensorDevice
-from sqlalchemy import func, select
-from typing import List
+from sqlalchemy import func, select, Row
+from typing import List, Sequence
 from sqlalchemy.orm import joinedload
 
 class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
@@ -62,6 +62,15 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
         result = await db.execute(query)
         items = result.all()
         return items
+
+    async def get_readings_since(self, db: AsyncSession, sensor_device_id: int, since_datetime: datetime) -> Sequence[Row]:
+        result = await db.execute(
+            select(self.model.water_level_cm, self.model.timestamp)
+            .filter(self.model.sensor_device_id == sensor_device_id)
+            .filter(self.model.timestamp >= since_datetime)
+            .order_by(self.model.timestamp.asc())
+        )
+        return result.all()
 
     async def get_available_reading_days(self, db: AsyncSession, sensor_device_id: int) -> List[str]:
         result = await db.execute(

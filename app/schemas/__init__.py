@@ -3,7 +3,7 @@ from .token import Token, TokenData
 from .admin_audit_log import AdminAuditLogCreate, AdminAuditLogResponse
 from .system_settings import SystemSettingsCreate, SystemSettingsResponse, SystemSettingsUpdate, SensorConfigResponse, AlertThresholdsResponse
 from .sensor_devices import SensorDeviceCreate, SensorDeviceResponse, SensorDeviceStatusResponse
-from .sensor_reading import SensorReadingCreate, SensorReadingResponse, SensorReadingForExport, SensorReadingPaginatedResponse, SensorDataRecordedResponse, SensorReadingMinimalResponse, SensorReadingForExportResponse
+from .sensor_reading import SensorReadingCreate, SensorReadingResponse, SensorReadingForExport, SensorReadingPaginatedResponse, SensorDataRecordedResponse, SensorReadingMinimalResponse, SensorReadingForExportResponse, SensorReadingTrendResponse
 from .model_readings import ModelReadingCreate
 from .admin_audit_log import AdminAuditLogCreate, AdminAuditLogPaginatedResponse, AdminAuditLogResponse
 from .auth import LoginRequest, ChangePasswordRequest

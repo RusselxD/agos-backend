@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas import SensorWebSocketResponse, WaterLevelStatus, SensorReadingForExport, SensorReadingForExportResponse
+from app.schemas.sensor_reading import SensorReadingTrendResponse
 from app.services.cache_service import cache_service
 from app.models import SensorReading
 from datetime import datetime, timezone, timedelta
@@ -9,6 +10,15 @@ from app.core.state import fusion_state_manager
 from app.core.config import settings
 from app.schemas import SensorReadingResponse, SensorReadingCreate, SensorReadingPaginatedResponse, SensorDataRecordedResponse
 from app.schemas import SensorReadingSummary, WaterLevelSummary, AlertSummary
+
+DURATION_DELTAS = {
+    '1_hour': timedelta(hours=1),
+    '6_hours': timedelta(hours=6),
+    '12_hours': timedelta(hours=12),
+    '1_day': timedelta(days=1),
+    '1_week': timedelta(weeks=1),
+    '1_month': timedelta(days=30),
+}
 
 class SensorReadingService:
 
@@ -37,6 +47,85 @@ class SensorReadingService:
         has_more = len(db_items) > page_size
         return SensorReadingPaginatedResponse(items=items[:page_size], has_more=has_more)
 
+    async def get_readings_trend(self, db: AsyncSession, duration: str, sensor_device_id: int) -> SensorReadingTrendResponse:
+    
+        delta = DURATION_DELTAS.get(duration)
+        if delta is None:
+            raise ValueError(f"Invalid duration: {duration}")
+
+        range_start = datetime.now(timezone.utc) - delta
+
+        db_items = await sensor_reading_crud.get_readings_since(
+            db=db, 
+            since_datetime=range_start, 
+            sensor_device_id=sensor_device_id
+        )
+
+        aggregation_intervals = {
+            '1_hour': timedelta(minutes=1),
+            '6_hours': timedelta(minutes=5),
+            '12_hours': timedelta(minutes=10),
+            '1_day': timedelta(minutes=30),
+            '1_week': timedelta(hours=2),
+            '1_month': timedelta(days=1),
+        }
+        
+        interval = aggregation_intervals.get(duration, timedelta(minutes=1))
+        
+        return self._process_trend_data(db_items, interval, range_start)
+
+    def _process_trend_data(self, items: list, interval: timedelta, start_time: datetime) -> SensorReadingTrendResponse:
+        grouped_data = {}
+        interval_seconds = interval.total_seconds()
+        
+        for item in items:
+            timestamp = item.timestamp
+            level = item.water_level_cm
+
+            # Normalize timestamp to bucket interval
+            ts_seconds = timestamp.timestamp()
+            bucket_ts = ts_seconds - (ts_seconds % interval_seconds)
+            
+            if bucket_ts not in grouped_data:
+                grouped_data[bucket_ts] = []
+            grouped_data[bucket_ts].append(level)
+
+        # Generate complete timeline
+        # Align start_time to the grid
+        start_ts = start_time.timestamp()
+        current_bucket_ts = start_ts - (start_ts % interval_seconds)
+        
+        end_ts = datetime.now(timezone.utc).timestamp()
+        
+        labels = []
+        levels = []
+
+        # Iterate until we pass the current time
+        while current_bucket_ts <= end_ts:
+            if current_bucket_ts in grouped_data:
+                avg_level = sum(grouped_data[current_bucket_ts]) / len(grouped_data[current_bucket_ts])
+                levels.append(round(avg_level, 2))
+            else:
+                levels.append(0.0)
+            
+            dt = datetime.fromtimestamp(current_bucket_ts, tz=timezone.utc)
+            labels.append(self._format_trend_label(dt, interval))
+            
+            current_bucket_ts += interval_seconds
+
+        return SensorReadingTrendResponse(labels=labels, levels=levels)
+
+    def _format_trend_label(self, dt: datetime, interval: timedelta) -> str:
+        # Adjust to local time
+        local_dt = dt.astimezone(timezone(timedelta(hours=settings.UTC_OFFSET_HOURS)))
+        
+        if interval >= timedelta(days=1):
+            return local_dt.strftime("%d %b") 
+        elif interval >= timedelta(hours=2):
+            return local_dt.strftime("%d %b %H:%M")
+        else:
+            return local_dt.strftime("%H:%M")
+    
     async def get_avialable_reading_days(self, db: AsyncSession, sensor_device_id: int) -> list[str]:
         return await sensor_reading_crud.get_available_reading_days(db=db, sensor_device_id=sensor_device_id)
 
@@ -206,30 +295,9 @@ class SensorReadingService:
 
         return status, change_rate
 
-
     def _format_datetime_for_excel(self, dt: datetime) -> str:
         # Convert UTC to UTC+8 for display
         local_dt = dt.astimezone(timezone(timedelta(hours=settings.UTC_OFFSET_HOURS)))
         return local_dt.strftime("%Y-%m-%d %H:%M")
-
-    """
-    Record multiple sensor readings in bulk.
-    FOR DEVELOPMENT USE ONLY. WILL BE REMOVED IN PRODUCTION.
-    """
-    async def record_bulk_readings(self, db: AsyncSession, objs_in: list[SensorReadingCreate]) -> SensorDataRecordedResponse:
-        sensor_height = (await cache_service.get_sensor_config(db)).installation_height
-        
-        # Prepare DB objects
-        db_objs = []
-        for obj_in in objs_in:
-            obj_in_data = obj_in.model_dump()
-            db_obj = SensorReading(**obj_in_data)
-            db_obj.water_level_cm = sensor_height - db_obj.raw_distance_cm
-            db_objs.append(db_obj)
-        
-        # Save to database
-        await sensor_reading_crud.create_bulk_record(db, db_objs=db_objs)
-
-        return SensorDataRecordedResponse(timestamp=datetime.now(timezone.utc), status="Success: Bulk Reading recorded")
 
 sensor_reading_service = SensorReadingService()
