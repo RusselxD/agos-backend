@@ -1,5 +1,5 @@
 import logging
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from pathlib import Path
 
@@ -7,6 +7,7 @@ from app.schemas import StreamStatus, FrameResponse, FrameListResponse
 
 from app.services import stream_processor, frame_manager
 from app.core.config import settings
+from app.core.rate_limiter import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,8 @@ async def get_stream_status():
     )
 
 @router.post("/start")
-async def start_stream():
+@limiter.limit("10/minute")
+async def start_stream(request: Request):
     """Start the stream processor"""
     try:
         await stream_processor.start()
@@ -35,7 +37,8 @@ async def start_stream():
 
 
 @router.post("/stop")
-async def stop_stream():
+@limiter.limit("10/minute")
+async def stop_stream(request: Request):
     """Stop the stream processor"""
     try:
         await stream_processor.stop()
@@ -119,6 +122,7 @@ async def cleanup_old_frames(keep_last: int = Query(100, ge=10, le=1000)):
 async def serve_hls_file(filename: str):
     """Serve HLS playlist or segment files"""
     hls_path = Path(settings.HLS_OUTPUT_DIR) / filename
+    print("eto ba yun")
     
     if not hls_path.exists():
         raise HTTPException(status_code=404, detail="HLS file not found")

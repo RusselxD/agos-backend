@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, UploadFile, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.dependencies import CurrentUser, require_auth
 from app.core.database import get_db
@@ -6,6 +6,7 @@ from fastapi import Depends
 from app.schemas import ResponderOTPRequest, ResponderOTPResponse, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, UploadResponse, ResponderCreate
 from app.schemas.responder import ResponderDetailsResponse, ResponderListResponse
 from app.services import responder_service, upload_service
+from app.core.rate_limiter import limiter
 
 router = APIRouter()
 
@@ -22,7 +23,8 @@ async def approve_responder_registration(responder_id: str, db: AsyncSession = D
     await responder_service.approve_responder_registration(responder_id=responder_id, db=db, user=user)
 
 @router.post("/send-otp", response_model=ResponderOTPResponse)
-async def send_otp(otp_request:ResponderOTPRequest, db: AsyncSession = Depends(get_db)) -> ResponderOTPResponse:
+@limiter.limit("2/minute")
+async def send_otp(request: Request, otp_request:ResponderOTPRequest, db: AsyncSession = Depends(get_db)) -> ResponderOTPResponse:
     is_success, message = await responder_service.send_otp(phone_number=otp_request.phone_number, db=db)
     return ResponderOTPResponse(
         success=is_success, 
@@ -30,8 +32,11 @@ async def send_otp(otp_request:ResponderOTPRequest, db: AsyncSession = Depends(g
     )
 
 @router.post("/verify-otp", response_model=ResponderOTPVerifyResponse)
-async def verify_otp(verify_request: ResponderOTPVerifyRequest, 
-                    db: AsyncSession = Depends(get_db)) -> ResponderOTPVerifyResponse:
+@limiter.limit("5/minute")
+async def verify_otp(
+    request: Request, 
+    verify_request: ResponderOTPVerifyRequest, 
+    db: AsyncSession = Depends(get_db)) -> ResponderOTPVerifyResponse:
     
     is_success, message, send_again = await responder_service.verify_otp(verify_request=verify_request, db=db)
     
@@ -42,12 +47,14 @@ async def verify_otp(verify_request: ResponderOTPVerifyRequest,
     )
 
 @router.post("/upload-id-photo", response_model=UploadResponse)
-async def upload_responder_id_photo(file: UploadFile = File(...)) -> UploadResponse:
+@limiter.limit("5/minute")
+async def upload_responder_id_photo(request: Request, file: UploadFile = File(...)) -> UploadResponse:
     file_path = await upload_service.upload_responder_id_photo(file=file)
     return UploadResponse(
         file_path=file_path
     )
 
 @router.post("/create", status_code=204)
-async def create_responder(responder_data: ResponderCreate, db: AsyncSession = Depends(get_db)) -> None:
+@limiter.limit("3/minute")
+async def create_responder(request: Request, responder_data: ResponderCreate, db: AsyncSession = Depends(get_db)) -> None:
     await responder_service.create_responder(responder_data=responder_data, db=db)

@@ -2,14 +2,23 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
+
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 from pathlib import Path
 from contextlib import asynccontextmanager
-from app.core.cloudinary import upload_image, init_cloudinary
-from app.api.v1.router import api_router
+from app.core.cloudinary import init_cloudinary
+
 from app.core.config import settings
-from app.api.v1.endpoints.websocket import router as ws_router
+from app.core.rate_limiter import limiter
+
 from app.services.stream import stream_processor
 from prometheus_fastapi_instrumentator import Instrumentator
+
+from app.api.v1.router import api_router
+from app.api.v1.endpoints.websocket import router as ws_router
+
 from app.services import ml_service
 from app.services import weather_service
 from app.services import database_cleanup_service
@@ -44,6 +53,10 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan  # Pass lifespan here
 )
+
+# Attach rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS Middleware
 app.add_middleware(
