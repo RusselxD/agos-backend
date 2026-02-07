@@ -1,4 +1,3 @@
-
 from http.client import HTTPException
 from app.schemas import AdminUserCreate, AdminUserResponse, AdminAuditLogCreate
 from app.crud.admin_user import admin_user as admin_user_crud

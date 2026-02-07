@@ -14,6 +14,7 @@ class CRUDAdminAuditLogs(CRUDBase[AdminAuditLog, AdminAuditLogCreate, None]):
         result = await db.execute(
             select(self.model)
             .options(joinedload(self.model.admin_user))  # Eager load the relationship
+            .order_by(self.model.created_at.desc())
             .offset(skip)
             .limit(page_size + 1)
             .execution_options(populate_existing=False) # Disable tracking

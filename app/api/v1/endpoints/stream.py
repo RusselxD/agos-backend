@@ -122,7 +122,6 @@ async def cleanup_old_frames(keep_last: int = Query(100, ge=10, le=1000)):
 async def serve_hls_file(filename: str):
     """Serve HLS playlist or segment files"""
     hls_path = Path(settings.HLS_OUTPUT_DIR) / filename
-    print("eto ba yun")
     
     if not hls_path.exists():
         raise HTTPException(status_code=404, detail="HLS file not found")

@@ -37,13 +37,16 @@ class ResponderListItem(BaseModel):
     last_name: str
     phone_number: str
     status: str
+    groups: list[str]
 
-class ResponderListResponse(BaseModel):
-    responders: list[ResponderListItem]
+    class Config:
+        from_attributes = True
 
-class ResponderDetailsResponse(ResponderBase):
-    id: UUID
-    status: str
+class ResponderDetailsResponse(BaseModel):
+    id_photo_path: str
     created_at: datetime
     approved_by: str | None
     approved_at: datetime | None
+
+    class Config:
+        from_attributes = True

@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: 9fa9a41baa78
+Revision ID: 10bd8f0943eb
 Revises: 
-Create Date: 2026-01-28 20:33:47.505424
+Create Date: 2026-02-05 01:09:39.447226
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '9fa9a41baa78'
+revision: str = '10bd8f0943eb'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -41,6 +41,13 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('phone_number')
     )
+    op.create_table('groups',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('name')
+    )
+    op.create_index(op.f('ix_groups_id'), 'groups', ['id'], unique=False)
     op.create_table('locations',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
@@ -49,6 +56,15 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
     )
+    op.create_table('message_templates',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('template_name', sa.String(length=100), nullable=False),
+    sa.Column('template_content', sa.Text(), nullable=False),
+    sa.Column('auto_send_on_critical', sa.Boolean(), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('template_name')
+    )
+    op.create_index(op.f('ix_message_templates_id'), 'message_templates', ['id'], unique=False)
     op.create_table('responders_otp_verification',
     sa.Column('phone_number', sa.String(length=20), nullable=False),
     sa.Column('otp_hash', sa.String(), nullable=False),
@@ -135,6 +151,13 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['camera_device_id'], ['camera_devices.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('responder_groups',
+    sa.Column('responder_id', sa.UUID(), nullable=False),
+    sa.Column('group_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['group_id'], ['groups.id'], ),
+    sa.ForeignKeyConstraint(['responder_id'], ['responders.id'], ),
+    sa.PrimaryKeyConstraint('responder_id', 'group_id')
+    )
     op.create_table('sensor_readings',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('sensor_device_id', sa.Integer(), nullable=False),
@@ -157,6 +180,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_sensor_readings_timestamp'), table_name='sensor_readings')
     op.drop_index(op.f('ix_sensor_readings_id'), table_name='sensor_readings')
     op.drop_table('sensor_readings')
+    op.drop_table('responder_groups')
     op.drop_table('model_readings')
     op.drop_table('weather')
     op.drop_table('sensor_devices')
@@ -167,6 +191,10 @@ def downgrade() -> None:
     op.drop_table('system_settings')
     op.drop_index(op.f('ix_responders_otp_verification_phone_number'), table_name='responders_otp_verification')
     op.drop_table('responders_otp_verification')
+    op.drop_index(op.f('ix_message_templates_id'), table_name='message_templates')
+    op.drop_table('message_templates')
     op.drop_table('locations')
+    op.drop_index(op.f('ix_groups_id'), table_name='groups')
+    op.drop_table('groups')
     op.drop_table('admin_users')
     # ### end Alembic commands ###

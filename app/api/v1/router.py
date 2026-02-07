@@ -1,4 +1,4 @@
-from app.api.v1.endpoints import auth
+from app.api.v1.endpoints import auth, message_template
 from app.api.v1.endpoints import admin_users
 from app.api.v1.endpoints import admin_audit_log
 from app.api.v1.endpoints import system_settings
@@ -22,3 +22,4 @@ api_router.include_router(core.router, prefix="/core", tags=["core"])
 api_router.include_router(stream.router, prefix="/stream", tags=["stream"])
 api_router.include_router(responder.router, prefix="/responder", tags=["responder"])
 api_router.include_router(weather.router, prefix="/weather", tags=["weather"])
+api_router.include_router(message_template.router, prefix="/message-template", tags=["message-template"])

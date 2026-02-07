@@ -18,3 +18,6 @@ class AdminAuditLogResponse(AdminAuditLogBase):
 class AdminAuditLogPaginatedResponse(BaseModel):
     logs: list[AdminAuditLogResponse]
     has_more: bool
+
+    class Config:
+        from_attributes = True

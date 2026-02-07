@@ -18,6 +18,9 @@ class WeatherConditionResponse(BaseModel):
     condition: str
     description: str
 
+    class Config:
+        from_attributes = True
+
 class WeatherComprehensiveResponse(BaseModel):
     # Timestamp
     timestamp: datetime
@@ -41,3 +44,6 @@ class WeatherComprehensiveResponse(BaseModel):
     cloudiness: str                   # from cloud_cover_percent
     comfort_level: str                # from temperature + humidity
     storm_risk_level: str             # from weather_code + precipitation + wind
+
+    class Config:
+        from_attributes = True

@@ -3,14 +3,12 @@ from pydantic import BaseModel
 class SensorDeviceBase(BaseModel):
     device_name: str
     location_id: int
-
-class SensorDeviceCreate(SensorDeviceBase):
-    pass
-
-
 class SensorDeviceResponse(BaseModel):
     device_name: str
     location_name: str
+
+    class Config:
+        from_attributes = True
 
 class SensorDeviceStatusResponse(BaseModel):
     device_name: str
