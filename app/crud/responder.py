@@ -1,11 +1,11 @@
 from app.crud.base import CRUDBase
 from sqlalchemy import exists, select
 from app.schemas import ResponderOTPVerificationCreate
-from app.models.responders_otp_verification import RespondersOTPVerification as OTPModel
-from app.models.responders import Responders
+from app.models import RespondersOTPVerification as OTPModel
+from app.models import Responders
 from sqlalchemy import delete
 from datetime import datetime, timezone
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 class CRUDResponderOTPVerification(CRUDBase[ResponderOTPVerificationCreate, None, None]):
@@ -44,6 +44,13 @@ class CRUDResponderOTPVerification(CRUDBase[ResponderOTPVerificationCreate, None
         return result.rowcount or 0 # Safely handle potential None values
 
 class CRUDResponder(CRUDBase[None, None, None]):
+    async def get_all(self, db: AsyncSession) -> list[Responders]:
+        result = await db.execute(
+            select(self.model)
+            .options(selectinload(self.model.groups))
+            .execution_options(populate_existing=False)
+        )
+        return result.scalars().unique().all()
 
     async def get_details(self, db : AsyncSession, id: str) -> Responders | None:
         result = await db.execute(

@@ -11,9 +11,3 @@ class ModelReadingBase(BaseModel):
 
 class ModelReadingCreate(ModelReadingBase):
     pass
-
-# class ModelReadingResponse(ModelReadingBase):
-#     id: int
-
-#     class Config:
-#         from_attributes = True

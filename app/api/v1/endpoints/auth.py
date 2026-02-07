@@ -24,8 +24,9 @@ async def login(
 @router.post("/change-password", response_model=Token)
 @limiter.limit("3/minute")
 async def change_password(
-    request: ChangePasswordRequest, 
+    request: Request,
+    password_data: ChangePasswordRequest, 
     db: AsyncSession = Depends(get_db), 
     user: CurrentUser = Depends(require_auth)) -> Token:
     
-    return await auth_service.change_user_password(db=db, new_password=request.new_password, user=user)
+    return await auth_service.change_user_password(db=db, new_password=password_data.new_password, user=user)

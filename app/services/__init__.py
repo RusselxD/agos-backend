@@ -13,3 +13,5 @@ from .system_settings_service import system_settings_service
 from .upload_service import upload_service
 from .core_service import core_service
 from .stream import stream_processor, frame_manager
+from .sms_service import sms_service
+from .message_template_service import message_template_service

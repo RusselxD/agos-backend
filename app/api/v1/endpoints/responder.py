@@ -4,18 +4,18 @@ from app.api.v1.dependencies import CurrentUser, require_auth
 from app.core.database import get_db
 from fastapi import Depends
 from app.schemas import ResponderOTPRequest, ResponderOTPResponse, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, UploadResponse, ResponderCreate
-from app.schemas.responder import ResponderDetailsResponse, ResponderListResponse
+from app.schemas.responder import ResponderDetailsResponse, ResponderListItem
 from app.services import responder_service, upload_service
 from app.core.rate_limiter import limiter
 
 router = APIRouter()
 
-@router.get("/all", dependencies=[Depends(require_auth)], response_model=ResponderListResponse)
-async def get_all_responders(db:AsyncSession = Depends(get_db)):
+@router.get("/all", dependencies=[Depends(require_auth)], response_model=list[ResponderListItem])
+async def get_all_responders(db:AsyncSession = Depends(get_db)) -> list[ResponderListItem]:
     return await responder_service.get_all_responders(db=db)
 
-@router.get("/{responder_id}", dependencies=[Depends(require_auth)], response_model=ResponderDetailsResponse)
-async def get_responder_details(responder_id: str, db:AsyncSession = Depends(get_db)):
+@router.get("/additional-details/{responder_id}", dependencies=[Depends(require_auth)], response_model=ResponderDetailsResponse)
+async def get_responder_details(responder_id: str, db:AsyncSession = Depends(get_db)) -> ResponderDetailsResponse:
     return await responder_service.get_responder_details(responder_id=responder_id, db=db)
 
 @router.put("/approve/{responder_id}", status_code=204)
@@ -47,7 +47,7 @@ async def verify_otp(
     )
 
 @router.post("/upload-id-photo", response_model=UploadResponse)
-@limiter.limit("5/minute")
+@limiter.limit("4/minute")
 async def upload_responder_id_photo(request: Request, file: UploadFile = File(...)) -> UploadResponse:
     file_path = await upload_service.upload_responder_id_photo(file=file)
     return UploadResponse(

@@ -1,9 +1,16 @@
 import uuid
-from sqlalchemy import Column, String, UUID, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Table, String, UUID, DateTime, ForeignKey, Enum, Integer
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
-from .base import Base
+from ..base import Base
+
+responder_groups = Table(
+    'responder_groups',
+    Base.metadata,
+    Column('responder_id',  UUID(as_uuid=True), ForeignKey('responders.id'), primary_key=True),
+    Column('group_id', Integer, ForeignKey('groups.id'), primary_key=True)
+)
 
 class Responders(Base):
     __tablename__ = "responders"
@@ -19,3 +26,4 @@ class Responders(Base):
     approved_at = Column(DateTime(timezone=True), nullable=True)
 
     admin_user = relationship("AdminUser", back_populates="responders_approved")
+    groups = relationship("Group", secondary=responder_groups, back_populates="responders")

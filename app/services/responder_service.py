@@ -4,16 +4,17 @@ from app.crud.responder import responder_otp_verification as responder_otp_verif
 from app.crud.responder import responder as responder_crud
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
-from app.models.responders_otp_verification import RespondersOTPVerification as OTPModel
+from app.models import RespondersOTPVerification as OTPModel
 from app.core.config import settings
-from app.schemas import ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderCreate, ResponderListResponse
+from app.schemas import ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderCreate
 import random
 from app.core.security import get_otp_hash, verify_otp
 from app.schemas import ResponderListItem, ResponderDetailsResponse
 from app.schemas.admin_audit_log import AdminAuditLogCreate
 from app.crud.admin_audit_log import admin_audit_log as admin_audit_log_crud
-from app.models.responders import Responders as Responder
+from app.models import Responders as Responder
 from app.utils import format_name_proper
+from app.services.sms_service import sms_service
 
 class ResponderService:
 
@@ -72,7 +73,7 @@ class ResponderService:
         )
         await responder_otp_verification_crud.create_only(db=db, obj_in=obj_in)
         
-        print(f"OTP for {phone_number}: {otp}") # Test only
+        await sms_service.send_one_sms(phone_number=phone_number, message=f"Your OTP code is: {otp}")
         return True, "OTP sent successfully."
 
     async def _can_send_otp(self, phone_number: str, db: AsyncSession) -> tuple[bool, str, OTPModel | None]:
@@ -105,7 +106,7 @@ class ResponderService:
         # Case 4: Valid record exists, but cooldown passed - allow replacement
         return True, "", record
 
-    async def get_all_responders(self, db: AsyncSession) -> ResponderListResponse:
+    async def get_all_responders(self, db: AsyncSession) -> list[ResponderListItem]:
         responders = await responder_crud.get_all(db=db)
         result = [
             ResponderListItem(
@@ -113,10 +114,11 @@ class ResponderService:
                 first_name=responder.first_name,
                 last_name=responder.last_name,
                 phone_number=responder.phone_number,
-                status=responder.status
+                status=responder.status,
+                groups=[group.name for group in responder.groups]
             ) for responder in responders
         ]
-        return ResponderListResponse(responders=result)
+        return result
     
     async def create_responder(self, responder_data: ResponderCreate, db: AsyncSession) -> None:
         # format names properly

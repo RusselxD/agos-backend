@@ -28,10 +28,16 @@ class SensorReadingForExport(SensorReadingBase):
     signal_strength: int
     signal_quality: str
 
+    class Config:
+        from_attributes = True
+
 # Response model for exporting sensor readings grouped by device
 class SensorReadingForExportResponse(BaseModel):
     sensor_device_name: str
     readings: list[SensorReadingForExport]
+
+    class Config:
+        from_attributes = True
 
 class SensorReadingPaginatedResponse(BaseModel):
     items: list[SensorReadingResponse]
@@ -51,6 +57,9 @@ class SensorReadingMinimalResponse(BaseModel):
 class SensorDataRecordedResponse(BaseModel):
     timestamp: datetime
     status: str
+
+    class Config:
+        from_attributes = True
 
 class SensorReadingTrendResponse(BaseModel):
     labels: list[str]
