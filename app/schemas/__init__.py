@@ -18,6 +18,7 @@ from .reading_summary_response import WeatherWebSocketResponse
 from .reading_summary_response import FusionWebSocketResponse
 
 from .message_template import MessageTemplateResponse, MessageTemplateCreate
+from .responder_group import ResponderGroupItem
 
 from .location import LocationCoordinate, DevicePerLocation
 from .core import LocationDetails, DeviceDetails

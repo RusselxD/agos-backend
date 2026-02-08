@@ -8,6 +8,7 @@ from app.api.v1.endpoints import responder
 from app.api.v1.endpoints import stream 
 from app.api.v1.endpoints import core
 from app.api.v1.endpoints import weather
+from app.api.v1.endpoints import responder_group
 from fastapi import APIRouter
 
 api_router = APIRouter()
@@ -23,3 +24,4 @@ api_router.include_router(stream.router, prefix="/stream", tags=["stream"])
 api_router.include_router(responder.router, prefix="/responder", tags=["responder"])
 api_router.include_router(weather.router, prefix="/weather", tags=["weather"])
 api_router.include_router(message_template.router, prefix="/message-template", tags=["message-template"])
+api_router.include_router(responder_group.router, prefix="/responder-group", tags=["responder-group"])
