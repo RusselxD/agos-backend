@@ -75,5 +75,14 @@ class CRUDResponder(CRUDBase[None, None, None]):
         )
         return result.scalar()
 
+    async def get_by_ids(self, db: AsyncSession, ids: list) -> list[Responders]:
+        if not ids:
+            return []
+        result = await db.execute(
+            select(self.model).where(self.model.id.in_(ids))
+            .execution_options(populate_existing=False)
+        )
+        return list(result.scalars().unique().all())
+
 responder_otp_verification = CRUDResponderOTPVerification(OTPModel)
 responder = CRUDResponder(Responders)
