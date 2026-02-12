@@ -4,7 +4,7 @@ from app.api.v1.dependencies import CurrentUser
 from app.crud import responder_crud
 from app.crud import responder_group_crud
 from app.crud import admin_audit_log_crud
-from app.models.responder_related.group import DEFAULT_APPROVED_RESPONDERS_GROUP_NAME
+from app.models.responder_related.group import DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME
 from app.schemas import AdminAuditLogCreate
 from app.schemas import ResponderGroupCreate, ResponderGroupItem
 
@@ -14,7 +14,7 @@ class ResponderGroupService:
     async def get_all_groups(self, db: AsyncSession) -> list[ResponderGroupItem]:
         await responder_group_crud.ensure_exists(
             db=db,
-            name=DEFAULT_APPROVED_RESPONDERS_GROUP_NAME,
+            name=DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME,
         )
         groups = await responder_group_crud.get_all_with_member_ids(db=db)
         return [
@@ -35,10 +35,10 @@ class ResponderGroupService:
                 detail="Group name cannot be empty.",
             )
         group.group_name = normalized_name
-        if normalized_name.casefold() == DEFAULT_APPROVED_RESPONDERS_GROUP_NAME.casefold():
+        if normalized_name.casefold() == DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME.casefold():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This group name is reserved for the system default approved-responders group.",
+                detail="This group name is reserved for the system default active-responders group.",
             )
 
 

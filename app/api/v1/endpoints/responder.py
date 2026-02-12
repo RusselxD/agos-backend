@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.dependencies import CurrentUser, require_auth
 from app.core.database import get_db
 from fastapi import Depends
-from app.schemas import ResponderOTPRequest, ResponderOTPResponse, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, UploadResponse, ResponderCreate
+# from app.schemas import ResponderOTPRequest, ResponderOTPResponse, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, UploadResponse, ResponderCreate
 from app.schemas.responder import ResponderDetailsResponse, ResponderListItem
 from app.services import responder_service, upload_service
 from app.core.rate_limiter import limiter
@@ -21,47 +21,47 @@ async def get_responder_details(responder_id: str, db:AsyncSession = Depends(get
     return await responder_service.get_responder_details(responder_id=responder_id, db=db)
 
 
-@router.put("/approve/{responder_id}", status_code=204)
-async def approve_responder_registration(responder_id: str, db: AsyncSession = Depends(get_db), user: CurrentUser = Depends(require_auth)) -> None:
-    await responder_service.approve_responder_registration(responder_id=responder_id, db=db, user=user)
+# @router.put("/approve/{responder_id}", status_code=204)
+# async def approve_responder_registration(responder_id: str, db: AsyncSession = Depends(get_db), user: CurrentUser = Depends(require_auth)) -> None:
+#     await responder_service.approve_responder_registration(responder_id=responder_id, db=db, user=user)
 
 
-@router.post("/send-otp", response_model=ResponderOTPResponse)
-@limiter.limit("2/minute")
-async def send_otp(request: Request, otp_request:ResponderOTPRequest, db: AsyncSession = Depends(get_db)) -> ResponderOTPResponse:
-    is_success, message = await responder_service.send_otp(phone_number=otp_request.phone_number, db=db)
-    return ResponderOTPResponse(
-        success=is_success, 
-        message=message
-    )
+# @router.post("/send-otp", response_model=ResponderOTPResponse)
+# @limiter.limit("2/minute")
+# async def send_otp(request: Request, otp_request:ResponderOTPRequest, db: AsyncSession = Depends(get_db)) -> ResponderOTPResponse:
+#     is_success, message = await responder_service.send_otp(phone_number=otp_request.phone_number, db=db)
+#     return ResponderOTPResponse(
+#         success=is_success, 
+#         message=message
+#     )
 
 
-@router.post("/verify-otp", response_model=ResponderOTPVerifyResponse)
-@limiter.limit("5/minute")
-async def verify_otp(
-    request: Request, 
-    verify_request: ResponderOTPVerifyRequest, 
-    db: AsyncSession = Depends(get_db)) -> ResponderOTPVerifyResponse:
+# @router.post("/verify-otp", response_model=ResponderOTPVerifyResponse)
+# @limiter.limit("5/minute")
+# async def verify_otp(
+#     request: Request, 
+#     verify_request: ResponderOTPVerifyRequest, 
+#     db: AsyncSession = Depends(get_db)) -> ResponderOTPVerifyResponse:
     
-    is_success, message, send_again = await responder_service.verify_otp(verify_request=verify_request, db=db)
+#     is_success, message, send_again = await responder_service.verify_otp(verify_request=verify_request, db=db)
     
-    return ResponderOTPVerifyResponse(
-        success=is_success, 
-        message=message, 
-        send_again=send_again
-    )
+#     return ResponderOTPVerifyResponse(
+#         success=is_success, 
+#         message=message, 
+#         send_again=send_again
+#     )
 
 
-@router.post("/upload-id-photo", response_model=UploadResponse)
-@limiter.limit("4/minute")
-async def upload_responder_id_photo(request: Request, file: UploadFile = File(...)) -> UploadResponse:
-    file_path = await upload_service.upload_responder_id_photo(file=file)
-    return UploadResponse(
-        file_path=file_path
-    )
+# @router.post("/upload-id-photo", response_model=UploadResponse)
+# @limiter.limit("4/minute")
+# async def upload_responder_id_photo(request: Request, file: UploadFile = File(...)) -> UploadResponse:
+#     file_path = await upload_service.upload_responder_id_photo(file=file)
+#     return UploadResponse(
+#         file_path=file_path
+#     )
 
 
-@router.post("/create", status_code=204)
-@limiter.limit("3/minute")
-async def create_responder(request: Request, responder_data: ResponderCreate, db: AsyncSession = Depends(get_db)) -> None:
-    await responder_service.create_responder(responder_data=responder_data, db=db)
+# @router.post("/create", status_code=204)
+# @limiter.limit("3/minute")
+# async def create_responder(request: Request, responder_data: ResponderCreate, db: AsyncSession = Depends(get_db)) -> None:
+#     await responder_service.create_responder(responder_data=responder_data, db=db)

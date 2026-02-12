@@ -21,7 +21,7 @@ from app.api.v1.endpoints.websocket import router as ws_router
 
 from app.services import ml_service
 from app.services import weather_service
-from app.services import database_cleanup_service
+# from app.services import database_cleanup_service
 from app.core.state import fusion_state_manager
 
 @asynccontextmanager
@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
     await stream_processor.start()
     await ml_service.start()
     await weather_service.start()
-    await database_cleanup_service.start()
+    # await database_cleanup_service.start()
     # Initialize Fusion Analysis State with latest data
     print("📊 Loading initial fusion analysis state...")
     await fusion_state_manager.start_all_states()
@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
     await stream_processor.stop()
     await ml_service.stop()
     await weather_service.stop()
-    await database_cleanup_service.stop()
+    # await database_cleanup_service.stop()
 
 # Create FastAPI app with lifespan
 app = FastAPI(

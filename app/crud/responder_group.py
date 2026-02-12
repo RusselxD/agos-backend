@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only, selectinload
 
 from app.crud.base import CRUDBase
-from app.models import Group, Responders
+from app.models import Group, Responder
 from app.models.responder_related.responders import responder_groups
 
 
@@ -22,7 +22,7 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
             select(self.model)
             .options(
                 load_only(self.model.name),
-                selectinload(self.model.responders).load_only(Responders.id),
+                selectinload(self.model.responders).load_only(Responder.id),
             )
             .order_by(self.model.name)
             .execution_options(populate_existing=False)
@@ -30,10 +30,10 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
         return result.scalars().unique().all()
 
     async def create_with_members(self, db: AsyncSession, name: str, member_ids: list[UUID]) -> Group:
-        responders: list[Responders] = []
+        responders: list[Responder] = []
         if member_ids:
             result = await db.execute(
-                select(Responders).where(Responders.id.in_(member_ids))
+                select(Responder).where(Responder.id.in_(member_ids))
             )
             responders = list(result.scalars().unique().all())
 

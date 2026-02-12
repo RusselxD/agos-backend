@@ -1,50 +1,50 @@
 from app.crud.base import CRUDBase
 from sqlalchemy import exists, select
-from app.schemas import ResponderOTPVerificationCreate
+# from app.schemas import ResponderOTPVerificationCreate
 from app.models import RespondersOTPVerification as OTPModel
-from app.models import Responders
+from app.models import Responder
 from sqlalchemy import delete
 from datetime import datetime, timezone
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-class CRUDResponderOTPVerification(CRUDBase[ResponderOTPVerificationCreate, None, None]):
+# class CRUDResponderOTPVerification(CRUDBase[ResponderOTPVerificationCreate, None, None]):
     
-    async def record_exists(self, db: AsyncSession, phone_number: str) -> bool:
-        result = await db.execute(
-            select(exists().where(self.model.phone_number == phone_number))
-        )
-        return result.scalar()
+#     async def record_exists(self, db: AsyncSession, phone_number: str) -> bool:
+#         result = await db.execute(
+#             select(exists().where(self.model.phone_number == phone_number))
+#         )
+#         return result.scalar()
 
-    async def get_by_phone_number(self, db: AsyncSession, phone_number: str) -> OTPModel | None:
-        result = await db.execute(
-            select(self.model)
-            .filter(self.model.phone_number == phone_number)
-            .execution_options(populate_existing=False) # disable tracking
-        )
-        return result.scalars().first()
+#     async def get_by_phone_number(self, db: AsyncSession, phone_number: str) -> OTPModel | None:
+#         result = await db.execute(
+#             select(self.model)
+#             .filter(self.model.phone_number == phone_number)
+#             .execution_options(populate_existing=False) # disable tracking
+#         )
+#         return result.scalars().first()
 
-    async def save_incremented_attempt_count(self, db: AsyncSession, record: OTPModel) -> None:
-        # already incremented in service layer
-        db.add(record)
-        await db.commit()
+#     async def save_incremented_attempt_count(self, db: AsyncSession, record: OTPModel) -> None:
+#         # already incremented in service layer
+#         db.add(record)
+#         await db.commit()
 
-    async def delete(self, db: AsyncSession, obj: OTPModel) -> None:
-        await db.delete(obj)
-        await db.commit()
+#     async def delete(self, db: AsyncSession, obj: OTPModel) -> None:
+#         await db.delete(obj)
+#         await db.commit()
 
-    async def delete_expired_otps(self, db: AsyncSession) -> int:
-        now = datetime.now(timezone.utc)
+#     async def delete_expired_otps(self, db: AsyncSession) -> int:
+#         now = datetime.now(timezone.utc)
         
-        # DELETE FROM table WHERE expires_at < now
-        stmt = delete(self.model).where(self.model.expires_at < now)
-        result = await db.execute(stmt)
+#         # DELETE FROM table WHERE expires_at < now
+#         stmt = delete(self.model).where(self.model.expires_at < now)
+#         result = await db.execute(stmt)
         
-        await db.commit()
-        return result.rowcount or 0 # Safely handle potential None values
+#         await db.commit()
+#         return result.rowcount or 0 # Safely handle potential None values
 
 class CRUDResponder(CRUDBase[None, None, None]):
-    async def get_all(self, db: AsyncSession) -> list[Responders]:
+    async def get_all(self, db: AsyncSession) -> list[Responder]:
         result = await db.execute(
             select(self.model)
             .options(selectinload(self.model.groups))
@@ -52,7 +52,7 @@ class CRUDResponder(CRUDBase[None, None, None]):
         )
         return result.scalars().unique().all()
 
-    async def get_details(self, db : AsyncSession, id: str) -> Responders | None:
+    async def get_details(self, db : AsyncSession, id: str) -> Responder | None:
         result = await db.execute(
             select(self.model)
             .options(joinedload(self.model.admin_user)) # eager load
@@ -61,7 +61,7 @@ class CRUDResponder(CRUDBase[None, None, None]):
         )
         return result.scalars().first()
 
-    async def approve_responder(self, db: AsyncSession, responder: Responders, user_id: str) -> None:
+    async def approve_responder(self, db: AsyncSession, responder: Responder, user_id: str) -> None:
         responder.status = 'approved'
         responder.approved_at = datetime.now(timezone.utc)
         responder.approved_by = user_id
@@ -75,7 +75,7 @@ class CRUDResponder(CRUDBase[None, None, None]):
         )
         return result.scalar()
 
-    async def get_by_ids(self, db: AsyncSession, ids: list) -> list[Responders]:
+    async def get_by_ids(self, db: AsyncSession, ids: list) -> list[Responder]:
         if not ids:
             return []
         result = await db.execute(
@@ -84,5 +84,5 @@ class CRUDResponder(CRUDBase[None, None, None]):
         )
         return list(result.scalars().unique().all())
 
-responder_otp_verification_crud = CRUDResponderOTPVerification(OTPModel)
-responder_crud = CRUDResponder(Responders)
+# responder_otp_verification_crud = CRUDResponderOTPVerification(OTPModel)
+responder_crud = CRUDResponder(Responder)
