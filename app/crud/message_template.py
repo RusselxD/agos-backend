@@ -42,4 +42,4 @@ class CRUDMessageTemplate(CRUDBase[MessageTemplate, MessageTemplateCreate, Messa
             return None
         return await self.update(db=db, db_obj=message_template, obj_in=obj_in)
 
-message_template = CRUDMessageTemplate(MessageTemplate)
+message_template_crud = CRUDMessageTemplate(MessageTemplate)

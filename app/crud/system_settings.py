@@ -21,4 +21,4 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, SystemSettingsCreate, SystemSe
             return setting.json_value
         return None
 
-system_settings = CRUDSystemSettings(SystemSettings)
+system_settings_crud = CRUDSystemSettings(SystemSettings)

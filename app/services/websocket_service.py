@@ -5,15 +5,16 @@ from app.services.sensor_reading_service import sensor_reading_service
 from app.services.weather_service import weather_service
 from fastapi import WebSocket
 from app.models import SensorReading
-from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
-from app.crud.model_readings import model_readings as model_readings_crud
-from app.crud.weather import weather as weather_crud
+from app.crud import sensor_reading_crud
+from app.crud import model_readings_crud
+from app.crud import weather_crud
 from datetime import timedelta, datetime, timezone
 from app.core.config import settings
 from app.core.ws_manager import ws_manager
 from app.services.cache_service import cache_service
 from app.core.state import fusion_state_manager
 from app.schemas import DevicePerLocation
+
 
 class WebSocketService:
 
@@ -47,6 +48,7 @@ class WebSocketService:
             "data": initial_fusion_analysis_data.model_dump(mode='json')
         })
 
+
     async def _get_initial_sensor_reading_data(self, db: AsyncSession, sensor_device_id: int) -> SensorWebSocketResponse:
         latest_sensor_reading: SensorReading = await sensor_reading_crud.get_latest_reading(db=db, sensor_device_id=sensor_device_id)
 
@@ -75,6 +77,7 @@ class WebSocketService:
             sensor_reading=sensor_reading
         )
 
+
     async def _get_initial_model_reading_data(self, db: AsyncSession, camera_device_id: int) -> ModelWebSocketResponse:
         latest_model_reading = await model_readings_crud.get_latest_reading(db=db, camera_device_id=camera_device_id)
 
@@ -99,6 +102,7 @@ class WebSocketService:
             message="Retrieved successfully",
             blockage_status=latest_model_reading["blockage_status"]
         )
+
 
     async def _get_initial_weather_data(self, db: AsyncSession, location_id: int) -> WeatherWebSocketResponse:
         latest_weather_condition = await weather_crud.get_latest_weather(db=db, location_id=location_id)
@@ -132,6 +136,7 @@ class WebSocketService:
             weather_condition=weather_condition
         )
 
+
     async def _get_initial_fusion_analysis_data(self, location_id: int) -> FusionWebSocketResponse:
         fusion_analysis_data = fusion_state_manager.get_fusion_analysis_state(location_id=location_id)
 
@@ -148,10 +153,12 @@ class WebSocketService:
             fusion_analysis=fusion_analysis_data
         )
 
+
     async def broadcast_update(self, update_type: str, data: dict, location_id: int):
         await ws_manager.broadcast_to_location({
             "type": update_type,
             "data": data
         }, location_id=location_id)
+
 
 websocket_service = WebSocketService()

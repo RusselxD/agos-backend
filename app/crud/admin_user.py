@@ -73,4 +73,4 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
         user.last_login = last_login
         await db.commit()
 
-admin_user = CRUDAdminUser(AdminUser)   
+admin_user_crud = CRUDAdminUser(AdminUser)   

@@ -4,17 +4,19 @@ from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
-from app.crud.admin_user import admin_user as admin_user_crud
+from app.crud import admin_user_crud
 
 security = HTTPBearer()
 
 class CurrentUser:
+    
     """Holds the authenticated user's data from the token"""
     def __init__(self, id: str, is_superuser: bool, is_enabled: bool, force_password_change: bool):
         self.id = id
         self.is_superuser = is_superuser
         self.is_enabled = is_enabled
         self.force_password_change = force_password_change
+
 
 async def require_auth(
     credentials: HTTPAuthorizationCredentials = Depends(security),

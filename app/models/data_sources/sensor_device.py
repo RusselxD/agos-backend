@@ -1,7 +1,7 @@
 from sqlalchemy import Column, ForeignKey, String, Integer
 from sqlalchemy.orm import relationship
-
 from ..base import Base
+
 
 class SensorDevice(Base):
     __tablename__ = "sensor_devices"

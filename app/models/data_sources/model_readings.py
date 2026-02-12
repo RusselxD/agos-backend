@@ -3,6 +3,7 @@ from ..base import Base
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
+
 class ModelReadings(Base):
     __tablename__ = "model_readings"
 

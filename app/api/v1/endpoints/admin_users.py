@@ -6,11 +6,13 @@ from fastapi import Depends
 from app.core.database import get_db
 from app.api.v1.dependencies import require_auth, require_superuser, CurrentUser
 
-router = APIRouter()
+router = APIRouter( prefix="/admin-users", tags=["admin-users"])
+
 
 @router.get("/", response_model=list[AdminUserResponse], dependencies=[Depends(require_auth)])
 async def get_all_admins(db: AsyncSession = Depends(get_db)) -> list[AdminUserResponse]:
     return await admin_user_service.get_all_admins(db=db)
+
 
 @router.post("/", response_model=AdminUserResponse)
 async def create_admin_user(admin_user_create: AdminUserCreate, 

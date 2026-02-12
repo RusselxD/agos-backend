@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String, UUID, DateTime, ForeignKey
-from sqlalchemy.sql import func
-
 from .base import Base
+
 
 class PasswordResetOTP(Base):
     __tablename__ = "password_reset_otps"

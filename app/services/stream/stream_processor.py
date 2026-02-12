@@ -5,10 +5,10 @@ from pathlib import Path
 from typing import Optional
 import shutil
 import threading
-
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 class StreamProcessor:
     """
@@ -44,6 +44,7 @@ class StreamProcessor:
         self.frames_dir.mkdir(parents=True, exist_ok=True)
         self.log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
+
     def _log_monitor(self, process: subprocess.Popen, log_path: Path):
         """
         Background thread to read FFmpeg stdout and write to file.
@@ -67,6 +68,7 @@ class StreamProcessor:
         except Exception as e:
             logger.error(f"Log monitor thread failed: {e}")
     
+
     def _find_ffmpeg(self) -> Optional[str]:
         """Helper to find where ffmpeg.exe is installed on the system."""
         # Check explicit path in config
@@ -81,6 +83,7 @@ class StreamProcessor:
         logger.error(f"FFmpeg not found at: {settings.FFMPEG_PATH}")
         return None
     
+
     def _build_ffmpeg_command(self) -> list[str]:
         """
         Constructs the complex command-line string to launch FFmpeg.
@@ -144,6 +147,7 @@ class StreamProcessor:
 
         return cmd
 
+
     async def start(self):
         """
         The 'Ignition Switch'.
@@ -194,6 +198,7 @@ class StreamProcessor:
             
         print("⚠️ Stream processor started, but playlist not yet ready (check logs).")
     
+
     async def _run_ffmpeg(self):
         """
         The 'Monitor'.
@@ -249,6 +254,7 @@ class StreamProcessor:
                 self.restart_count += 1
                 await asyncio.sleep(5)
     
+
     async def stop(self):
         """Gracefully shuts down the FFmpeg process."""
         self.is_running = False
@@ -265,6 +271,7 @@ class StreamProcessor:
             except Exception as e:
                 logger.error(f"Error stopping process: {e}")
     
+
     def get_status(self) -> dict:
         """Returns the health status of the processor."""
         return {
@@ -275,5 +282,5 @@ class StreamProcessor:
             "ffmpeg_path": self.ffmpeg_path,
         }
 
-# Global instance
+
 stream_processor = StreamProcessor()

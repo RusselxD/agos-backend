@@ -1,11 +1,11 @@
-
 from app.schemas.message_template import MessageTemplateCreate, MessageTemplateResponse
 from app.api.v1.dependencies import CurrentUser
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.crud.message_template import message_template as message_template_crud
 from fastapi import HTTPException, status
-from app.crud.admin_audit_log import admin_audit_log as admin_audit_log_crud
+from app.crud import message_template_crud
+from app.crud import admin_audit_log_crud
 from app.schemas import AdminAuditLogCreate
+
 
 class MessageTemplateService:
     
@@ -36,6 +36,7 @@ class MessageTemplateService:
 
         return message_template
     
+
     async def update_message_template(self, db: AsyncSession, template_id: int, template: MessageTemplateCreate, current_user: CurrentUser) -> MessageTemplateResponse:
         existing_template = await message_template_crud.get(db=db, id=template_id)
 
@@ -73,5 +74,6 @@ class MessageTemplateService:
         )
 
         return updated_template
+
 
 message_template_service = MessageTemplateService()

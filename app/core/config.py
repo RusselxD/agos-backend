@@ -3,6 +3,7 @@ from functools import lru_cache
 from pydantic import field_validator
 from typing import Union
 
+
 class Settings(BaseSettings):
 
     UTC_OFFSET_HOURS: int = 8
@@ -53,8 +54,10 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 
+
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+
 
 settings = get_settings()

@@ -24,4 +24,4 @@ class CRUDWeather(CRUDBase[Weather, WeatherCreate, None]):
         )
         return result.scalars().first()
 
-weather = CRUDWeather(Weather)
+weather_crud = CRUDWeather(Weather)

@@ -1,10 +1,9 @@
-
 from fastapi import HTTPException
 from app.api.v1.dependencies import CurrentUser
 from app.schemas import SystemSettingsUpdate
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.crud.system_settings import system_settings as system_settings_crud
-from app.crud.admin_audit_log import admin_audit_log as admin_audit_log_crud
+from app.crud import system_settings_crud
+from app.crud import admin_audit_log_crud
 from app.schemas import AdminAuditLogCreate
 
 class SystemSettingsService:
@@ -41,6 +40,7 @@ class SystemSettingsService:
 
         return updated_settings.json_value
     
+
     # Generate descriptive audit log message based on setting key
     def _format_audit_message(self, key: str, old_value: any, new_value: any) -> str:
         
@@ -64,14 +64,8 @@ class SystemSettingsService:
                     changes.append(f"{tier_key} from {old_value.get(tier_key)}% to {new_value.get(tier_key)}%")
             return f"Updated alert thresholds: {', '.join(changes)}" if changes else f"Updated alert thresholds (no changes)"
         
-        elif key == "auto_send_sms_when_critical":
-            return (
-                "Enabled auto-send SMS when critical"
-                if new_value
-                else "Disabled auto-send SMS when critical"
-            )
-        
         # Fallback for unknown keys
         return f"Updated system setting '{key}' from {old_value} to {new_value}"
+
 
 system_settings_service = SystemSettingsService()

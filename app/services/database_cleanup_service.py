@@ -1,11 +1,13 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from app.core.database import AsyncSessionLocal
-from app.crud.responder import responder_otp_verification as otp_crud
+from app.crud import responder_otp_verification_crud
 
 class DatabaseCleanupService:
+    
     def __init__(self):
         self.scheduler = AsyncIOScheduler()
+
 
     async def start(self):
         self.scheduler.add_job(
@@ -23,9 +25,10 @@ class DatabaseCleanupService:
     async def _purge_expired_otps(self):
         async with AsyncSessionLocal() as db:
             try:
-                count = await otp_crud.delete_expired_otps(db)
+                count = await responder_otp_verification_crud.delete_expired_otps(db)
                 print(f"✅ Purged {count} expired OTP records from the database.")
             except Exception as e:
                 print(f"❌ Error during OTP cleanup: {e}")
+
 
 database_cleanup_service = DatabaseCleanupService()

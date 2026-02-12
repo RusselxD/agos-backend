@@ -1,7 +1,7 @@
-from sqlalchemy import Column, String, DateTime, Integer, Table, ForeignKey
+from sqlalchemy import Column, String, DateTime, Integer
 from sqlalchemy.sql import func
-
 from ..base import Base
+
 
 class RespondersOTPVerification(Base):
     __tablename__ = "responders_otp_verification"

@@ -1,5 +1,4 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.crud.admin_user import admin_user as admin_user_crud
 from app.core.security import verify_password, create_access_token
 from fastapi import HTTPException, status
 from app.core.config import settings
@@ -8,7 +7,8 @@ from app.schemas import Token, AdminAuditLogCreate
 from datetime import datetime, timezone
 from app.models.admin_user import AdminUser
 from app.api.v1.dependencies import CurrentUser
-from app.crud.admin_audit_log import admin_audit_log as admin_audit_log_crud
+from app.crud import admin_user_crud
+from app.crud import admin_audit_log_crud
 
 class AuthService:
     
@@ -29,6 +29,7 @@ class AuthService:
         access_token = self._create_token(user=user_in_db)
         return Token(access_token=access_token, token_type="bearer")
 
+
     async def change_user_password(self, db: AsyncSession, new_password: str, user: CurrentUser) -> Token:
         user_id = user.id
         user_in_db: AdminUser = await admin_user_crud.update_password(db=db, user_id=user_id, new_password=new_password)
@@ -45,6 +46,7 @@ class AuthService:
         access_token = self._create_token(user=user_in_db)
         return Token(access_token=access_token, token_type="bearer")
 
+
     def _create_token(self, user: AdminUser) -> str:
         user_data_for_token = {
             "sub": str(user.id), # Mandatory, used for identifying the user
@@ -58,5 +60,6 @@ class AuthService:
         access_token_expires = timedelta(days=settings.ACCESS_TOKEN_EXPIRE_DAYS)
         access_token = create_access_token(data=user_data_for_token, expires_delta=access_token_expires)
         return access_token
+
 
 auth_service = AuthService()

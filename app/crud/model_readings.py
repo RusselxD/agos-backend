@@ -15,4 +15,4 @@ class CRUDModelReadings(CRUDBase[ModelReadings, ModelReadingCreate, None]):
         )
         return result.mappings().first()
 
-model_readings = CRUDModelReadings(ModelReadings)
+model_readings_crud = CRUDModelReadings(ModelReadings)

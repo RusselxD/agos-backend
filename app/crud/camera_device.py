@@ -22,4 +22,4 @@ class CRUDCameraDevice(CRUDBase[CameraDevice, None, None]):
         camera_device = result.scalars().first()
         return camera_device
     
-camera_device = CRUDCameraDevice(CameraDevice)
+camera_device_crud = CRUDCameraDevice(CameraDevice)

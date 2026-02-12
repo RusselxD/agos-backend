@@ -7,17 +7,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from app.services.cache_service import cache_service
-from app.crud.weather import weather as weather_crud
+from app.crud import weather_crud
 from app.core.config import settings
 from app.core.state import fusion_state_manager
 from fastapi import Depends
 from app.core.database import get_db
 from app.core.database import AsyncSessionLocal
 
+
 class WeatherService:
 
     def __init__(self):
         self.scheduler = AsyncIOScheduler()
+
 
     async def start(self):
 
@@ -34,9 +36,11 @@ class WeatherService:
         self.scheduler.start()
         print("✅ Weather service scheduler started.")
 
+
     async def stop(self):
         self.scheduler.shutdown()
         print("✅ Weather service scheduler stopped.")
+
 
     async def _fetch_initial_weather(self, db: AsyncSession, location_id: int):
 
@@ -57,6 +61,7 @@ class WeatherService:
             print("✅ Initial weather data fetched and saved.")
         else:
             print("✅ Initial weather data is up-to-date. No fetch needed.")
+
 
     """
         This function is called periodically by the scheduler.
@@ -105,6 +110,7 @@ class WeatherService:
                     location_id=condition.location_id
                 )
 
+
     async def _fetch_weather(self, db: AsyncSession) -> list[WeatherCreate]:
 
         # Get sensor device coordinates from cache service
@@ -146,11 +152,14 @@ class WeatherService:
                     raise HTTPException(status_code=500, detail=f"Error fetching weather data: {str(e)}")
         return weather_conditions
 
+
     async def _save_fetched_weather_and_return(self, db: AsyncSession, weather_data: WeatherCreate) -> Weather:
         return await weather_crud.create_and_return(db=db, obj_in=weather_data)
 
+
     async def _save_fetched_weather(self, db: AsyncSession, weather_data: WeatherCreate) -> None:
         await weather_crud.create_only(db=db, obj_in=weather_data)
+
 
     def _get_weather_condition(self, weather_code: int) -> str:
         if weather_code == 0: # Clear sky
@@ -184,6 +193,7 @@ class WeatherService:
         
         return "Unknown"
 
+
     def _get_weather_description(self, precipitation: float) -> str:
         if precipitation == 0:
             return "No rainfall detected"
@@ -196,6 +206,7 @@ class WeatherService:
         else:
             return "Extreme rainfall conditions"
 
+
     def get_weather_summary(self, created_at: datetime, weather_code: int, precipitation_mm: float) -> WeatherConditionResponse:
         return WeatherConditionResponse(
             precipitation_mm=precipitation_mm,
@@ -204,6 +215,7 @@ class WeatherService:
             condition = self._get_weather_condition(weather_code),
             description = self._get_weather_description(precipitation_mm)
         )
+
 
     async def get_latest_comprehensive_weather_summary(self, db: AsyncSession, location_id: int) -> WeatherComprehensiveResponse:
         
@@ -234,6 +246,7 @@ class WeatherService:
             storm_risk_level=self._get_storm_risk_level(weather.weather_code, weather.precipitation_mm, weather.wind_speed_10m)
         )
 
+
     # --- Dynamic value generators ---
 
     def _get_temperature_description(self, temperature_c: float) -> str:
@@ -246,6 +259,7 @@ class WeatherService:
         else:
             return "Hot"
 
+
     def _get_humidity_level(self, humidity_percent: float) -> str:
         if humidity_percent < 40:
             return "Dry"
@@ -255,6 +269,7 @@ class WeatherService:
             return "Humid"
         else:
             return "Very humid"
+
 
     def _get_wind_category(self, wind_speed_kmh: float) -> str:
         if wind_speed_kmh < 5:
@@ -268,6 +283,7 @@ class WeatherService:
         else:
             return "High winds"
 
+
     def _get_wind_direction_label(self, degrees: float) -> str:
         # Normalize degrees to 0-360
         degrees = degrees % 360
@@ -275,6 +291,7 @@ class WeatherService:
         # Each direction covers 45 degrees, offset by 22.5 to center
         index = int((degrees + 22.5) / 45) % 8
         return directions[index]
+
 
     def _get_cloudiness(self, cloud_cover_percent: float) -> str:
         if cloud_cover_percent < 20:
@@ -285,6 +302,7 @@ class WeatherService:
             return "Mostly cloudy"
         else:
             return "Overcast"
+
 
     def _get_comfort_level(self, temperature_c: float, humidity_percent: float) -> str:
         # Simplified heat index / comfort assessment
@@ -313,6 +331,7 @@ class WeatherService:
                 return "Heat stress risk"
             return "Very hot"
 
+
     def _get_storm_risk_level(self, weather_code: int, precipitation_mm: float, wind_speed_kmh: float) -> str:
         # Thunderstorm codes: 95-99
         is_thunderstorm = 95 <= weather_code <= 99
@@ -327,5 +346,6 @@ class WeatherService:
             return "Low"
         else:
             return "None"
+
 
 weather_service = WeatherService()

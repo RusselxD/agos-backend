@@ -7,7 +7,8 @@ from app.schemas import LoginRequest, ChangePasswordRequest
 from app.api.v1.dependencies import require_auth, CurrentUser
 from app.core.rate_limiter import limiter
 
-router = APIRouter()
+router = APIRouter( prefix="/auth", tags=["auth"])
+
 
 @router.post("/login", response_model=Token)
 @limiter.limit("5/minute")
@@ -19,6 +20,7 @@ async def login(
     return await auth_service.authenticate_user(db=db, 
                                                 phone_number=login_data.phone_number, 
                                                 password=login_data.password)
+
 
 # Force password change endpoint
 @router.post("/change-password", response_model=Token)

@@ -1,11 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas import SensorDeviceResponse, SensorDeviceStatusResponse
-from app.crud.sensor_device import sensor_device as sensor_device_crud
-from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
+from app.crud import sensor_device_crud
+from app.crud import sensor_reading_crud
 from datetime import datetime, timedelta
 from fastapi import HTTPException
 from app.core.config import settings
 from app.services import sensor_reading_service
+
 
 class SensorDeviceService:
     
@@ -56,5 +57,6 @@ class SensorDeviceService:
             last_updated=latest_reading.timestamp.isoformat(),
             signal=sensor_reading_service.get_signal_quality(latest_reading.signal_strength)
         )
+
 
 sensor_device_service = SensorDeviceService()

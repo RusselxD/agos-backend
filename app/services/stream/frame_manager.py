@@ -3,12 +3,11 @@ from pathlib import Path
 from typing import Optional, List
 from datetime import datetime
 import base64
-
 import aiofiles
-
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 class FrameManager:
     """
@@ -28,6 +27,7 @@ class FrameManager:
         self.frames_dir = Path(settings.FRAMES_OUTPUT_DIR)
         self.frames_dir.mkdir(parents=True, exist_ok=True)
     
+
     async def get_latest_frame(self) -> Optional[dict]:
         """
         Picks the newest 'book' off the shelf.
@@ -61,6 +61,7 @@ class FrameManager:
             logger.error(f"Error getting latest frame: {e}")
             return None
 
+
     async def get_frame_by_filename(self, filename: str) -> Optional[dict]:
         """Get a specific frame by filename"""
         try:
@@ -86,6 +87,7 @@ class FrameManager:
             logger.error(f"Error getting frame {filename}: {e}")
             return None
 
+
     async def list_frames(self, limit: int = 50, offset: int = 0) -> List[dict]:
         """List all captured frames with pagination"""
         try:
@@ -109,6 +111,7 @@ class FrameManager:
             logger.error(f"Error listing frames: {e}")
             return []
 
+
     async def delete_frame(self, filename: str) -> bool:
         """Delete a specific frame"""
         try:
@@ -124,6 +127,7 @@ class FrameManager:
         except Exception as e:
             logger.error(f"Error deleting frame {filename}: {e}")
             return False
+
 
     async def cleanup_old_frames(self, keep_last_n: int = 100):
         """
@@ -151,5 +155,5 @@ class FrameManager:
             logger.error(f"Error during cleanup: {e}")
             return 0
 
-# Global instance
+
 frame_manager = FrameManager()

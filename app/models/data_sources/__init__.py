@@ -5,6 +5,7 @@ from .sensor_device import SensorDevice
 from .sensor_reading import SensorReading
 from .weather import Weather
 
+
 __all__ = [
     "CameraDevice",
     "Location",

@@ -21,4 +21,4 @@ class CRUDAdminAuditLogs(CRUDBase[AdminAuditLog, AdminAuditLogCreate, None]):
         )
         return result.scalars().unique().all()
 
-admin_audit_log = CRUDAdminAuditLogs(AdminAuditLog)
+admin_audit_log_crud = CRUDAdminAuditLogs(AdminAuditLog)

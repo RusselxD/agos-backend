@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from app.api.v1.dependencies import CurrentUser
-from app.crud.responder import responder_otp_verification as responder_otp_verification_crud
-from app.crud.responder import responder as responder_crud
+from app.crud import responder_otp_verification_crud
+from app.crud import responder_crud
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 from app.models import RespondersOTPVerification as OTPModel
@@ -11,8 +11,10 @@ import random
 from app.core.security import get_otp_hash, verify_otp
 from app.schemas import ResponderListItem, ResponderDetailsResponse
 from app.schemas.admin_audit_log import AdminAuditLogCreate
-from app.crud.admin_audit_log import admin_audit_log as admin_audit_log_crud
+from app.crud import admin_audit_log_crud
+from app.crud import responder_group_crud
 from app.models import Responders as Responder
+from app.models.responder_related.group import DEFAULT_APPROVED_RESPONDERS_GROUP_NAME
 from app.utils import format_name_proper
 from app.services.sms_service import sms_service
 
@@ -51,6 +53,7 @@ class ResponderService:
         await responder_otp_verification_crud.delete(db=db, obj=record)
         return True, "", False
 
+
     async def send_otp(self, phone_number: str, db: AsyncSession) -> tuple[bool, str]:
         # 1. Check if we can send and get the existing record in one go
         can_send, message, existing_record = await self._can_send_otp(phone_number, db=db)
@@ -75,6 +78,7 @@ class ResponderService:
         
         await sms_service.send_one_sms(phone_number=phone_number, message=f"Your OTP code is: {otp}")
         return True, "OTP sent successfully."
+
 
     async def _can_send_otp(self, phone_number: str, db: AsyncSession) -> tuple[bool, str, OTPModel | None]:
         # Check registration
@@ -106,6 +110,7 @@ class ResponderService:
         # Case 4: Valid record exists, but cooldown passed - allow replacement
         return True, "", record
 
+
     async def get_all_responders(self, db: AsyncSession) -> list[ResponderListItem]:
         responders = await responder_crud.get_all(db=db)
         result = [
@@ -120,12 +125,14 @@ class ResponderService:
         ]
         return result
     
+
     async def create_responder(self, responder_data: ResponderCreate, db: AsyncSession) -> None:
         # format names properly
         responder_data.first_name = format_name_proper(responder_data.first_name)
         responder_data.last_name = format_name_proper(responder_data.last_name)
 
         await responder_crud.create_only(db=db, obj_in=responder_data)
+
 
     async def get_responder_details(self, responder_id: str, db: AsyncSession) -> ResponderDetailsResponse | None:
         responder: Responder = await responder_crud.get_details(db=db, id=responder_id)
@@ -145,7 +152,13 @@ class ResponderService:
             approved_at=responder.approved_at
         )
 
+
     async def approve_responder_registration(self, responder_id: str, db: AsyncSession, user: CurrentUser) -> None:
+        approved_responders_group = await responder_group_crud.ensure_exists(
+            db=db,
+            name=DEFAULT_APPROVED_RESPONDERS_GROUP_NAME,
+        )
+
         responder: Responder = await responder_crud.get_with_lock(db=db, id=responder_id)
         
         if not responder:
@@ -155,6 +168,11 @@ class ResponderService:
             raise HTTPException(status_code=400, detail="Responder is already approved.")
 
         await responder_crud.approve_responder(db=db, responder=responder, user_id=user.id)
+        await responder_group_crud.add_member_if_missing(
+            db=db,
+            group_id=approved_responders_group.id,
+            responder_id=responder.id,
+        )
 
         # Log the admin who approved
         await admin_audit_log_crud.create_only(
@@ -166,5 +184,6 @@ class ResponderService:
         )
 
         await db.commit()  # Commit here for idempotency
+
 
 responder_service = ResponderService()

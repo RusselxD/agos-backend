@@ -3,6 +3,7 @@ from sqlalchemy.sql import func
 from .base import Base
 from sqlalchemy.orm import relationship
 
+
 class AdminAuditLog(Base):
     __tablename__ = "admin_audit_logs"
 

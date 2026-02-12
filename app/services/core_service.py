@@ -1,7 +1,6 @@
-
-from app.crud.location import location as location_crud
-from app.crud.sensor_device import sensor_device as sensor_device_crud
-from app.crud.camera_device import camera_device as camera_device_crud
+from app.crud import location_crud
+from app.crud import sensor_device_crud
+from app.crud import camera_device_crud
 from app.schemas import LocationDetails, DeviceDetails
 from fastapi import HTTPException
 
@@ -18,6 +17,7 @@ class CoreService:
             location_name=default_location["name"]
         )
 
+
     async def get_device_details(self, db, location_id: int) -> DeviceDetails:
 
         default_camera = await camera_device_crud.get_default_camera_by_location(db=db, location_id=location_id)
@@ -32,5 +32,6 @@ class CoreService:
             camera_device_id=default_camera["id"],
             camera_device_name=default_camera["device_name"]
         )
+
 
 core_service = CoreService()

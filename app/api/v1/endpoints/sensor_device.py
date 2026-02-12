@@ -5,7 +5,8 @@ from app.schemas import SensorDeviceStatusResponse
 from app.core.database import get_db
 from app.api.v1.dependencies import require_auth
 
-router = APIRouter()
+router = APIRouter(prefix="/sensor-devices", tags=["sensor-devices"])
+
 
 @router.get("/{id}/status", response_model=SensorDeviceStatusResponse, dependencies=[Depends(require_auth)])
 async def get_sensor_device(id: int = 1, db: AsyncSession = Depends(get_db)) -> SensorDeviceStatusResponse:

@@ -2,6 +2,7 @@ from fastapi import File, UploadFile
 import uuid
 from app.core.cloudinary import upload_image
 
+
 class UploadService():
     
     async def upload_responder_id_photo(self, file: UploadFile = File(...)):
@@ -23,5 +24,6 @@ class UploadService():
             return result["secure_url"]
         
         raise Exception("Failed to upload image to Cloudinary")
+
 
 upload_service = UploadService()

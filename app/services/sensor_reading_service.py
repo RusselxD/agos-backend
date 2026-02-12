@@ -4,8 +4,8 @@ from app.schemas.sensor_reading import SensorReadingTrendResponse
 from app.services.cache_service import cache_service
 from app.models import SensorReading
 from datetime import datetime, timezone, timedelta
-from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
-from app.crud.sensor_device import sensor_device as sensor_device_crud
+from app.crud import sensor_reading_crud
+from app.crud import sensor_device_crud
 from app.core.state import fusion_state_manager
 from app.core.config import settings
 from app.schemas import SensorReadingResponse, SensorReadingCreate, SensorReadingPaginatedResponse, SensorDataRecordedResponse
@@ -47,6 +47,7 @@ class SensorReadingService:
         has_more = len(db_items) > page_size
         return SensorReadingPaginatedResponse(items=items[:page_size], has_more=has_more)
 
+
     async def get_readings_trend(self, db: AsyncSession, duration: str, sensor_device_id: int) -> SensorReadingTrendResponse:
     
         delta = DURATION_DELTAS.get(duration)
@@ -73,6 +74,7 @@ class SensorReadingService:
         interval = aggregation_intervals.get(duration, timedelta(minutes=1))
         
         return self._process_trend_data(db_items, interval, range_start)
+
 
     def _process_trend_data(self, items: list, interval: timedelta, start_time: datetime) -> SensorReadingTrendResponse:
         grouped_data = {}
@@ -115,6 +117,7 @@ class SensorReadingService:
 
         return SensorReadingTrendResponse(labels=labels, levels=levels)
 
+
     def _format_trend_label(self, dt: datetime, interval: timedelta) -> str:
         # Adjust to local time
         local_dt = dt.astimezone(timezone(timedelta(hours=settings.UTC_OFFSET_HOURS)))
@@ -126,8 +129,10 @@ class SensorReadingService:
         else:
             return local_dt.strftime("%H:%M")
     
+
     async def get_avialable_reading_days(self, db: AsyncSession, sensor_device_id: int) -> list[str]:
         return await sensor_reading_crud.get_available_reading_days(db=db, sensor_device_id=sensor_device_id)
+
 
     async def get_readings_for_export(self, 
                                     db: AsyncSession, 
@@ -163,6 +168,7 @@ class SensorReadingService:
             readings=readings,
             sensor_device_name=sensor_device_name
         )
+
 
     async def record_reading(self, db: AsyncSession, obj_in: SensorReadingCreate) -> SensorDataRecordedResponse:
         from app.services.websocket_service import websocket_service
@@ -215,6 +221,7 @@ class SensorReadingService:
         # Return acknowledgment to sensor device
         return SensorDataRecordedResponse(timestamp=db_reading.created_at, status="Success: Reading recorded")
 
+
     async def calculate_record_summary(self, db: AsyncSession, reading: SensorReading) -> SensorReadingSummary:
 
         prev_reading = await sensor_reading_crud.get_previous_reading(db=db, before_timestamp=reading.timestamp)
@@ -227,6 +234,7 @@ class SensorReadingService:
             water_level = water_level_summary,
             alert = alert_summary
         )
+
 
     def _calculate_water_level_summary(self, current_cm: float, prev_reading: SensorReading | None) -> WaterLevelSummary:
 
@@ -245,6 +253,7 @@ class SensorReadingService:
             change_rate = change_rate,
             trend = trend
         )
+
 
     async def _calculate_alert_summary(self, current_cm: float, db: AsyncSession) -> AlertSummary:
         sensor_config = await cache_service.get_sensor_config(db=db)
@@ -268,6 +277,7 @@ class SensorReadingService:
             percentage_of_critical=round((current_cm / crit) * 100, 1)
         )
 
+
     def get_signal_quality(self, signal_strength: int) -> str:
         if signal_strength >= -50:
             quality = 'excellent'
@@ -280,6 +290,7 @@ class SensorReadingService:
 
         return quality
     
+
     def _get_status_and_change_rate(self, current_cm: float, prev_cm: float | None) -> tuple[str, float]:
         if prev_cm is None:
             return "stable", 0.0
@@ -295,9 +306,11 @@ class SensorReadingService:
 
         return status, change_rate
 
+
     def _format_datetime_for_excel(self, dt: datetime) -> str:
         # Convert UTC to UTC+8 for display
         local_dt = dt.astimezone(timezone(timedelta(hours=settings.UTC_OFFSET_HOURS)))
         return local_dt.strftime("%Y-%m-%d %H:%M")
+
 
 sensor_reading_service = SensorReadingService()

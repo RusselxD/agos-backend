@@ -3,6 +3,7 @@ from functools import lru_cache
 import cloudinary
 import cloudinary.uploader
 
+
 class CloudinarySettings(BaseSettings):
     CLOUDINARY_CLOUD_NAME: str
     CLOUDINARY_API_KEY: str
@@ -11,11 +12,14 @@ class CloudinarySettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 
+
 @lru_cache()
 def get_cloudinary_settings() -> CloudinarySettings:
     return CloudinarySettings()
 
+
 cloudinary_settings = get_cloudinary_settings()
+
 
 def init_cloudinary():
     """
@@ -28,6 +32,7 @@ def init_cloudinary():
         api_secret = cloudinary_settings.CLOUDINARY_API_SECRET,
         secure = True
     )
+
 
 async def upload_image(file: any, filename: str, folder: str = None) -> dict:
     """

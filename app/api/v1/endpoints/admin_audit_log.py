@@ -5,7 +5,8 @@ from app.schemas import AdminAuditLogPaginatedResponse
 from app.core.database import get_db
 from app.services import admin_audit_log_service
 
-router = APIRouter()
+router = APIRouter(prefix="/admin-audit-logs", tags=["admin-audit-logs"])
+
 
 @router.get("/paginated", response_model=AdminAuditLogPaginatedResponse, dependencies=[Depends(require_auth)])
 async def get_admin_audit_logs_paginated(page: int = 1, 

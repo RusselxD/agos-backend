@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.api.v1.dependencies import CurrentUser, require_auth
 from app.schemas import SystemSettingsResponse, SystemSettingsUpdate
-from app.crud.system_settings import system_settings as system_settings_crud
+from app.crud import system_settings_crud
 from app.services import system_settings_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 
-router = APIRouter()
+router = APIRouter(prefix="/system-settings", tags=["system-settings"])
+
 
 @router.get("/{key}", response_model=SystemSettingsResponse, dependencies=[Depends(require_auth)])
 async def get_system_setting(key: str, db: AsyncSession = Depends(get_db)) -> SystemSettingsResponse:
@@ -17,6 +18,7 @@ async def get_system_setting(key: str, db: AsyncSession = Depends(get_db)) -> Sy
     
     return settings
 
+
 @router.get("/{key}/value", response_model=None, dependencies=[Depends(require_auth)])
 async def get_system_setting_value(key: str, db: AsyncSession = Depends(get_db)) -> any:
     json_value = await system_settings_crud.get_value(db=db, key=key)
@@ -25,6 +27,7 @@ async def get_system_setting_value(key: str, db: AsyncSession = Depends(get_db))
         raise HTTPException(status_code=404, detail="System settings not found")
     
     return json_value
+
 
 @router.put("/{key}", response_model=None)
 async def update_system_setting(key: str, 

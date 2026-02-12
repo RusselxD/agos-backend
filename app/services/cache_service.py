@@ -1,10 +1,10 @@
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas import SensorConfigResponse, AlertThresholdsResponse, LocationCoordinate, DevicePerLocation
-from app.crud.system_settings import system_settings as system_settings_crud
-from app.crud.location import location as location_crud
-from app.crud.sensor_device import sensor_device as sensor_device_crud
-from app.crud.camera_device import camera_device as camera_device_crud
+from app.crud import system_settings_crud
+from app.crud import location_crud
+from app.crud import sensor_device_crud
+from app.crud import camera_device_crud
 
 class CacheService:
 
@@ -19,15 +19,18 @@ class CacheService:
         
         self._alert_thresholds_cache: Optional[AlertThresholdsResponse] = None  # cached alert thresholds
 
+
     # mutable cache
     async def update_alert_thresholds_cache(self, db: AsyncSession) -> None:
         alert_thresholds_data = await system_settings_crud.get_value(db=db, key="alert_thresholds")
         self._alert_thresholds_cache = AlertThresholdsResponse.model_validate(alert_thresholds_data)
 
+
     # mutable cache
     async def update_sensor_config_cache(self, db: AsyncSession) -> None:
         sensor_config_data = await system_settings_crud.get_value(db=db, key="sensor_config")
         self._sensor_config_cache = SensorConfigResponse.model_validate(sensor_config_data)
+
 
     # unmutable cache
     async def update_location_coordinates_cache(self, db: AsyncSession) -> None:
@@ -36,6 +39,7 @@ class CacheService:
             LocationCoordinate(id=row.id, latitude=row.latitude, longitude=row.longitude)
             for row in rows
         ]
+
 
     # unmutable cache
     async def update_device_ids_cache(self, db: AsyncSession) -> None:
@@ -49,6 +53,7 @@ class CacheService:
                 sensor_device_id=sensor_device_id
             )
         self._device_ids_cache = device_ids_cache
+
 
     # unmutable cache
     """
@@ -66,6 +71,7 @@ class CacheService:
             location_id_per_sensor_device_cache[sensor_device_id] = loc_id
         self._location_id_per_sensor_device_cache = location_id_per_sensor_device_cache
 
+
     async def get_sensor_config(self, db: AsyncSession) -> SensorConfigResponse:
 
         if self._sensor_config_cache is None:
@@ -73,12 +79,14 @@ class CacheService:
 
         return self._sensor_config_cache
 
+
     async def get_all_location_coordinates(self, db: AsyncSession) -> list[LocationCoordinate]:
 
         if self._location_coordinates_cache is None:
             await self.update_location_coordinates_cache(db=db)
 
         return self._location_coordinates_cache
+
 
     async def get_device_ids_per_location(self, db: AsyncSession, location_id: int) -> DevicePerLocation:
 
@@ -91,6 +99,7 @@ class CacheService:
 
         return device_ids
 
+
     async def get_location_id_per_sensor_device(self, db: AsyncSession, sensor_device_id: int) -> int:
 
         if self._location_id_per_sensor_device_cache is None:
@@ -101,6 +110,7 @@ class CacheService:
             raise ValueError(f"Location ID for sensor device id {sensor_device_id} not found in cached location IDs.")
 
         return location_id
+
 
     async def get_location_coordinate(self, db: AsyncSession, location_id) -> LocationCoordinate:
 
@@ -113,6 +123,7 @@ class CacheService:
 
         return location_coords
 
+
     async def get_all_location_ids(self, db: AsyncSession) -> list[int]:
 
         if self._location_coordinates_cache is None:
@@ -120,11 +131,13 @@ class CacheService:
 
         return [loc.id for loc in self._location_coordinates_cache]
 
+
     async def get_alert_thresholds(self, db: AsyncSession) -> AlertThresholdsResponse:
         
         if self._alert_thresholds_cache is None:
             await self.update_alert_thresholds_cache(db=db)
 
         return self._alert_thresholds_cache
+
 
 cache_service = CacheService()

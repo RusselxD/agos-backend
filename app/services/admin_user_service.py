@@ -1,12 +1,13 @@
 from http.client import HTTPException
 from app.schemas import AdminUserCreate, AdminUserResponse, AdminAuditLogCreate
-from app.crud.admin_user import admin_user as admin_user_crud
-from app.crud.admin_audit_log import admin_audit_log as admin_audit_log_crud
+from app.crud import admin_user_crud
+from app.crud import admin_audit_log_crud
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 from app.models.admin_user import AdminUser
 from app.api.v1.dependencies import CurrentUser
 from app.utils import format_name_proper
+
 
 class AdminUserService:
     
@@ -25,6 +26,7 @@ class AdminUserService:
             ) for item in admins
         ]
         return result
+
 
     async def create_new_admin_user(self, db: AsyncSession, admin_user_create: AdminUserCreate, current_user: CurrentUser) -> AdminUserResponse:
 
@@ -60,5 +62,6 @@ class AdminUserService:
             last_login=user_in_db.last_login,
             created_by=f"{user_in_db.admin_creator.first_name} {user_in_db.admin_creator.last_name}" if user_in_db.admin_creator else None
         )
+
 
 admin_user_service = AdminUserService()

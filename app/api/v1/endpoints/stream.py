@@ -2,16 +2,15 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from pathlib import Path
-
 from app.schemas import StreamStatus, FrameResponse, FrameListResponse
-
 from app.services import stream_processor, frame_manager
 from app.core.config import settings
 from app.core.rate_limiter import limiter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/stream", tags=["stream"])
+
 
 @router.get("/status", response_model=StreamStatus)
 async def get_stream_status():
@@ -23,6 +22,7 @@ async def get_stream_status():
         stream_url=settings.STREAM_URL,
         hls_endpoint="/api/v1/stream/hls/stream.m3u8"
     )
+
 
 @router.post("/start")
 @limiter.limit("10/minute")

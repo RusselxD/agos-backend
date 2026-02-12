@@ -113,4 +113,4 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
         db.add_all(db_objs)
         await db.commit()
 
-sensor_reading = CRUDSensorReading(SensorReading)
+sensor_reading_crud = CRUDSensorReading(SensorReading)

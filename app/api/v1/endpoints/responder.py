@@ -8,19 +8,23 @@ from app.schemas.responder import ResponderDetailsResponse, ResponderListItem
 from app.services import responder_service, upload_service
 from app.core.rate_limiter import limiter
 
-router = APIRouter()
+router = APIRouter(prefix="/responder", tags=["responder"])
+
 
 @router.get("/all", dependencies=[Depends(require_auth)], response_model=list[ResponderListItem])
 async def get_all_responders(db:AsyncSession = Depends(get_db)) -> list[ResponderListItem]:
     return await responder_service.get_all_responders(db=db)
 
+
 @router.get("/additional-details/{responder_id}", dependencies=[Depends(require_auth)], response_model=ResponderDetailsResponse)
 async def get_responder_details(responder_id: str, db:AsyncSession = Depends(get_db)) -> ResponderDetailsResponse:
     return await responder_service.get_responder_details(responder_id=responder_id, db=db)
 
+
 @router.put("/approve/{responder_id}", status_code=204)
 async def approve_responder_registration(responder_id: str, db: AsyncSession = Depends(get_db), user: CurrentUser = Depends(require_auth)) -> None:
     await responder_service.approve_responder_registration(responder_id=responder_id, db=db, user=user)
+
 
 @router.post("/send-otp", response_model=ResponderOTPResponse)
 @limiter.limit("2/minute")
@@ -30,6 +34,7 @@ async def send_otp(request: Request, otp_request:ResponderOTPRequest, db: AsyncS
         success=is_success, 
         message=message
     )
+
 
 @router.post("/verify-otp", response_model=ResponderOTPVerifyResponse)
 @limiter.limit("5/minute")
@@ -46,6 +51,7 @@ async def verify_otp(
         send_again=send_again
     )
 
+
 @router.post("/upload-id-photo", response_model=UploadResponse)
 @limiter.limit("4/minute")
 async def upload_responder_id_photo(request: Request, file: UploadFile = File(...)) -> UploadResponse:
@@ -53,6 +59,7 @@ async def upload_responder_id_photo(request: Request, file: UploadFile = File(..
     return UploadResponse(
         file_path=file_path
     )
+
 
 @router.post("/create", status_code=204)
 @limiter.limit("3/minute")

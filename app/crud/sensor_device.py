@@ -48,4 +48,4 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
         )
         return result.scalars().first()
 
-sensor_device = CRUDSensorDevice(SensorDevice)
+sensor_device_crud = CRUDSensorDevice(SensorDevice)

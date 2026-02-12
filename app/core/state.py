@@ -1,10 +1,13 @@
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal
 from app.schemas import FusionData, BlockageStatus, WaterLevelStatus, WeatherStatus, FusionAnalysisData, AlertThresholdsResponse
 from app.schemas.reading_summary_response import FusionWebSocketResponse
 from app.services.cache_service import cache_service
 from app.schemas import DevicePerLocation
 
+
 class FusionAnalysisState:
+
     def __init__(self, location_id: int = None, camera_device_id: int = None, sensor_device_id: int = None):
         self.fusion_analysis: FusionAnalysisData | None = None
         self.location_id = location_id
@@ -19,6 +22,7 @@ class FusionAnalysisState:
         self.blockage_status: BlockageStatus | None = None
         self.water_level_status: WaterLevelStatus | None = None
         self.weather_status: WeatherStatus | None = None
+
 
     async def broadcast_fusion_analysis(self):
         from app.services import websocket_service
@@ -35,14 +39,15 @@ class FusionAnalysisState:
             location_id=self.location_id
         )
 
-    async def load_initial_state(self, db):
+
+    async def load_initial_state(self, db: AsyncSession):
         """
         Loads the latest data from the database upon server startup.
         Verifies if the data is recent enough to be considered valid for fusion analysis.
         """
-        from app.crud.sensor_reading import sensor_reading as sensor_reading_crud
-        from app.crud.model_readings import model_readings as model_readings_crud
-        from app.crud.weather import weather as weather_crud
+        from app.crud import sensor_reading_crud
+        from app.crud import model_readings_crud
+        from app.crud import weather_crud
         from app.services.sensor_reading_service import sensor_reading_service
         from app.services.weather_service import weather_service
         from app.core.config import settings
@@ -103,20 +108,24 @@ class FusionAnalysisState:
         # --- 4. Recalculate Fusion Data with loaded values ---
         await self._recalculate_fusion_data()
 
+
     async def calculate_visual_status_score(self, blockage_status: BlockageStatus = None):
         if blockage_status:
             self.blockage_status = blockage_status
         await self._recalculate_fusion_data()
+
 
     async def calculate_water_level_score(self, water_level_status: WaterLevelStatus = None):
         if water_level_status:
             self.water_level_status = water_level_status
         await self._recalculate_fusion_data()
 
+
     async def calculate_weather_score(self, weather_status: WeatherStatus = None):
         if weather_status:
             self.weather_status = weather_status
         await self._recalculate_fusion_data()
+
 
     async def _recalculate_fusion_data(self):
         from app.core.database import AsyncSessionLocal
@@ -221,9 +230,11 @@ class FusionAnalysisState:
 
 
 class StateManager:
+
     def __init__(self):
         self._fusion_analysis_states: dict[int, FusionAnalysisState] = {}
         # int is location id
+
 
     # Retrieve existing Fusion Analysis Data for a location
     def get_fusion_analysis_state(self, location_id: int) -> FusionAnalysisState:
@@ -231,26 +242,31 @@ class StateManager:
             raise ValueError(f"No FusionAnalysisState found for location_id {location_id}")
         return self._fusion_analysis_states[location_id].fusion_analysis
 
+
     async def recalculate_water_level_score(self, water_level_status: WaterLevelStatus, location_id: int) -> None:
         fusion_state = self._fusion_analysis_states.get(location_id)
         if fusion_state:
             await fusion_state.calculate_water_level_score(water_level_status=water_level_status)
+
 
     async def recalculate_visual_status_score(self, blockage_status: BlockageStatus, location_id: int) -> None:
         fusion_state = self._fusion_analysis_states.get(location_id)
         if fusion_state:
             await fusion_state.calculate_visual_status_score(blockage_status=blockage_status)
 
+
     async def recalculate_weather_score(self, weather_status: WeatherStatus, location_id: int) -> None:
         fusion_state = self._fusion_analysis_states.get(location_id)
         if fusion_state:
             await fusion_state.calculate_weather_score(weather_status=weather_status)
+
 
     def start_fusion_analysis_state(self, location_id: int, sensor_device_id: int, camera_device_id: int) -> FusionAnalysisState:
         if location_id not in self._fusion_analysis_states:
             fusion_state = FusionAnalysisState(location_id=location_id, camera_device_id=camera_device_id, sensor_device_id=sensor_device_id)
             self._fusion_analysis_states[location_id] = fusion_state
             return fusion_state
+
 
     async def start_all_states(self) -> None:
         async with AsyncSessionLocal() as db:
@@ -271,6 +287,7 @@ class StateManager:
                 fusion_state = self.start_fusion_analysis_state(location_id=loc_id, 
                                                                 sensor_device_id=device_ids.sensor_device_id, 
                                                                 camera_device_id=device_ids.camera_device_id)
-                await fusion_state.load_initial_state(db)
+                await fusion_state.load_initial_state(db=db)
+
 
 fusion_state_manager = StateManager()

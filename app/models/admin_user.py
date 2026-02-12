@@ -2,8 +2,8 @@ import uuid
 from sqlalchemy import Column, Boolean, String, UUID, DateTime, Text, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-
 from .base import Base
+
 
 class AdminUser(Base):
     __tablename__ = "admin_users"

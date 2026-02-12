@@ -1,6 +1,7 @@
 from ..base import Base
 from sqlalchemy import Column, Integer, String, Text, Boolean
 
+
 class MessageTemplate(Base):
     __tablename__ = "message_templates"
 

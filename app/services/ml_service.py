@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Set
 from app.core.cloudinary import upload_image
-from app.crud.model_readings import model_readings as model_readings_crud
+from app.crud import model_readings_crud
 from app.schemas import ModelReadingCreate
 from app.core.database import AsyncSessionLocal
 from app.services.websocket_service import websocket_service
@@ -12,7 +12,6 @@ from app.models.data_sources.model_readings import ModelReadings
 from app.schemas import ModelWebSocketResponse
 from app.core.state import fusion_state_manager
 from app.schemas import BlockageStatus
-
 from app.core.config import settings
 
 class MLService:
@@ -32,6 +31,7 @@ class MLService:
         # Memory set to track which files we have already analyzed.
         self.processed_files: Set[Path] = set()
         self.last_processed_time: datetime = None
+
 
     async def start(self):
         """
@@ -58,10 +58,12 @@ class MLService:
         print(f"✅ ML Service started. Ignored {len(self.processed_files)} old frames. Watching for new ones...")
         asyncio.create_task(self._analysis_loop())
 
+
     async def stop(self):
         """Stop the background analysis loop."""
         self.is_running = False
         print("✅ ML Service stopping...")
+
 
     async def _analysis_loop(self):
         """
@@ -116,6 +118,7 @@ class MLService:
             except Exception as e:
                 print(f"Error in ML loop: {e}")
                 await asyncio.sleep(5)
+
 
     async def _process_frame(self, file_path: Path):
         """
@@ -173,5 +176,5 @@ class MLService:
         except Exception as e:
             print(f"Failed to analyze frame {file_path}: {e}")
 
-# Global instance
+
 ml_service = MLService()

@@ -84,5 +84,5 @@ class CRUDResponder(CRUDBase[None, None, None]):
         )
         return list(result.scalars().unique().all())
 
-responder_otp_verification = CRUDResponderOTPVerification(OTPModel)
-responder = CRUDResponder(Responders)
+responder_otp_verification_crud = CRUDResponderOTPVerification(OTPModel)
+responder_crud = CRUDResponder(Responders)

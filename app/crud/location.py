@@ -24,4 +24,4 @@ class CRUDLocation(CRUDBase[None, None, None]):
         )
         return result.all()
 
-location = CRUDLocation(Location)
+location_crud = CRUDLocation(Location)
