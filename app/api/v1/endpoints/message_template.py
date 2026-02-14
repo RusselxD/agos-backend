@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.crud import message_template_crud
 from app.services.message_template_service import message_template_service
 
-router = APIRouter(prefix="/message-template", tags=["message-template"])
+router = APIRouter(prefix="/message-templates", tags=["message-template"])
 
 
 @router.get("/all", response_model=list[MessageTemplateResponse], dependencies=[Depends(require_auth)])
@@ -31,3 +31,9 @@ async def update_message_template(
                             current_user: CurrentUser = Depends(require_auth)) -> MessageTemplateResponse:
     
     return await message_template_service.update_message_template(db=db, template_id=template_id, template=template, current_user=current_user)
+
+
+@router.delete("/{template_id}", status_code=204)
+async def delete_message_template(template_id: int, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_auth)) -> None:
+    # await message_template_service.delete_message_template(db=db, template_id=template_id, current_user=current_user)
+    pass

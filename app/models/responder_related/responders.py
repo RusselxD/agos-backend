@@ -14,8 +14,8 @@ class ResponderStatus(enum.Enum):
 responder_groups = Table(
     'responder_groups',
     Base.metadata,
-    Column('responder_id',  UUID(as_uuid=True), ForeignKey('responders.id'), primary_key=True),
-    Column('group_id', Integer, ForeignKey('groups.id'), primary_key=True)
+    Column('responder_id', UUID(as_uuid=True), ForeignKey('responders.id', ondelete='CASCADE'), primary_key=True),
+    Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE'), primary_key=True)
 )
 
 
@@ -32,4 +32,5 @@ class Responder(Base):
     created_by = Column(UUID(as_uuid=True), ForeignKey("admin_users.id"), nullable=False)
 
     admin_user = relationship("AdminUser", back_populates="responders_created")
-    groups = relationship("Group", secondary=responder_groups, back_populates="responders")
+    groups = relationship("Group", secondary=responder_groups, back_populates="responders", passive_deletes=True)
+    otp_verification = relationship("RespondersOTPVerification", back_populates="responder", uselist=False)

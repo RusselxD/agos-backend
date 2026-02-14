@@ -3,10 +3,15 @@ from app.schemas import AdminAuditLogCreate
 from app.crud.base import CRUDBase
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas import AdminAuditLogResponse
 
 class CRUDAdminAuditLogs(CRUDBase[AdminAuditLog, AdminAuditLogCreate, None]):
+
+    async def create_only_no_commit(self, db: AsyncSession, obj_in: AdminAuditLogCreate) -> None:
+        db_obj = self.model(**obj_in.model_dump())
+        db.add(db_obj)
     
     async def get_paginated(self, db, page: int = 1, page_size: int = 10) -> list[AdminAuditLogResponse]:
         skip = (page - 1) * page_size

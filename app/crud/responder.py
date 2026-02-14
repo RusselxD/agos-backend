@@ -1,47 +1,43 @@
 from app.crud.base import CRUDBase
-from sqlalchemy import exists, select
-# from app.schemas import ResponderOTPVerificationCreate
+from sqlalchemy import exists, select, update
+from app.schemas.responder import ResponderOTPVerificationCreate
 from app.models import RespondersOTPVerification as OTPModel
 from app.models import Responder
+from app.models.responder_related.responders import ResponderStatus
 from sqlalchemy import delete
 from datetime import datetime, timezone
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
-# class CRUDResponderOTPVerification(CRUDBase[ResponderOTPVerificationCreate, None, None]):
-    
-#     async def record_exists(self, db: AsyncSession, phone_number: str) -> bool:
-#         result = await db.execute(
-#             select(exists().where(self.model.phone_number == phone_number))
-#         )
-#         return result.scalar()
+class CRUDResponderOTPVerification(CRUDBase[ResponderOTPVerificationCreate, None, None]):
 
-#     async def get_by_phone_number(self, db: AsyncSession, phone_number: str) -> OTPModel | None:
-#         result = await db.execute(
-#             select(self.model)
-#             .filter(self.model.phone_number == phone_number)
-#             .execution_options(populate_existing=False) # disable tracking
-#         )
-#         return result.scalars().first()
+    async def get_by_responder_id(self, db: AsyncSession, responder_id: UUID) -> OTPModel | None:
+        result = await db.execute(
+            select(self.model)
+            .filter(self.model.responder_id == responder_id)
+            .execution_options(populate_existing=False)
+        )
+        return result.scalars().first()
 
-#     async def save_incremented_attempt_count(self, db: AsyncSession, record: OTPModel) -> None:
-#         # already incremented in service layer
-#         db.add(record)
-#         await db.commit()
+    async def delete_by_responder_id(self, db: AsyncSession, responder_id: UUID) -> None:
+        stmt = delete(self.model).where(self.model.responder_id == responder_id)
+        await db.execute(stmt)
 
-#     async def delete(self, db: AsyncSession, obj: OTPModel) -> None:
-#         await db.delete(obj)
-#         await db.commit()
+    async def increment_attempt_count(self, db: AsyncSession, record: OTPModel) -> None:
+        record.attempt_count += 1
+        db.add(record)
+        await db.commit()
 
-#     async def delete_expired_otps(self, db: AsyncSession) -> int:
-#         now = datetime.now(timezone.utc)
-        
-#         # DELETE FROM table WHERE expires_at < now
-#         stmt = delete(self.model).where(self.model.expires_at < now)
-#         result = await db.execute(stmt)
-        
-#         await db.commit()
-#         return result.rowcount or 0 # Safely handle potential None values
+    async def upsert_otp(self, db: AsyncSession, obj_in: ResponderOTPVerificationCreate) -> None:
+        """Delete existing OTP for responder and create new one"""
+        stmt = delete(self.model).where(self.model.responder_id == obj_in.responder_id)
+        await db.execute(stmt)
+        obj_data = obj_in.model_dump()
+        db_obj = self.model(**obj_data)
+        db.add(db_obj)
+        await db.commit()
+
 
 class CRUDResponder(CRUDBase[None, None, None]):
     async def get_all(self, db: AsyncSession) -> list[Responder]:
@@ -52,6 +48,7 @@ class CRUDResponder(CRUDBase[None, None, None]):
         )
         return result.scalars().unique().all()
 
+
     async def get_details(self, db : AsyncSession, id: str) -> Responder | None:
         result = await db.execute(
             select(self.model)
@@ -61,6 +58,7 @@ class CRUDResponder(CRUDBase[None, None, None]):
         )
         return result.scalars().first()
 
+
     async def approve_responder(self, db: AsyncSession, responder: Responder, user_id: str) -> None:
         responder.status = 'approved'
         responder.approved_at = datetime.now(timezone.utc)
@@ -68,12 +66,14 @@ class CRUDResponder(CRUDBase[None, None, None]):
         db.add(responder)
         # commited at the service layer for idempotency
 
+
     # used in checking existing phone numbers
     async def record_exists(self, db: AsyncSession, phone_number: str) -> bool:
         result = await db.execute(
             select(exists().where(self.model.phone_number == phone_number))
         )
         return result.scalar()
+
 
     async def get_by_ids(self, db: AsyncSession, ids: list) -> list[Responder]:
         if not ids:
@@ -84,5 +84,33 @@ class CRUDResponder(CRUDBase[None, None, None]):
         )
         return list(result.scalars().unique().all())
 
-# responder_otp_verification_crud = CRUDResponderOTPVerification(OTPModel)
+
+    async def bulk_create_and_return(self, db: AsyncSession, objs_in: list, created_by_id: UUID) -> list[Responder]:
+        db_objs = []
+        for obj_in in objs_in:
+            obj_data = obj_in.model_dump()
+            obj_data['created_by'] = created_by_id
+            db_obj = self.model(**obj_data)
+            db_objs.append(db_obj)
+        db.add_all(db_objs)
+        await db.commit()
+        for db_obj in db_objs:
+            await db.refresh(db_obj, attribute_names=['groups'])
+        return db_objs
+
+
+    async def activate(self, db: AsyncSession, responder_id: UUID) -> None:
+        stmt = (
+            update(self.model)
+            .where(self.model.id == responder_id)
+            .values(
+                status=ResponderStatus.ACTIVE,
+                activated_at=datetime.now(timezone.utc)
+            )
+        )
+        await db.execute(stmt)
+        # commited at the service layer for idempotency
+
+
+responder_otp_verification_crud = CRUDResponderOTPVerification(OTPModel)
 responder_crud = CRUDResponder(Responder)

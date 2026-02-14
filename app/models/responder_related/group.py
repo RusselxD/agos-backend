@@ -12,4 +12,4 @@ class Group(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), unique=True, nullable=False)
 
-    responders = relationship("Responder", secondary="responder_groups", back_populates="groups")
+    responders = relationship("Responder", secondary="responder_groups", back_populates="groups", passive_deletes=True)

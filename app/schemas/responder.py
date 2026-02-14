@@ -2,33 +2,34 @@ from pydantic import BaseModel
 from datetime import datetime
 from uuid import UUID
 
-# class ResponderOTPVerificationBase(BaseModel):
-#     phone_number: str
+class ResponderSendSMSRequest(BaseModel):
+    responder_ids: list[UUID]
+    message: str
 
-# class ResponderOTPVerificationCreate(ResponderOTPVerificationBase):
-#     otp_hash: str
-#     expires_at: datetime
+class ResponderOTPVerificationCreate(BaseModel):
+    responder_id: UUID
+    otp_hash: str
+    expires_at: datetime
 
-# class ResponderOTPRequest(ResponderOTPVerificationBase):
-#     pass
+class ResponderOTPVerifyRequest(BaseModel):
+    responder_id: UUID
+    otp: str
 
-# class ResponderOTPVerifyRequest(ResponderOTPVerificationBase):
-#     otp: str
-
-# class ResponderOTPResponse(BaseModel):
-#     success: bool
-#     message: str
-
-# class ResponderOTPVerifyResponse(ResponderOTPResponse):
-#     send_again: bool
+class ResponderOTPVerifyResponse(BaseModel):
+    success: bool
+    message: str
+    requires_resend: bool  # True = need to request new OTP, False = can retry current OTP
 
 class ResponderBase(BaseModel):
     first_name: str
     last_name: str
     phone_number: str
-    # id_photo_path: str
 
 class ResponderCreate(ResponderBase):
+    pass
+
+class ResponderForApproval(ResponderBase):
+    status: str
     pass
 
 class ResponderListItem(BaseModel):
@@ -37,16 +38,14 @@ class ResponderListItem(BaseModel):
     last_name: str
     phone_number: str
     status: str
-    groups: list[str]
 
     class Config:
         from_attributes = True
 
 class ResponderDetailsResponse(BaseModel):
-    # id_photo_path: str
     created_at: datetime
-    approved_by: str | None
-    approved_at: datetime | None
+    created_by: str
+    activated_at: datetime | None
 
     class Config:
         from_attributes = True

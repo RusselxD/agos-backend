@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only, selectinload
@@ -11,11 +11,13 @@ from app.models.responder_related.responders import responder_groups
 
 
 class CRUDResponderGroup(CRUDBase[Group, None, None]):
+    
     async def get_by_name(self, db: AsyncSession, name: str) -> Group | None:
         result = await db.execute(
             select(self.model).where(self.model.name == name)
         )
         return result.scalars().first()
+
 
     async def get_all_with_member_ids(self, db: AsyncSession) -> list[Group]:
         result = await db.execute(
@@ -24,32 +26,68 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
                 load_only(self.model.name),
                 selectinload(self.model.responders).load_only(Responder.id),
             )
-            .order_by(self.model.name)
+            .order_by(self.model.id)
             .execution_options(populate_existing=False)
         )
         return result.scalars().unique().all()
 
-    async def create_with_members(self, db: AsyncSession, name: str, member_ids: list[UUID]) -> Group:
-        responders: list[Responder] = []
-        if member_ids:
-            result = await db.execute(
-                select(Responder).where(Responder.id.in_(member_ids))
-            )
-            responders = list(result.scalars().unique().all())
 
+    async def create_with_members(self, db: AsyncSession, name: str, responders: list[Responder]) -> Group:
         # Assign relationship while the instance is transient to avoid async lazy-load
         # of the previous collection state (MissingGreenlet).
         group = self.model(name=name, responders=responders)
         db.add(group)
-        await db.commit()
-        await db.refresh(group)
         return group
+
+
+    async def update_with_members(
+        self,
+        db: AsyncSession,
+        group: Group,
+        name: str,
+        member_ids: list[UUID],
+    ) -> tuple[Group, int, int]:
+        desired_member_ids = set(member_ids)
+        result = await db.execute(
+            select(responder_groups.c.responder_id).where(
+                responder_groups.c.group_id == group.id
+            )
+        )
+        current_member_ids = set(result.scalars().all())
+
+        to_add = desired_member_ids - current_member_ids
+        to_remove = current_member_ids - desired_member_ids
+        added_count = len(to_add)
+        removed_count = len(to_remove)
+
+        if to_remove:
+            await db.execute(
+                delete(responder_groups).where(
+                    responder_groups.c.group_id == group.id,
+                    responder_groups.c.responder_id.in_(to_remove),
+                )
+            )
+
+        if to_add:
+            await db.execute(
+                insert(responder_groups),
+                [
+                    {"responder_id": responder_id, "group_id": group.id}
+                    for responder_id in to_add
+                ],
+            )
+
+        group.name = name
+        db.add(group)
+        return group, added_count, removed_count
+
 
     async def name_exists(self, db: AsyncSession, name: str) -> bool:
         result = await db.execute(
             select(self.model).where(self.model.name == name)
         )
         return result.scalars().first() is not None
+
 
     async def ensure_exists(self, db: AsyncSession, name: str) -> Group:
         existing = await self.get_by_name(db=db, name=name)
@@ -71,16 +109,8 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
         await db.refresh(group)
         return group
 
-    async def add_member_if_missing(self, db: AsyncSession, group_id: int, responder_id: UUID) -> None:
-        exists_result = await db.execute(
-            select(responder_groups.c.responder_id).where(
-                responder_groups.c.group_id == group_id,
-                responder_groups.c.responder_id == responder_id,
-            )
-        )
-        if exists_result.first() is not None:
-            return
 
+    async def add_member(self, db: AsyncSession, group_id: int, responder_id: UUID) -> None:
         await db.execute(
             insert(responder_groups).values(
                 responder_id=responder_id,

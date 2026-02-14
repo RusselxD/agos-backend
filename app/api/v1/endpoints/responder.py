@@ -1,11 +1,12 @@
-from fastapi import APIRouter, File, UploadFile, Request
+from fastapi import APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.dependencies import CurrentUser, require_auth
 from app.core.database import get_db
 from fastapi import Depends
-# from app.schemas import ResponderOTPRequest, ResponderOTPResponse, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, UploadResponse, ResponderCreate
-from app.schemas.responder import ResponderDetailsResponse, ResponderListItem
-from app.services import responder_service, upload_service
+from uuid import UUID
+from app.schemas import ResponderCreate, ResponderDetailsResponse, ResponderListItem
+from app.schemas import ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderSendSMSRequest
+from app.services import responder_service
 from app.core.rate_limiter import limiter
 
 router = APIRouter(prefix="/responder", tags=["responder"])
@@ -20,6 +21,33 @@ async def get_all_responders(db:AsyncSession = Depends(get_db)) -> list[Responde
 async def get_responder_details(responder_id: str, db:AsyncSession = Depends(get_db)) -> ResponderDetailsResponse:
     return await responder_service.get_responder_details(responder_id=responder_id, db=db)
 
+
+@router.post("/bulk", response_model=list[ResponderListItem])
+async def bulk_create_responders(
+                            responders: list[ResponderCreate], 
+                            db: AsyncSession = Depends(get_db),
+                            user: CurrentUser = Depends(require_auth)) -> list[ResponderListItem]:
+    return await responder_service.bulk_create_responders(responders=responders, db=db, user_id=user.id)
+
+
+@router.get("/for-approval/{responder_id}", response_model=ResponderForApproval)
+async def get_responder_for_approval(responder_id: UUID, db: AsyncSession = Depends(get_db)) -> ResponderForApproval:
+    return await responder_service.get_responder_for_approval(responder_id=responder_id, db=db)
+
+
+@router.post("/send-otp/{responder_id}", status_code=204)
+async def send_otp(responder_id: UUID, db: AsyncSession = Depends(get_db)) -> None:
+    await responder_service.send_otp(responder_id=responder_id, db=db)
+
+
+@router.post("/verify-otp", response_model=ResponderOTPVerifyResponse)
+async def verify_otp(verify_request: ResponderOTPVerifyRequest, db: AsyncSession = Depends(get_db)) -> ResponderOTPVerifyResponse:
+    return await responder_service.verify_otp(verify_request=verify_request, db=db)
+
+
+@router.post("/send-sms", status_code=204)
+async def send_sms(send_request: ResponderSendSMSRequest, db: AsyncSession = Depends(get_db)) -> None:
+    await responder_service.send_sms(send_request=send_request, db=db)
 
 # @router.put("/approve/{responder_id}", status_code=204)
 # async def approve_responder_registration(responder_id: str, db: AsyncSession = Depends(get_db), user: CurrentUser = Depends(require_auth)) -> None:
