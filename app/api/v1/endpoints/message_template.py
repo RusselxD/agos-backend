@@ -35,5 +35,4 @@ async def update_message_template(
 
 @router.delete("/{template_id}", status_code=204)
 async def delete_message_template(template_id: int, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_auth)) -> None:
-    # await message_template_service.delete_message_template(db=db, template_id=template_id, current_user=current_user)
-    pass
+    await message_template_service.delete_message_template(db=db, template_id=template_id, current_user=current_user)

@@ -39,5 +39,4 @@ async def update_group(
 
 @router.delete("/{group_id}", status_code=204)
 async def delete_group(group_id: int, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_auth)) -> None:
-    # await responder_group_service.delete_group(group_id=group_id, db=db, current_user=current_user)
-    pass
+    await responder_group_service.delete_group(group_id=group_id, db=db, current_user=current_user)

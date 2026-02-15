@@ -218,4 +218,45 @@ class ResponderGroupService:
         return f"Submitted update for responder group '{updated_group_name}' with no changes"
 
 
+    async def delete_group(self, db: AsyncSession, group_id: int, current_user: CurrentUser) -> None:
+        try:
+            existing_group = await responder_group_crud.get_with_lock(db=db, id=group_id)
+            if not existing_group:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Responder group not found.",
+                )
+
+            if existing_group.name.casefold() == DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME.casefold():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="The system default active-responders group cannot be deleted.",
+                )
+
+            previous_group_name = existing_group.name
+            await responder_group_crud.delete_no_commit(db=db, group=existing_group)
+
+            await admin_audit_log_crud.create_only_no_commit(
+                db=db,
+                obj_in=AdminAuditLogCreate(
+                    admin_user_id=current_user.id,
+                    action=f"Deleted responder group '{previous_group_name}'",
+                ),
+            )
+
+            await db.commit()
+        except HTTPException:
+            await db.rollback()
+            raise
+        except IntegrityError:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Responder group could not be deleted.",
+            )
+        except Exception:
+            await db.rollback()
+            raise
+
+
 responder_group_service = ResponderGroupService()

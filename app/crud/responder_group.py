@@ -121,4 +121,8 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
             await db.commit()
 
 
+    async def delete_no_commit(self, db: AsyncSession, group: Group) -> None:
+        db.delete(group)
+
+
 responder_group_crud = CRUDResponderGroup(Group)
