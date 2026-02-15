@@ -245,6 +245,7 @@ class ResponderGroupService:
             )
 
             await db.commit()
+            print("Dito")
         except HTTPException:
             await db.rollback()
             raise

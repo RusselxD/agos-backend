@@ -72,6 +72,6 @@ class CRUDMessageTemplate(CRUDBase[MessageTemplate, MessageTemplateCreate, Messa
         return db_obj
 
     async def delete_no_commit(self, db: AsyncSession, db_obj: MessageTemplate) -> None:
-        db.delete(db_obj)
+        await db.delete(db_obj)
 
 message_template_crud = CRUDMessageTemplate(MessageTemplate)
