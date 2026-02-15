@@ -32,12 +32,15 @@ class ResponderForApproval(ResponderBase):
     status: str
     pass
 
+from app.models.responder_related.responders import ResponderStatus
+
+
 class ResponderListItem(BaseModel):
     id: UUID
     first_name: str
     last_name: str
     phone_number: str
-    status: str
+    status: ResponderStatus
 
     class Config:
         from_attributes = True

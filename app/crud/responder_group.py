@@ -110,13 +110,15 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
         return group
 
 
-    async def add_member(self, db: AsyncSession, group_id: int, responder_id: UUID) -> None:
+    async def add_member(self, db: AsyncSession, group_id: int, responder_id: UUID, *, commit: bool = True) -> None:
         await db.execute(
             insert(responder_groups).values(
                 responder_id=responder_id,
                 group_id=group_id,
             )
         )
+        if commit:
+            await db.commit()
 
 
 responder_group_crud = CRUDResponderGroup(Group)

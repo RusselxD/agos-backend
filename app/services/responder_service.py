@@ -42,7 +42,7 @@ class ResponderService:
                 first_name=responder.first_name,
                 last_name=responder.last_name,
                 phone_number=responder.phone_number,
-                status=responder.status.value,
+                status=responder.status,
                 groups=[group.name for group in responder.groups]
             ) for responder in created_responders
         ]
@@ -102,7 +102,6 @@ class ResponderService:
         # Check expiration
         if record.expires_at < datetime.now(timezone.utc):
             await responder_otp_verification_crud.delete_by_responder_id(db=db, responder_id=verify_request.responder_id)
-            await db.commit()
             return ResponderOTPVerifyResponse(
                 success=False,
                 message="OTP has expired. Please request a new one.",
@@ -113,7 +112,6 @@ class ResponderService:
         if not verify_otp_hash(plain_otp=verify_request.otp, hashed_otp=record.otp_hash):
             if record.attempt_count + 1 >= settings.OTP_ATTEMPT_LIMIT:
                 await responder_otp_verification_crud.delete_by_responder_id(db=db, responder_id=verify_request.responder_id)
-                await db.commit()
                 return ResponderOTPVerifyResponse(
                     success=False,
                     message="Too many incorrect attempts. Please request a new OTP.",
@@ -128,10 +126,9 @@ class ResponderService:
             )
         
         # Success - activate responder, add to active group, and cleanup OTP record
-        await responder_crud.activate(db=db, responder_id=verify_request.responder_id)
-        await responder_group_crud.add_member(db=db, group_id=active_group.id, responder_id=verify_request.responder_id)
+        await responder_crud.activate(db=db, responder_id=verify_request.responder_id, commit=False)
+        await responder_group_crud.add_member(db=db, group_id=active_group.id, responder_id=verify_request.responder_id, commit=False)
         await responder_otp_verification_crud.delete_by_responder_id(db=db, responder_id=verify_request.responder_id)
-        await db.commit()
         
         return ResponderOTPVerifyResponse(
             success=True,

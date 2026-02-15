@@ -20,9 +20,11 @@ class CRUDResponderOTPVerification(CRUDBase[ResponderOTPVerificationCreate, None
         )
         return result.scalars().first()
 
-    async def delete_by_responder_id(self, db: AsyncSession, responder_id: UUID) -> None:
+    async def delete_by_responder_id(self, db: AsyncSession, responder_id: UUID, *, commit: bool = True) -> None:
         stmt = delete(self.model).where(self.model.responder_id == responder_id)
         await db.execute(stmt)
+        if commit:
+            await db.commit()
 
     async def increment_attempt_count(self, db: AsyncSession, record: OTPModel) -> None:
         record.attempt_count += 1
@@ -86,20 +88,26 @@ class CRUDResponder(CRUDBase[None, None, None]):
 
 
     async def bulk_create_and_return(self, db: AsyncSession, objs_in: list, created_by_id: UUID) -> list[Responder]:
-        db_objs = []
-        for obj_in in objs_in:
-            obj_data = obj_in.model_dump()
-            obj_data['created_by'] = created_by_id
-            db_obj = self.model(**obj_data)
-            db_objs.append(db_obj)
+        # Build all objects in one pass
+        db_objs = [
+            self.model(**obj_in.model_dump(), created_by=created_by_id)
+            for obj_in in objs_in
+        ]
         db.add_all(db_objs)
+        await db.flush()  # Flush to get IDs without committing
+        
+        # Collect IDs and fetch all in a single query with groups preloaded
+        obj_ids = [obj.id for obj in db_objs]
+        result = await db.execute(
+            select(self.model)
+            .options(selectinload(self.model.groups))
+            .where(self.model.id.in_(obj_ids))
+        )
         await db.commit()
-        for db_obj in db_objs:
-            await db.refresh(db_obj, attribute_names=['groups'])
-        return db_objs
+        return list(result.scalars().unique().all())
 
 
-    async def activate(self, db: AsyncSession, responder_id: UUID) -> None:
+    async def activate(self, db: AsyncSession, responder_id: UUID, *, commit: bool = True) -> None:
         stmt = (
             update(self.model)
             .where(self.model.id == responder_id)
@@ -109,7 +117,8 @@ class CRUDResponder(CRUDBase[None, None, None]):
             )
         )
         await db.execute(stmt)
-        # commited at the service layer for idempotency
+        if commit:
+            await db.commit()
 
 
 responder_otp_verification_crud = CRUDResponderOTPVerification(OTPModel)
