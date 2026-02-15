@@ -133,11 +133,11 @@ class MLService:
             print(f"🔍 ML Result: {prediction.capitalize()} ({int(percentage*100)}%), Debris Count: {debris_count}")
 
             # Upload image to Cloudinary
-            # upload_result = await upload_image(str(file_path), filename=file_path.stem)
+            upload_result = await upload_image(str(file_path), filename=file_path.stem)
 
             image_url = str(file_path)
-            # if upload_result:
-            #     image_url = upload_result["secure_url"]
+            if upload_result:
+                image_url = upload_result["secure_url"]
 
             # Store the result in the database
             async with AsyncSessionLocal() as db:
