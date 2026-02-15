@@ -1,11 +1,11 @@
 from .admin_audit_log import admin_audit_log_crud
 from .admin_user import admin_user_crud
 from .camera_device import camera_device_crud
+from .daily_summary import daily_summary_crud
 from .location import location_crud
 from .message_template import message_template_crud
 from .model_readings import model_readings_crud
 from .responder_group import responder_group_crud
-# from .responder import responder_otp_verification_crud
 from .responder import responder_crud
 from .sensor_device import sensor_device_crud
 from .sensor_reading import sensor_reading_crud

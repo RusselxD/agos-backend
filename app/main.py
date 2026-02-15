@@ -23,6 +23,7 @@ from app.services import ml_service
 from app.services import weather_service
 # from app.services import database_cleanup_service
 from app.core.state import fusion_state_manager
+from app.core.scheduler import start_scheduler, shutdown_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,11 +38,15 @@ async def lifespan(app: FastAPI):
     print("📊 Loading initial fusion analysis state...")
     await fusion_state_manager.start_all_states()
     print("✅ Fusion analysis state loaded.")
+    
+    # Start scheduler for daily summary jobs
+    start_scheduler()
 
     yield  # Application runs here
 
     # Shutdown
     print("🛑 Shutting down application...")
+    shutdown_scheduler()
     await stream_processor.stop()
     await ml_service.stop()
     await weather_service.stop()

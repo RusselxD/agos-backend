@@ -5,7 +5,7 @@ from .admin_user_service import admin_user_service
 from .websocket_service import websocket_service
 from .cache_service import cache_service
 from .admin_audit_log_service import admin_audit_log_service
-# from .database_cleanup_service import database_cleanup_service
+from .daily_summary_service import daily_summary_service
 from .weather_service import weather_service
 from .responder_service import responder_service
 from .ml_service import ml_service

@@ -14,3 +14,4 @@ class Location(Base):
     weather_conditions = relationship("Weather", back_populates="location", cascade="all, delete-orphan")
     sensor_device = relationship("SensorDevice", back_populates="location", uselist=False, cascade="all, delete-orphan")
     camera_device = relationship("CameraDevice", back_populates="location", uselist=False, cascade="all, delete-orphan")
+    daily_summaries = relationship("DailySummary", back_populates="location", cascade="all, delete-orphan")
