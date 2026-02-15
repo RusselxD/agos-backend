@@ -11,22 +11,12 @@ router = APIRouter(prefix="/system-settings", tags=["system-settings"])
 
 @router.get("/{key}", response_model=SystemSettingsResponse, dependencies=[Depends(require_auth)])
 async def get_system_setting(key: str, db: AsyncSession = Depends(get_db)) -> SystemSettingsResponse:
-    settings = await system_settings_crud.get(db=db, key=key)
-
-    if not settings:
-        raise HTTPException(status_code=404, detail="System settings not found")
-    
-    return settings
+    return await system_settings_crud.get(db=db, key=key)
 
 
 @router.get("/{key}/value", response_model=None, dependencies=[Depends(require_auth)])
 async def get_system_setting_value(key: str, db: AsyncSession = Depends(get_db)) -> any:
-    json_value = await system_settings_crud.get_value(db=db, key=key)
-
-    if json_value is None:
-        raise HTTPException(status_code=404, detail="System settings not found")
-    
-    return json_value
+    return await system_settings_crud.get_value(db=db, key=key)
 
 
 @router.put("/{key}", response_model=None)

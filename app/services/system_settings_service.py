@@ -17,17 +17,6 @@ class SystemSettingsService:
     
         # Store old value for audit log
         old_value = settings.json_value
-
-        # Normalize types for specific settings keys
-        if key == "auto_send_sms_when_critical":
-            # Ensure we always store a real boolean in the DB
-            raw = value.json_value
-            if isinstance(raw, str):
-                lowered = raw.strip().lower()
-                if lowered in ["true", "1", "yes", "on"]:
-                    value.json_value = True
-                elif lowered in ["false", "0", "no", "off"]:
-                    value.json_value = False
         
         updated_settings = await system_settings_crud.update(db=db, db_obj=settings, obj_in=value)
 
@@ -39,7 +28,7 @@ class SystemSettingsService:
         ))
 
         return updated_settings.json_value
-    
+
 
     # Generate descriptive audit log message based on setting key
     def _format_audit_message(self, key: str, old_value: any, new_value: any) -> str:
