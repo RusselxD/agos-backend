@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import func, select, and_
 from app.models.data_sources.daily_summary import DailySummary
 from app.crud.base import CRUDBase
 
@@ -56,16 +56,27 @@ class CRUDDailySummary(CRUDBase):
         return db_summary
 
 
-    async def get_paginated(self, db: AsyncSession, location_id: int, page: int = 1, page_size: int = 10) -> list[DailySummary]:
-        """Get paginated daily summaries for a location, ordered by date descending."""
-        skip = (page - 1) * page_size
+    async def get_daily_summaries(self, db: AsyncSession, location_id: int, start_date: datetime, end_date: datetime) -> list[DailySummary]:
+        """Get daily summaries for a location within a datetime range."""
         result = await db.execute(
-            select(self.model)
-            .where(DailySummary.location_id == location_id)
-            .order_by(DailySummary.summary_date.desc())
+            select(self.model).where(
+                and_(
+                    DailySummary.location_id == location_id,
+                    DailySummary.summary_date >= start_date,
+                    DailySummary.summary_date <= end_date
+                )
+            ).order_by(DailySummary.summary_date.asc())
             .execution_options(populate_existing=False) # Disable tracking for better performance
-            .offset(skip)
-            .limit(page_size + 1)
+        )
+        return result.scalars().all()
+
+
+    async def get_available_summary_days(self, db: AsyncSession, location_id: int) -> list[datetime]:
+        """Get list of dates for which summaries are available for a location."""
+        result = await db.execute(
+            select(func.distinct(func.date(DailySummary.summary_date)))
+            .filter(DailySummary.location_id == location_id)
+            .order_by(func.date(DailySummary.summary_date).asc())
         )
         return result.scalars().all()
 

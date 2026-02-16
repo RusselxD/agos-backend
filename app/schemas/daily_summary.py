@@ -36,10 +36,3 @@ class DailySummaryResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
-class DailySummaryPaginatedResponse(BaseModel):
-    items: list[DailySummaryResponse]
-    has_more: bool
-
-    class Config:
-        from_attributes = True

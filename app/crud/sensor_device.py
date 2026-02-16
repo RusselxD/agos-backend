@@ -5,6 +5,7 @@ from app.crud.base import CRUDBase
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
+
 class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
     async def get_default_sensor_by_location(self, db: AsyncSession, location_id: int) -> SensorDevice | None:
@@ -15,6 +16,7 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
         )
         return result.mappings().first()
 
+
     async def get_sensor_device_name(self, db: AsyncSession, sensor_device_id: int) -> str:
         result = await db.execute(
             select(self.model.device_name)
@@ -22,6 +24,7 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
             .limit(1)
         )
         return result.scalars().first()
+
 
     async def get(self, db: AsyncSession, id: int) ->  SensorDeviceResponse | None:
         sensor_devices = await db.execute(
@@ -40,6 +43,7 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
         
         return None
 
+
     async def get_id_by_location(self, db: AsyncSession, location_id: int) -> int | None:
         result = await db.execute(
             select(self.model.id)
@@ -47,5 +51,6 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
             .limit(1)
         )
         return result.scalars().first()
+
 
 sensor_device_crud = CRUDSensorDevice(SensorDevice)

@@ -8,9 +8,11 @@ CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
+    
     def __init__(self, model: Type[ModelType]):
         self.model = model
     
+
     async def get(self, db: AsyncSession, id: int) -> Optional[ModelType]:
         result = await db.execute(
             select(self.model).filter(self.model.id == id)
@@ -18,6 +20,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         )
         return result.scalars().first()
     
+
     async def get_all(self, db: AsyncSession) -> List[ModelType]:
         result = await db.execute(
             select(self.model)
@@ -25,6 +28,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         )
         return result.scalars().unique().all()
     
+
     async def get_with_lock(self, db: AsyncSession, id: str) -> ModelType:
         result = await db.execute(
             select(self.model)
@@ -32,6 +36,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             .with_for_update()
         )
         return result.scalars().first()
+
 
     async def create_and_return(self, db: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = obj_in.model_dump()
@@ -41,11 +46,13 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await db.refresh(db_obj)
         return db_obj
     
+
     async def create_only(self, db: AsyncSession, obj_in: CreateSchemaType) -> None:
         obj_in_data = obj_in.model_dump()
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
         await db.commit()
+
 
     async def create_multi(self, db: AsyncSession, objs_in: List[CreateSchemaType]) -> List[ModelType]:
         db_objs = []
@@ -56,6 +63,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         db.add_all(db_objs)
         await db.commit()
 
+
     async def update(self, db: AsyncSession, db_obj: ModelType, obj_in: UpdateSchemaType) -> ModelType:
         obj_data = obj_in.model_dump(exclude_unset=True)
         for field, value in obj_data.items():
@@ -65,6 +73,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         await db.refresh(db_obj)
         return db_obj
     
+
     async def delete(self, db: AsyncSession, id: int) -> Optional[ModelType]:
         result = await db.execute(
             select(self.model).filter(self.model.id == id)

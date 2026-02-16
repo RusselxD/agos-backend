@@ -130,7 +130,7 @@ class SensorReadingService:
             return local_dt.strftime("%H:%M")
     
 
-    async def get_avialable_reading_days(self, db: AsyncSession, sensor_device_id: int) -> list[str]:
+    async def get_available_reading_days(self, db: AsyncSession, sensor_device_id: int) -> list[str]:
         return await sensor_reading_crud.get_available_reading_days(db=db, sensor_device_id=sensor_device_id)
 
 

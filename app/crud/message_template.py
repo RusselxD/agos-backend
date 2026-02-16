@@ -4,6 +4,7 @@ from app.schemas import MessageTemplateCreate
 from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+
 class CRUDMessageTemplate(CRUDBase[MessageTemplate, MessageTemplateCreate, MessageTemplateCreate]):
     
     async def get_all(self, db: AsyncSession) -> list[MessageTemplate]:
@@ -13,6 +14,7 @@ class CRUDMessageTemplate(CRUDBase[MessageTemplate, MessageTemplateCreate, Messa
         )
         return result.scalars().all()
     
+
     async def clear_auto_send_types(
         self,
         db: AsyncSession,
@@ -45,6 +47,7 @@ class CRUDMessageTemplate(CRUDBase[MessageTemplate, MessageTemplateCreate, Messa
 
         await db.execute(statement)
 
+
     async def get_for_update(self, db: AsyncSession, template_id: int) -> MessageTemplate | None:
         result = await db.execute(
             select(self.model)
@@ -53,11 +56,13 @@ class CRUDMessageTemplate(CRUDBase[MessageTemplate, MessageTemplateCreate, Messa
         )
         return result.scalars().first()
 
+
     async def create_no_commit(self, db: AsyncSession, obj_in: MessageTemplateCreate) -> MessageTemplate:
         message_template = self.model(**obj_in.model_dump())
         db.add(message_template)
         await db.flush()
         return message_template
+
 
     async def update_no_commit(
         self,
@@ -71,7 +76,9 @@ class CRUDMessageTemplate(CRUDBase[MessageTemplate, MessageTemplateCreate, Messa
         await db.flush()
         return db_obj
 
+
     async def delete_no_commit(self, db: AsyncSession, db_obj: MessageTemplate) -> None:
         await db.delete(db_obj)
+
 
 message_template_crud = CRUDMessageTemplate(MessageTemplate)

@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 from fastapi import HTTPException, status
 from datetime import datetime
 
+
 class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
     
     async def get_all_admins(self, db: AsyncSession) -> list[AdminUser]:
@@ -18,6 +19,7 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
         )
         return items.scalars().unique().all()
 
+
     async def get_by_phone(self, db: AsyncSession, phone_number: str) -> AdminUser | None:
         result = await db.execute(
             select(self.model)
@@ -26,11 +28,13 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
         )
         return result.scalars().first()
     
+
     async def phone_exists(self, db: AsyncSession, phone_number: str) -> bool:
         result = await db.execute(
             select(exists().where(self.model.phone_number == phone_number))
         )
         return result.scalar()
+
 
     async def create(self, db: AsyncSession, obj_in: AdminUserCreate) -> AdminUser:
         db_obj = AdminUser(
@@ -51,6 +55,7 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
         )
         return result.scalars().first()
 
+
     async def update_password(self, db: AsyncSession, user_id: str, new_password: str) -> AdminUser:
         result = await db.execute(
             select(AdminUser).filter(AdminUser.id == user_id)
@@ -69,8 +74,10 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
         await db.refresh(user)
         return user
 
+
     async def update_last_login(self, db: AsyncSession, user: AdminUser, last_login: datetime) -> None:
         user.last_login = last_login
         await db.commit()
+
 
 admin_user_crud = CRUDAdminUser(AdminUser)   

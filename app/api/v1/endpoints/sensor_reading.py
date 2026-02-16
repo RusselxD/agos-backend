@@ -29,7 +29,7 @@ async def get_sensor_readings_trend(duration: str,
 # for getting the date before excel export
 @router.get("/available-days", response_model=List[str], dependencies=[Depends(require_auth)])
 async def get_available_reading_days(sensor_device_id: int = 1, db: AsyncSession = Depends(get_db)) -> list[str]:
-    return await sensor_reading_service.get_avialable_reading_days(db=db, sensor_device_id=sensor_device_id)
+    return await sensor_reading_service.get_available_reading_days(db=db, sensor_device_id=sensor_device_id)
 
 
 @router.get("/for-export", response_model=SensorReadingForExportResponse, dependencies=[Depends(require_auth)])

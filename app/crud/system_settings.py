@@ -6,6 +6,7 @@ from app.schemas import SystemSettingsCreate, SystemSettingsUpdate
 from app.crud.base import CRUDBase
 from typing import Any
 
+
 class CRUDSystemSettings(CRUDBase[SystemSettings, SystemSettingsCreate, SystemSettingsUpdate]):
     
     async def get(self, db: AsyncSession, key: str) -> SystemSettings:
@@ -21,6 +22,7 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, SystemSettingsCreate, SystemSe
             raise HTTPException(status_code=404, detail="System settings not found")
 
         return row
+
 
     async def get_value(self, db: AsyncSession, key: str) -> Any:
         setting = await self.get(db, key)

@@ -4,6 +4,7 @@ from app.crud.base import CRUDBase
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+
 class CRUDModelReadings(CRUDBase[ModelReadings, ModelReadingCreate, None]):
     
     async def get_latest_reading(self, db: AsyncSession, camera_device_id: int) -> ModelReadings | None:
@@ -14,5 +15,6 @@ class CRUDModelReadings(CRUDBase[ModelReadings, ModelReadingCreate, None]):
             .limit(1)
         )
         return result.mappings().first()
+
 
 model_readings_crud = CRUDModelReadings(ModelReadings)

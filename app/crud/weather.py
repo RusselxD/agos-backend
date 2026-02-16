@@ -4,6 +4,7 @@ from app.crud.base import CRUDBase
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+
 class CRUDWeather(CRUDBase[Weather, WeatherCreate, None]):
     
     async def get_latest_weather(self, db: AsyncSession, location_id) -> Weather | None:
@@ -15,6 +16,7 @@ class CRUDWeather(CRUDBase[Weather, WeatherCreate, None]):
         )
         return result.mappings().first()
 
+
     async def get_latest_weather_full(self, db: AsyncSession, location_id: int) -> Weather | None:
         result = await db.execute(
             select(self.model)
@@ -23,5 +25,6 @@ class CRUDWeather(CRUDBase[Weather, WeatherCreate, None]):
             .limit(1)
         )
         return result.scalars().first()
+
 
 weather_crud = CRUDWeather(Weather)

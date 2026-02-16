@@ -3,6 +3,7 @@ from app.models import CameraDevice
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
+
 class CRUDCameraDevice(CRUDBase[CameraDevice, None, None]):
 
     async def get_default_camera_by_location(self, db: AsyncSession, location_id: int) -> CameraDevice | None:
@@ -13,6 +14,7 @@ class CRUDCameraDevice(CRUDBase[CameraDevice, None, None]):
         )
         return result.mappings().first()
 
+
     async def get_id_by_location(self, db: AsyncSession, location_id: int) -> int | None:
         result = await db.execute(
             select(self.model.id)
@@ -22,4 +24,5 @@ class CRUDCameraDevice(CRUDBase[CameraDevice, None, None]):
         camera_device = result.scalars().first()
         return camera_device
     
+
 camera_device_crud = CRUDCameraDevice(CameraDevice)

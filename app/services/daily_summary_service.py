@@ -1,6 +1,7 @@
 from datetime import date, datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
+from app.schemas import DailySummaryResponse
 from app.models.data_sources.sensor_reading import SensorReading
 from app.models.data_sources.model_readings import ModelReadings
 from app.models.data_sources.weather import Weather
@@ -272,21 +273,16 @@ class DailySummaryService:
         
         return created_count
 
-    async def get_summaries_paginated(self, db: AsyncSession, location_id: int, page: int, page_size: int):
-        """Get paginated daily summaries for a location."""
-        from app.schemas.daily_summary import DailySummaryPaginatedResponse, DailySummaryResponse
-        
-        db_items = await daily_summary_crud.get_paginated(
-            db=db, location_id=location_id, page=page, page_size=page_size
-        )
-        
-        has_more = len(db_items) > page_size
-        items = [
-            DailySummaryResponse.model_validate(item)
-            for item in db_items[:page_size]
-        ]
-        
-        return DailySummaryPaginatedResponse(items=items, has_more=has_more)
+
+    async def get_daily_summaries(self, db: AsyncSession, location_id: int, start_date: datetime, end_date: datetime) -> list[DailySummaryResponse]:
+        """Get daily summaries for a location within a datetime range."""
+        db_summaries = await daily_summary_crud.get_daily_summaries(db=db, location_id=location_id, start_date=start_date, end_date=end_date)
+        return [DailySummaryResponse.model_validate(summary) for summary in db_summaries]
+
+
+    async def get_available_summary_days(self, db: AsyncSession, location_id: int) -> list[datetime]:
+        """Get list of dates for which summaries are available for a location."""
+        return await daily_summary_crud.get_available_summary_days(db=db, location_id=location_id)
 
 
 daily_summary_service = DailySummaryService()
