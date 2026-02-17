@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_DAYS: int = 2
-    GROQ_API_KEYS: str
+    GROQ_API_KEYS: Union[list[str], str]
 
     SENSOR_GRACE_PERIOD_MINUTES: int = 4
     SENSOR_WARNING_PERIOD_MINUTES: int = 8
