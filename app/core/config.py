@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_DAYS: int = 2
-    GROQ_API_KEY: str
+    GROQ_API_KEYS: str
 
     SENSOR_GRACE_PERIOD_MINUTES: int = 4
     SENSOR_WARNING_PERIOD_MINUTES: int = 8
@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     @field_validator('FRONTEND_URLS', mode='before')
     @classmethod
     def parse_origins(cls, v):
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(',')]
+        return v
+    
+    @field_validator('GROQ_API_KEYS', mode='before')
+    @classmethod
+    def parse_api_keys(cls, v):
         if isinstance(v, str):
             return [item.strip() for item in v.split(',')]
         return v

@@ -4,16 +4,16 @@ from app.core.config import settings
 
 import json
 
-client = AsyncGroq(api_key=settings.GROQ_API_KEY)
+clients = [AsyncGroq(api_key=key) for key in settings.GROQ_API_KEYS]
 MODELS = [
-    "llama-3.1-8b-instant",      # smallest, try first
-    "gemma2-9b-it",              # Google's model, separate quota
-    "mixtral-8x7b-32768",        # Mistral, separate quota
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "mixtral-8x7b-32768",
 ]
 
 SYSTEM_PROMPT = """
-You are an expert flood monitoring analyst. Analyze daily sensor and weather 
-summary data from a drainage/flood monitoring system.
+You are an expert waterway monitoring analyst. Analyze daily sensor, blockage, and weather 
+summary data from a drainage/waterway monitoring system.
 
 When given data, provide a concise analysis covering:
 1. **Overall Risk Assessment** – What is the general risk level across this period?
@@ -30,6 +30,40 @@ Formatting rules:
 """.strip()
 
 class AnalysisService:
+
+    async def _stream_with_fallback(self, messages: list, max_tokens: int):
+        """
+        Tries every model first, then when each primary model exhausts its rate limit, it falls back to the next one.
+        Yields SSE chunks.
+        """
+        for model in MODELS:
+            for client in clients:
+                try:
+                    stream = await client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        stream=True,
+                        max_tokens=max_tokens,
+                        temperature=0.4,
+                    )
+
+                    async for chunk in stream:
+                        text = chunk.choices[0].delta.content
+                        if text:
+                            yield f"data: {json.dumps({'text': text})}\n\n"
+
+                    yield f"data: {json.dumps({'done': True})}\n\n"
+                    return  # success — stop trying
+
+                except Exception as e:
+                    error = str(e)
+                    if any(code in error for code in ["rate_limit_exceeded", "429", "model_decommissioned"]):
+                        continue  # try next model/client
+                    raise  # unexpected error — bubble up
+
+        # every client + model combination exhausted
+        yield f"data: {json.dumps({'error': 'All models and API keys are rate limited. Try again later.'})}\n\n"
+
 
     async def stream_analysis(self, payload: DailySummaryAnalysisRequest):
         """Initial Analysis - streams SSE chunks"""
@@ -48,33 +82,13 @@ class AnalysisService:
             5. **Recommendations**
             """.strip()
 
-        for model in MODELS:
-            try:
-                stream = await client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": prompt},
-                    ],
-                    stream=True,
-                    max_tokens=1024,
-                    temperature=0.4,
-                )
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ]
 
-                async for chunk in stream:
-                    text = chunk.choices[0].delta.content
-                    if text:
-                        yield f"data: {json.dumps({'text': text})}\n\n"
-
-                yield f"data: {json.dumps({'done': True})}\n\n"
-                return
-
-            except Exception as e:
-                if "rate_limit_exceeded" in str(e) or "429" in str(e):
-                    continue
-                raise
-
-        yield f"data: {json.dumps({'error': 'Rate limit reached on all models. Try again later.'})}\n\n"
+        async for chunk in self._stream_with_fallback(messages, max_tokens=1024):
+            yield chunk
 
 
     async def stream_follow_up(self, payload: FollowUpRequest):
@@ -92,30 +106,8 @@ class AnalysisService:
             {"role": "user", "content": payload.question},
         ]
 
-        for model in MODELS:
-            try:
-                stream = await client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    stream=True,
-                    max_tokens=512,
-                    temperature=0.4,
-                )
-
-                async for chunk in stream:
-                    text = chunk.choices[0].delta.content
-                    if text:
-                        yield f"data: {json.dumps({'text': text})}\n\n"
-
-                yield f"data: {json.dumps({'done': True})}\n\n"
-                return
-
-            except Exception as e:
-                if "rate_limit_exceeded" in str(e) or "429" in str(e):
-                    continue
-                raise
-
-        yield f"data: {json.dumps({'error': 'Rate limit reached on all models. Try again later.'})}\n\n"
+        async for chunk in self._stream_with_fallback(messages, max_tokens=512):
+            yield chunk
 
 
     def _format_summaries(self, summaries: list[DailySummaryResponse]) -> str:
