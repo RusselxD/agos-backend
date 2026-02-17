@@ -16,3 +16,4 @@ from .stream import stream_processor, frame_manager
 from .sms_service import sms_service
 from .message_template_service import message_template_service
 from .responder_group_service import responder_group_service
+from .analysis_service import analysis_service
