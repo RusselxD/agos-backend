@@ -41,10 +41,3 @@ class DailySummaryAnalysisRequest(BaseModel):
     start_date: date
     end_date: date
     summaries: list[DailySummaryResponse]
-
-
-class FollowUpRequest(BaseModel):
-    question: str
-    summaries: list[DailySummaryResponse]
-    # pass prior messages for context
-    history: list[dict] = []  # [{"role": "user/assistant", "content": "..."}]

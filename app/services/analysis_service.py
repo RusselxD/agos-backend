@@ -1,5 +1,5 @@
 from groq import AsyncGroq
-from app.schemas import DailySummaryAnalysisRequest, DailySummaryResponse, FollowUpRequest
+from app.schemas import DailySummaryAnalysisRequest, DailySummaryResponse
 from app.core.config import settings
 
 import json
@@ -88,25 +88,6 @@ class AnalysisService:
         ]
 
         async for chunk in self._stream_with_fallback(messages, max_tokens=1024):
-            yield chunk
-
-
-    async def stream_follow_up(self, payload: FollowUpRequest):
-        """Follow-up chat — includes conversation history + data context."""
-        data_block = self._format_summaries(payload.summaries)
-
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": f"Here is the monitoring data for context:\n{data_block}"
-            },
-            {"role": "assistant", "content": "Understood. I have the monitoring data. What would you like to know?"},
-            *payload.history,
-            {"role": "user", "content": payload.question},
-        ]
-
-        async for chunk in self._stream_with_fallback(messages, max_tokens=512):
             yield chunk
 
 

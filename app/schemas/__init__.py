@@ -27,4 +27,4 @@ from .core import LocationDetails, DeviceDetails
 from .upload import UploadResponse
 
 from .fusion_analysis import FusionData, BlockageStatus, WaterLevelStatus, WeatherStatus, FusionAnalysisData
-from .daily_summary import DailySummaryResponse, DailySummaryAnalysisRequest, FollowUpRequest
+from .daily_summary import DailySummaryResponse, DailySummaryAnalysisRequest
