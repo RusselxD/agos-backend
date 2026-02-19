@@ -29,17 +29,6 @@ Formatting rules:
 - Never make up data — only reference what's given to you
 """.strip()
 
-FOLLOW_UP_SYSTEM_PROMPT = """
-You are an expert waterway monitoring analyst in an ongoing chat.
-
-For follow-up questions:
-- Answer the user's latest question directly first
-- Use prior conversation history and provided monitoring data as context
-- Keep responses concise unless the user asks for more detail
-- Do not force the 5-section report format unless the user explicitly asks for a full report
-- Never make up data; only reference provided context
-""".strip()
-
 class AnalysisService:
 
     async def _stream_with_fallback(self, messages: list, max_tokens: int):
@@ -107,14 +96,12 @@ class AnalysisService:
         data_block = self._format_summaries(payload.summaries)
 
         messages = [
-            {"role": "system", "content": FOLLOW_UP_SYSTEM_PROMPT},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": (
-                    "Here is the monitoring data for context. Use it when relevant to answer follow-up questions.\n"
-                    f"{data_block}"
-                ),
+                "content": f"Here is the monitoring data for context:\n{data_block}"
             },
+            {"role": "assistant", "content": "Understood. I have the monitoring data. What would you like to know?"},
             *payload.history,
             {"role": "user", "content": payload.question},
         ]

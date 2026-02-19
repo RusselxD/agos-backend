@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from datetime import date, datetime
 
 
@@ -47,4 +47,4 @@ class FollowUpRequest(BaseModel):
     question: str
     summaries: list[DailySummaryResponse]
     # pass prior messages for context
-    history: list[dict] = Field(default_factory=list)  # [{"role": "user/assistant", "content": "..."}]
+    history: list[dict] = []  # [{"role": "user/assistant", "content": "..."}]
