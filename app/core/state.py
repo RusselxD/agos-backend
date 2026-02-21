@@ -133,10 +133,10 @@ class FusionAnalysisState:
         score = 0
         conditions = []
         
-        # --- Blockage Score (0-35) ---
+        # --- Blockage Score (0-30) ---
         if self.blockage_status:
             if self.blockage_status.status == "blocked":
-                score += 35
+                score += 30
                 conditions.append("Waterway is BLOCKED - Immediate action required.")
             elif self.blockage_status.status == "partial":
                 score += 20
@@ -163,6 +163,7 @@ class FusionAnalysisState:
                 score += 45
                 conditions.append("Water level above CRITICAL threshold!")
 
+            # Add points for rising trend and rapid change rate
             if self.water_level_status.trend == "rising":
                 score += 5
 

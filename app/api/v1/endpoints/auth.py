@@ -3,7 +3,7 @@ from app.schemas import Token
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.services import auth_service
-from app.schemas import LoginRequest, ChangePasswordRequest
+from app.schemas import LoginRequest, ChangePasswordRequest, RefreshTokenRequest
 from app.api.v1.dependencies import require_auth, CurrentUser
 from app.core.rate_limiter import limiter
 
@@ -20,6 +20,22 @@ async def login(
     return await auth_service.authenticate_user(db=db, 
                                                 phone_number=login_data.phone_number, 
                                                 password=login_data.password)
+
+
+@router.post("/logout")
+async def logout(
+    user: CurrentUser = Depends(require_auth), 
+    db: AsyncSession = Depends(get_db)) -> dict:
+    
+    await auth_service.logout_user(db=db, user_id=user.id)
+    return {"message": "Successfully logged out"}
+
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(
+    body: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db)) -> Token:
+    return await auth_service.refresh_access_token(db=db, refresh_token=body.refresh_token)
 
 
 # Force password change endpoint

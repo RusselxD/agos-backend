@@ -54,7 +54,7 @@ async def require_auth(
             detail="User not found"
         )
     
-    if not is_enabled:
+    if not user_in_db.is_enabled:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"

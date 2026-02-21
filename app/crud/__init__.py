@@ -11,3 +11,4 @@ from .sensor_device import sensor_device_crud
 from .sensor_reading import sensor_reading_crud
 from .system_settings import system_settings_crud
 from .weather import weather_crud
+from .refresh_token import refresh_token_crud

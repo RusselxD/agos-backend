@@ -1,5 +1,5 @@
 from .admin_user import AdminUserResponse, AdminUserCreate
-from .token import Token, TokenData
+from .token import Token, TokenData, RefreshTokenRequest
 from .admin_audit_log import AdminAuditLogCreate, AdminAuditLogResponse
 from .system_settings import SystemSettingsCreate, SystemSettingsResponse, SystemSettingsUpdate, SensorConfigResponse, AlertThresholdsResponse
 from .sensor_devices import SensorDeviceResponse, SensorDeviceStatusResponse

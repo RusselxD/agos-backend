@@ -26,4 +26,5 @@ class AdminUser(Base):
     admin_creator = relationship("AdminUser", remote_side=[id], foreign_keys=[created_by])
     admin_deactivator = relationship("AdminUser", remote_side=[id], foreign_keys=[deactivated_by])
     admin_audit_logs = relationship("AdminAuditLog", back_populates="admin_user", cascade="all, delete-orphan")
+    refresh_tokens = relationship("RefreshToken", back_populates="admin_user", cascade="all, delete-orphan")
     responders_created = relationship("Responder", back_populates="admin_user")
