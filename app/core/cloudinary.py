@@ -1,3 +1,4 @@
+from typing import Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 import cloudinary
@@ -18,7 +19,8 @@ def get_cloudinary_settings() -> CloudinarySettings:
     return CloudinarySettings()
 
 
-cloudinary_settings = get_cloudinary_settings()
+cloudinary_settings: CloudinarySettings | None = None
+cloudinary_enabled = False
 
 
 def init_cloudinary():
@@ -26,15 +28,25 @@ def init_cloudinary():
     Initialize the Cloudinary SDK with settings from environment variables.
     Call this at application startup.
     """
-    cloudinary.config( 
-        cloud_name = cloudinary_settings.CLOUDINARY_CLOUD_NAME, 
-        api_key = cloudinary_settings.CLOUDINARY_API_KEY, 
-        api_secret = cloudinary_settings.CLOUDINARY_API_SECRET,
-        secure = True
-    )
+    global cloudinary_settings, cloudinary_enabled
+
+    try:
+        cloudinary_settings = get_cloudinary_settings()
+        cloudinary.config(
+            cloud_name=cloudinary_settings.CLOUDINARY_CLOUD_NAME,
+            api_key=cloudinary_settings.CLOUDINARY_API_KEY,
+            api_secret=cloudinary_settings.CLOUDINARY_API_SECRET,
+            secure=True,
+        )
+        cloudinary_enabled = True
+        print("✅ Cloudinary initialized")
+    except Exception as e:
+        cloudinary_enabled = False
+        cloudinary_settings = None
+        print(f"⚠️ Cloudinary init failed. Continuing without uploads: {e}")
 
 
-async def upload_image(file: any, filename: str, folder: str = None) -> dict:
+async def upload_image(file: Any, filename: str, folder: str = None) -> dict | None:
     """
     Uploads an image (path or file-like object) to Cloudinary.
     
@@ -46,6 +58,10 @@ async def upload_image(file: any, filename: str, folder: str = None) -> dict:
     Returns:
         A dictionary containing the 'secure_url' and 'public_id' or None on failure.
     """
+    if not cloudinary_enabled or cloudinary_settings is None:
+        print("⚠️ Cloudinary is not initialized. Skipping upload.")
+        return None
+
     try:
         import asyncio
         from functools import partial

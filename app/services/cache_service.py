@@ -1,6 +1,7 @@
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas import SensorConfigResponse, AlertThresholdsResponse, LocationCoordinate, DevicePerLocation
+from app.schemas import AlertThresholdsResponse, LocationCoordinate, DevicePerLocation
+from app.models import SensorConfig
 from app.crud import system_settings_crud
 from app.crud import location_crud
 from app.crud import sensor_device_crud
@@ -15,7 +16,7 @@ class CacheService:
 
         self._location_coordinates_cache: Optional[list[LocationCoordinate]] = None  # cached location coordinates
 
-        self._sensor_config_cache: Optional[SensorConfigResponse] = None  # cached sensor configuration
+        self._sensor_config_cache: Optional[SensorConfig] = None  # cached sensor configuration
         
         self._alert_thresholds_cache: Optional[AlertThresholdsResponse] = None  # cached alert thresholds
 
@@ -27,9 +28,9 @@ class CacheService:
 
 
     # mutable cache
-    async def update_sensor_config_cache(self, db: AsyncSession) -> None:
-        sensor_config_data = await system_settings_crud.get_value(db=db, key="sensor_config")
-        self._sensor_config_cache = SensorConfigResponse.model_validate(sensor_config_data)
+    async def update_sensor_config_cache(self, db: AsyncSession, sensor_device_id: int) -> None:
+        sensor_config_data = await sensor_device_crud.get_device_config(db=db, sensor_device_id=sensor_device_id)
+        self._sensor_config_cache = SensorConfig.model_validate(sensor_config_data)
 
 
     # unmutable cache
@@ -72,10 +73,10 @@ class CacheService:
         self._location_id_per_sensor_device_cache = location_id_per_sensor_device_cache
 
 
-    async def get_sensor_config(self, db: AsyncSession) -> SensorConfigResponse:
+    async def get_sensor_config(self, db: AsyncSession) -> SensorConfig:
 
         if self._sensor_config_cache is None:
-            await self.update_sensor_config_cache(db=db)
+            await self.update_sensor_config_cache(db=db, sensor_device_id=self._device_ids_cache[1].sensor_device_id)  # Assuming location ID 1 for now
 
         return self._sensor_config_cache
 

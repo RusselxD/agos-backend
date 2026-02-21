@@ -18,7 +18,7 @@ from app.core.database import AsyncSessionLocal
 class WeatherService:
 
     def __init__(self):
-        self.scheduler = AsyncIOScheduler()
+        self.scheduler = AsyncIOScheduler(timezone=settings.APP_TIMEZONE)
 
 
     async def start(self):
@@ -30,7 +30,7 @@ class WeatherService:
         """Start the scheduler with jobs."""
         self.scheduler.add_job(
             self._fetch_and_update_weather,
-            CronTrigger(minute=0), # Every hour at minute 0
+            CronTrigger(minute=0, timezone=settings.APP_TIMEZONE), # Every hour at minute 0 (configured timezone)
             id="fetch_weather_condition_job",
         )
         self.scheduler.start()

@@ -1,4 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.models import SensorConfig
 from app.schemas import SensorDeviceResponse, SensorDeviceStatusResponse
 from app.crud import sensor_device_crud
 from app.crud import sensor_reading_crud
@@ -57,6 +58,15 @@ class SensorDeviceService:
             last_updated=latest_reading.timestamp.isoformat(),
             signal=sensor_reading_service.get_signal_quality(latest_reading.signal_strength)
         )
+
+
+    async def get_device_config(self, db: AsyncSession, sensor_device_id: int) -> SensorConfig:
+        sensor_config = await sensor_device_crud.get_device_config(db=db, sensor_device_id=sensor_device_id)
+        if not sensor_config:
+            raise HTTPException(status_code=404, detail="Sensor device config not found")
+        return sensor_config
+
+
 
 
 sensor_device_service = SensorDeviceService()

@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models import SensorDevice
+from app.models import SensorDevice, SensorConfig
 from app.schemas import SensorDeviceResponse
 from app.crud.base import CRUDBase
 from sqlalchemy import select
@@ -42,6 +42,14 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
             )
         
         return None
+
+
+    async def get_device_config(self, db: AsyncSession, sensor_device_id: int) -> SensorConfig:
+        sensor_device = await db.execute(
+            select(self.model.sensor_config)
+            .filter(self.model.id == sensor_device_id)
+        )
+        return sensor_device.scalars().first()
 
 
     async def get_id_by_location(self, db: AsyncSession, location_id: int) -> int | None:

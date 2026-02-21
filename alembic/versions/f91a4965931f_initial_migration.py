@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: ec72abe996e2
+Revision ID: f91a4965931f
 Revises: 
-Create Date: 2026-02-07 19:21:11.136845
+Create Date: 2026-02-21 12:25:11.945007
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'ec72abe996e2'
+revision: str = 'f91a4965931f'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -60,20 +60,16 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('template_name', sa.String(length=100), nullable=False),
     sa.Column('template_content', sa.Text(), nullable=False),
-    sa.Column('auto_send_on_critical', sa.Boolean(), nullable=False),
+    sa.Column('auto_send_on_warning', sa.Boolean(), nullable=True),
+    sa.Column('auto_send_on_critical', sa.Boolean(), nullable=True),
+    sa.Column('auto_send_on_blocked', sa.Boolean(), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('template_name')
     )
     op.create_index(op.f('ix_message_templates_id'), 'message_templates', ['id'], unique=False)
-    op.create_table('responders_otp_verification',
-    sa.Column('phone_number', sa.String(length=20), nullable=False),
-    sa.Column('otp_hash', sa.String(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
-    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('attempt_count', sa.Integer(), nullable=False),
-    sa.PrimaryKeyConstraint('phone_number')
-    )
-    op.create_index(op.f('ix_responders_otp_verification_phone_number'), 'responders_otp_verification', ['phone_number'], unique=False)
+    op.create_index('uq_message_templates_auto_send_blocked_true', 'message_templates', ['auto_send_on_blocked'], unique=True, postgresql_where=sa.text('auto_send_on_blocked IS true'))
+    op.create_index('uq_message_templates_auto_send_critical_true', 'message_templates', ['auto_send_on_critical'], unique=True, postgresql_where=sa.text('auto_send_on_critical IS true'))
+    op.create_index('uq_message_templates_auto_send_warning_true', 'message_templates', ['auto_send_on_warning'], unique=True, postgresql_where=sa.text('auto_send_on_warning IS true'))
     op.create_table('system_settings',
     sa.Column('key', sa.Text(), nullable=False),
     sa.Column('json_value', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
@@ -95,6 +91,35 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('location_id')
     )
+    op.create_table('daily_summaries',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('location_id', sa.Integer(), nullable=False),
+    sa.Column('summary_date', sa.Date(), nullable=False),
+    sa.Column('min_risk_score', sa.Integer(), nullable=True),
+    sa.Column('max_risk_score', sa.Integer(), nullable=True),
+    sa.Column('min_risk_timestamp', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('max_risk_timestamp', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('min_debris_count', sa.Integer(), nullable=True),
+    sa.Column('max_debris_count', sa.Integer(), nullable=True),
+    sa.Column('min_debris_timestamp', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('max_debris_timestamp', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('least_severe_blockage', sa.String(), nullable=True),
+    sa.Column('most_severe_blockage', sa.String(), nullable=True),
+    sa.Column('min_water_level_cm', sa.Numeric(precision=5, scale=2), nullable=True),
+    sa.Column('max_water_level_cm', sa.Numeric(precision=5, scale=2), nullable=True),
+    sa.Column('min_water_timestamp', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('max_water_timestamp', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('min_precipitation_mm', sa.Float(), nullable=True),
+    sa.Column('max_precipitation_mm', sa.Float(), nullable=True),
+    sa.Column('min_precip_timestamp', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('max_precip_timestamp', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('most_severe_weather_code', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('location_id', 'summary_date', name='uq_location_date')
+    )
+    op.create_index(op.f('ix_daily_summaries_summary_date'), 'daily_summaries', ['summary_date'], unique=False)
     op.create_table('password_reset_otps',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('admin_id', sa.UUID(), nullable=False),
@@ -103,17 +128,25 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['admin_id'], ['admin_users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('refresh_tokens',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('admin_user_id', sa.UUID(), nullable=False),
+    sa.Column('token', sa.String(), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['admin_user_id'], ['admin_users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('token')
+    )
     op.create_table('responders',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('phone_number', sa.String(length=20), nullable=False),
     sa.Column('first_name', sa.String(length=50), nullable=False),
     sa.Column('last_name', sa.String(length=50), nullable=False),
-    sa.Column('status', sa.Enum('pending', 'approved', name='responder_status'), nullable=False),
-    sa.Column('id_photo_path', sa.String(length=255), nullable=False),
-    sa.Column('approved_by', sa.UUID(), nullable=True),
+    sa.Column('status', sa.Enum('PENDING', 'ACTIVE', name='responderstatus'), nullable=False),
+    sa.Column('activated_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=True),
-    sa.Column('approved_at', sa.DateTime(timezone=True), nullable=True),
-    sa.ForeignKeyConstraint(['approved_by'], ['admin_users.id'], ),
+    sa.Column('created_by', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['created_by'], ['admin_users.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('phone_number')
     )
@@ -121,6 +154,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('location_id', sa.Integer(), nullable=False),
     sa.Column('device_name', sa.String(length=100), nullable=False),
+    sa.Column('sensor_config', sa.JSON(), nullable=False),
     sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('location_id')
@@ -154,10 +188,20 @@ def upgrade() -> None:
     op.create_table('responder_groups',
     sa.Column('responder_id', sa.UUID(), nullable=False),
     sa.Column('group_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['group_id'], ['groups.id'], ),
-    sa.ForeignKeyConstraint(['responder_id'], ['responders.id'], ),
+    sa.ForeignKeyConstraint(['group_id'], ['groups.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['responder_id'], ['responders.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('responder_id', 'group_id')
     )
+    op.create_table('responders_otp_verification',
+    sa.Column('responder_id', sa.UUID(), nullable=False),
+    sa.Column('otp_hash', sa.String(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('attempt_count', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['responder_id'], ['responders.id'], ),
+    sa.PrimaryKeyConstraint('responder_id')
+    )
+    op.create_index(op.f('ix_responders_otp_verification_responder_id'), 'responders_otp_verification', ['responder_id'], unique=False)
     op.create_table('sensor_readings',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('sensor_device_id', sa.Integer(), nullable=False),
@@ -180,17 +224,23 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_sensor_readings_timestamp'), table_name='sensor_readings')
     op.drop_index(op.f('ix_sensor_readings_id'), table_name='sensor_readings')
     op.drop_table('sensor_readings')
+    op.drop_index(op.f('ix_responders_otp_verification_responder_id'), table_name='responders_otp_verification')
+    op.drop_table('responders_otp_verification')
     op.drop_table('responder_groups')
     op.drop_table('model_readings')
     op.drop_table('weather')
     op.drop_table('sensor_devices')
     op.drop_table('responders')
+    op.drop_table('refresh_tokens')
     op.drop_table('password_reset_otps')
+    op.drop_index(op.f('ix_daily_summaries_summary_date'), table_name='daily_summaries')
+    op.drop_table('daily_summaries')
     op.drop_table('camera_devices')
     op.drop_table('admin_audit_logs')
     op.drop_table('system_settings')
-    op.drop_index(op.f('ix_responders_otp_verification_phone_number'), table_name='responders_otp_verification')
-    op.drop_table('responders_otp_verification')
+    op.drop_index('uq_message_templates_auto_send_warning_true', table_name='message_templates', postgresql_where=sa.text('auto_send_on_warning IS true'))
+    op.drop_index('uq_message_templates_auto_send_critical_true', table_name='message_templates', postgresql_where=sa.text('auto_send_on_critical IS true'))
+    op.drop_index('uq_message_templates_auto_send_blocked_true', table_name='message_templates', postgresql_where=sa.text('auto_send_on_blocked IS true'))
     op.drop_index(op.f('ix_message_templates_id'), table_name='message_templates')
     op.drop_table('message_templates')
     op.drop_table('locations')

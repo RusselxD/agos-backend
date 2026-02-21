@@ -7,6 +7,7 @@ from alembic import context
 
 from app.core.config import settings
 from app.models.base import Base
+from app.models.data_sources.sensor_device import SensorConfigType
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -29,6 +30,13 @@ target_metadata = Base.metadata
 # ... etc.
 
 
+def render_item(type_, obj, autogen_context):
+    """Render custom SQLAlchemy types for Alembic autogenerate."""
+    if type_ == "type" and isinstance(obj, SensorConfigType):
+        return "sa.JSON()"
+    return False
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -45,6 +53,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        render_item=render_item,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -68,7 +77,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            render_item=render_item,
         )
 
         with context.begin_transaction():

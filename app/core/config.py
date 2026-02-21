@@ -2,11 +2,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 from pydantic import field_validator
 from typing import Union
+from datetime import timedelta, timezone, tzinfo
 
 
 class Settings(BaseSettings):
 
-    UTC_OFFSET_HOURS: int = 8
+    UTC_OFFSET_HOURS: float = 8
 
     OTP_LENGTH: int = 6
     OTP_ATTEMPT_LIMIT: int = 5
@@ -60,6 +61,17 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [item.strip() for item in v.split(',')]
         return v
+    
+    @field_validator('UTC_OFFSET_HOURS')
+    @classmethod
+    def validate_utc_offset_hours(cls, v):
+        if v < -12 or v > 14:
+            raise ValueError("UTC_OFFSET_HOURS must be between -12 and 14")
+        return v
+
+    @property
+    def APP_TIMEZONE(self) -> tzinfo:
+        return timezone(timedelta(hours=self.UTC_OFFSET_HOURS))
 
     model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 

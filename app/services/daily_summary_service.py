@@ -7,6 +7,7 @@ from app.models.data_sources.model_readings import ModelReadings
 from app.models.data_sources.weather import Weather
 from app.crud.daily_summary import daily_summary_crud
 from app.services.cache_service import cache_service
+from app.core.config import settings
 
 
 BLOCKAGE_SEVERITY = {"clear": 0, "partial": 1, "blocked": 2}
@@ -17,14 +18,19 @@ class DailySummaryService:
     async def generate_summary_for_location(self, db: AsyncSession, location_id: int, target_date: date) -> dict:
         """Generate daily summary data for a single location."""
         
-        # Define time range for the target date (00:00:00 to 23:59:59.999999 UTC)
-        start_of_day = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-        end_of_day = start_of_day + timedelta(days=1)
+        # Interpret target_date in configured local timezone, then convert to UTC for DB queries.
+        local_start = datetime.combine(target_date, datetime.min.time()).replace(tzinfo=settings.APP_TIMEZONE)
+        local_end = local_start + timedelta(days=1)
+        start_of_day = local_start.astimezone(timezone.utc)
+        end_of_day = local_end.astimezone(timezone.utc)
         
         # Get device IDs and sensor config once
         device_ids = await cache_service.get_device_ids_per_location(db, location_id)
         sensor_config = await cache_service.get_sensor_config(db)
-        critical_level = sensor_config.critical_water_level_cm if sensor_config else 100.0
+        if not sensor_config:
+            raise ValueError(f"Missing sensor config for location_id={location_id}")
+
+        critical_level = float(sensor_config.critical_threshold)
         
         # Fetch all data ONCE
         sensor_readings = []
