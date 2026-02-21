@@ -63,6 +63,5 @@ class ConnectionManager:
             if ws in self.connections[location_id]:
                 self.connections[location_id].remove(ws)
 
-    
 
 ws_manager = ConnectionManager()

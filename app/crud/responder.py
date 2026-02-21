@@ -42,6 +42,7 @@ class CRUDResponderOTPVerification(CRUDBase[ResponderOTPVerificationCreate, None
 
 
 class CRUDResponder(CRUDBase[None, None, None]):
+
     async def get_all(self, db: AsyncSession) -> list[Responder]:
         result = await db.execute(
             select(self.model)
@@ -51,12 +52,31 @@ class CRUDResponder(CRUDBase[None, None, None]):
         return result.scalars().unique().all()
 
 
+    async def get_by_phone_number(self, db: AsyncSession, phone_number: str) -> Responder | None:
+        result = await db.execute(
+            select(self.model)
+            .filter(Responder.phone_number == phone_number)
+            .execution_options(populate_existing=False)
+        )
+        return result.scalars().first()
+
+
     async def get_details(self, db : AsyncSession, id: str) -> Responder | None:
         result = await db.execute(
             select(self.model)
             .options(joinedload(self.model.admin_user)) # eager load
             .filter(self.model.id == id)
             .execution_options(populate_existing=False) # 
+        )
+        return result.scalars().first()
+
+
+    async def get_responder_details_for_app(self, responder_id: UUID, db: AsyncSession) -> Responder:
+        result = await db.execute(
+            select(self.model)
+            .options(joinedload(self.model.location)) # eager load
+            .filter(self.model.id == responder_id)
+            .execution_options(populate_existing=False)
         )
         return result.scalars().first()
 

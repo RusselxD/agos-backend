@@ -9,15 +9,10 @@ router = APIRouter()
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, db: AsyncSession = Depends(get_db)):
 
-    token = websocket.query_params.get("token")
     location_id = websocket.query_params.get("location_id")
     
     # Accept the WebSocket connection
     await websocket.accept()
-    
-    if not token:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
-        return
     
     if not location_id:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing location_id")

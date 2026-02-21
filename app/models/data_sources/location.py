@@ -15,3 +15,4 @@ class Location(Base):
     sensor_device = relationship("SensorDevice", back_populates="location", uselist=False, cascade="all, delete-orphan")
     camera_device = relationship("CameraDevice", back_populates="location", uselist=False, cascade="all, delete-orphan")
     daily_summaries = relationship("DailySummary", back_populates="location", cascade="all, delete-orphan")
+    responders = relationship("Responder", back_populates="location")

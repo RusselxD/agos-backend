@@ -109,3 +109,5 @@ async def root():
 
 # To check database size, run the following SQL command in PostgreSQL:
 # SELECT pg_size_pretty(pg_database_size('agos_db'));
+
+# uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

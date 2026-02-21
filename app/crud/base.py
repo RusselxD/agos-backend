@@ -11,7 +11,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     
     def __init__(self, model: Type[ModelType]):
         self.model = model
-    
+
 
     async def get(self, db: AsyncSession, id: int) -> Optional[ModelType]:
         result = await db.execute(

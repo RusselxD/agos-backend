@@ -4,8 +4,8 @@ from app.api.v1.dependencies import CurrentUser, require_auth
 from app.core.database import get_db
 from fastapi import Depends
 from uuid import UUID
-from app.schemas import ResponderCreate, ResponderDetailsResponse, ResponderListItem
-from app.schemas import ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderSendSMSRequest
+from app.schemas import ResponderCreate, ResponderDetailsResponse, ResponderListItem, ResponderDetails
+from app.schemas import ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderSendSMSRequest, ResponderRegistrationRequest
 from app.services import responder_service
 from app.core.rate_limiter import limiter
 
@@ -22,6 +22,11 @@ async def get_responder_details(responder_id: str, db:AsyncSession = Depends(get
     return await responder_service.get_responder_details(responder_id=responder_id, db=db)
 
 
+@router.get("/{responder_id}", response_model=ResponderDetails)
+async def get_responder_details_for_app(responder_id: UUID, db:AsyncSession = Depends(get_db)) -> ResponderDetails:
+    return await responder_service.get_responder_details_for_app(responder_id=responder_id, db=db)
+
+
 @router.post("/bulk", response_model=list[ResponderListItem])
 async def bulk_create_responders(
                             responders: list[ResponderCreate], 
@@ -30,14 +35,14 @@ async def bulk_create_responders(
     return await responder_service.bulk_create_responders(responders=responders, db=db, user_id=user.id)
 
 
-@router.get("/for-approval/{responder_id}", response_model=ResponderForApproval)
-async def get_responder_for_approval(responder_id: UUID, db: AsyncSession = Depends(get_db)) -> ResponderForApproval:
-    return await responder_service.get_responder_for_approval(responder_id=responder_id, db=db)
+@router.post("/for-approval", response_model=ResponderForApproval)
+async def get_responder_for_approval(request: ResponderRegistrationRequest, db: AsyncSession = Depends(get_db)) -> ResponderForApproval:
+    return await responder_service.get_responder_for_approval(phone_number=request.phone_number, db=db)
 
 
-@router.post("/send-otp/{responder_id}", status_code=204)
-async def send_otp(responder_id: UUID, db: AsyncSession = Depends(get_db)) -> None:
-    await responder_service.send_otp(responder_id=responder_id, db=db)
+@router.post("/resend-otp/{responder_id}", status_code=204)
+async def resend_otp(responder_id: UUID, db: AsyncSession = Depends(get_db)) -> None:
+    await responder_service.resend_otp(responder_id=responder_id, db=db)
 
 
 @router.post("/verify-otp", response_model=ResponderOTPVerifyResponse)

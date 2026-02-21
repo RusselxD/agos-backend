@@ -9,8 +9,9 @@ import random
 from app.core.security import get_otp_hash, verify_otp as verify_otp_hash
 from app.models import Responder
 from app.models.responder_related.group import DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME
+from app.models.responder_related.responders import ResponderStatus
 from app.schemas import ResponderListItem, ResponderDetailsResponse, ResponderOTPVerifyResponse
-from app.schemas.responder import ResponderCreate, ResponderForApproval, ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderSendSMSRequest
+from app.schemas.responder import ResponderCreate, ResponderDetails, ResponderForApproval, ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderSendSMSRequest
 from app.services.sms_service import sms_service
 
 
@@ -48,21 +49,46 @@ class ResponderService:
         ]
 
 
-    async def get_responder_for_approval(self, responder_id: str, db: AsyncSession) -> ResponderForApproval | None:
-        responder: Responder = await responder_crud.get(db=db, id=responder_id)
+    async def get_responder_for_approval(self, phone_number: str, db: AsyncSession) -> ResponderForApproval | None:
+        responder: Responder = await responder_crud.get_by_phone_number(db=db, phone_number=phone_number)
 
+        if not responder:
+            raise HTTPException(status_code=404, detail="Phone number not registered.")
+        
+        # send otp if already exists
+        if responder.status == ResponderStatus.PENDING:
+            await self.send_otp(responder=responder, db=db)
+
+        return ResponderForApproval(
+            responder_id=responder.id,
+            first_name=responder.first_name,
+            last_name=responder.last_name,
+            phone_number=responder.phone_number,
+            status=responder.status
+        )
+
+
+    async def get_responder_details_for_app(self, responder_id: UUID, db: AsyncSession) -> ResponderDetails:
+        responder: Responder = await responder_crud.get_responder_details_for_app(db=db, responder_id=responder_id)
+        
         if not responder:
             raise HTTPException(status_code=404, detail="Responder not found.")
         
-        return responder
+        return ResponderDetails(
+            id=str(responder.id),
+            first_name=responder.first_name,
+            last_name=responder.last_name,
+            status=responder.status,
+            phone_number=responder.phone_number,
+            location_id=responder.location_id,
+            location_name=responder.location.name,
+            created_at=responder.created_at,
+            activated_at=responder.activated_at
+        )
 
 
-    async def send_otp(self, responder_id: str, db: AsyncSession) -> None:
-        responder: Responder = await responder_crud.get(db=db, id=responder_id)
+    async def send_otp(self, responder: Responder, db: AsyncSession) -> None:
 
-        if not responder:
-            raise HTTPException(status_code=404, detail="Responder not found.")
-        
         # Generate OTP
         otp = "".join(random.choices("0123456789", k=settings.OTP_LENGTH))
         otp_hash = get_otp_hash(otp=otp)
@@ -81,6 +107,15 @@ class ResponderService:
             phone_number=responder.phone_number, 
             message=f"Your AGOS OTP code is: {otp}"
         )
+
+
+    async def resend_otp(self, responder_id: UUID, db: AsyncSession) -> None:
+        responder = await responder_crud.get(db=db, id=responder_id)
+        
+        if not responder:
+            raise HTTPException(status_code=404, detail="Responder not found.")
+        
+        await self.send_otp(responder=responder, db=db)
 
 
     async def verify_otp(self, verify_request: ResponderOTPVerifyRequest, db: AsyncSession):

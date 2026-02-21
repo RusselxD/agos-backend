@@ -10,8 +10,8 @@ from .auth import LoginRequest, ChangePasswordRequest
 from .stream import StreamStatus, FrameResponse, FrameListResponse, FrameListItem
 from .weather import WeatherCreate, WeatherConditionResponse, WeatherComprehensiveResponse
 
-from .responder import ResponderCreate, ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse
-from .responder import ResponderListItem, ResponderDetailsResponse, ResponderSendSMSRequest, ResponderOTPVerificationCreate
+from .responder import ResponderCreate, ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderDetails
+from .responder import ResponderListItem, ResponderDetailsResponse, ResponderSendSMSRequest, ResponderOTPVerificationCreate, ResponderRegistrationRequest
 
 from .reading_summary_response import SensorWebSocketResponse, SensorReadingSummary, WaterLevelSummary, AlertSummary
 from .reading_summary_response import ModelWebSocketResponse

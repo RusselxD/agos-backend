@@ -1,3 +1,4 @@
+from app.models.responder_related.responders import ResponderStatus
 from pydantic import BaseModel
 from datetime import datetime
 from uuid import UUID
@@ -5,6 +6,9 @@ from uuid import UUID
 class ResponderSendSMSRequest(BaseModel):
     responder_ids: list[UUID]
     message: str
+
+class ResponderRegistrationRequest(BaseModel):
+    phone_number: str
 
 class ResponderOTPVerificationCreate(BaseModel):
     responder_id: UUID
@@ -29,11 +33,9 @@ class ResponderCreate(ResponderBase):
     pass
 
 class ResponderForApproval(ResponderBase):
-    status: str
+    responder_id: UUID
+    status: ResponderStatus
     pass
-
-from app.models.responder_related.responders import ResponderStatus
-
 
 class ResponderListItem(BaseModel):
     id: UUID
@@ -52,3 +54,16 @@ class ResponderDetailsResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# For responders app
+class ResponderDetails(BaseModel):
+    id: str
+    first_name: str
+    last_name: str
+    status: ResponderStatus
+    phone_number: str
+    location_id: int
+    location_name: str
+    created_at: datetime
+    activated_at: datetime | None

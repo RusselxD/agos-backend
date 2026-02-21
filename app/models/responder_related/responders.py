@@ -27,10 +27,12 @@ class Responder(Base):
     first_name = Column(String(50), nullable=False)
     last_name = Column(String(50), nullable=False)
     status = Column(Enum(ResponderStatus), nullable=False, default=ResponderStatus.PENDING)
+    location_id = Column(Integer, ForeignKey("locations.id"), nullable=False, server_default="1")
     activated_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()))
     created_by = Column(UUID(as_uuid=True), ForeignKey("admin_users.id"), nullable=False)
 
     admin_user = relationship("AdminUser", back_populates="responders_created")
+    location = relationship("Location", back_populates="responders")
     groups = relationship("Group", secondary=responder_groups, back_populates="responders", passive_deletes=True)
     otp_verification = relationship("RespondersOTPVerification", back_populates="responder", uselist=False)
