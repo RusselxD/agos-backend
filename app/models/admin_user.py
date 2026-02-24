@@ -28,3 +28,4 @@ class AdminUser(Base):
     admin_audit_logs = relationship("AdminAuditLog", back_populates="admin_user", cascade="all, delete-orphan")
     refresh_tokens = relationship("RefreshToken", back_populates="admin_user", cascade="all, delete-orphan")
     responders_created = relationship("Responder", back_populates="admin_user")
+    notifications = relationship("Notification", back_populates="creator", cascade="all, delete-orphan")

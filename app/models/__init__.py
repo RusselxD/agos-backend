@@ -1,5 +1,6 @@
 from .admin_user import AdminUser
 from .admin_audit_log import AdminAuditLog
+from .notification import Notification, NotificationType
 from .password_reset_otp import PasswordResetOTP
 from .refresh_token import RefreshToken
 from .system_settings import SystemSettings

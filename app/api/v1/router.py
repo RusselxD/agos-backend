@@ -11,6 +11,7 @@ from app.api.v1.endpoints import weather
 from app.api.v1.endpoints import responder_group
 from app.api.v1.endpoints import daily_summary
 from app.api.v1.endpoints import analysis
+from app.api.v1.endpoints import push
 from fastapi import APIRouter
 
 api_router = APIRouter()
@@ -29,3 +30,4 @@ api_router.include_router(message_template.router)
 api_router.include_router(responder_group.router)
 api_router.include_router(daily_summary.router)
 api_router.include_router(analysis.router)
+api_router.include_router(push.router)
