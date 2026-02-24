@@ -8,6 +8,7 @@ from alembic import context
 from app.core.config import settings
 from app.models.base import Base
 from app.models.data_sources.sensor_device import SensorConfigType
+from app.models.responder_related.responders import NotificationPreferenceType
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -32,7 +33,7 @@ target_metadata = Base.metadata
 
 def render_item(type_, obj, autogen_context):
     """Render custom SQLAlchemy types for Alembic autogenerate."""
-    if type_ == "type" and isinstance(obj, SensorConfigType):
+    if type_ == "type" and isinstance(obj, (SensorConfigType, NotificationPreferenceType)):
         return "sa.JSON()"
     return False
 

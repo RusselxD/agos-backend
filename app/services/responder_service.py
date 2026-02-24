@@ -9,7 +9,7 @@ import random
 from app.core.security import get_otp_hash, verify_otp as verify_otp_hash
 from app.models import Responder
 from app.models.responder_related.group import DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME
-from app.models.responder_related.responders import ResponderStatus
+from app.models.responder_related.responders import NotificationPreference, ResponderStatus
 from app.schemas import ResponderListItem, ResponderDetailsResponse, ResponderOTPVerifyResponse
 from app.schemas.responder import ResponderCreate, ResponderDetails, ResponderForApproval, ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderSendSMSRequest
 from app.services.sms_service import sms_service
@@ -86,6 +86,27 @@ class ResponderService:
             activated_at=responder.activated_at
         )
 
+
+    async def get_responder_notif_preferences(self, responder_id: UUID, db: AsyncSession) -> NotificationPreference:
+        responder: Responder = await responder_crud.get(db=db, id=responder_id)
+        
+        if not responder:
+            raise HTTPException(status_code=404, detail="Responder not found.")
+        
+        return responder.notif_preferences
+
+
+    async def update_responder_notif_preferences(
+        self, responder_id: UUID, key: str, value: bool, db: AsyncSession
+    ) -> None:
+        responder: Responder = await responder_crud.get(db=db, id=responder_id)
+        if not responder:
+            raise HTTPException(status_code=404, detail="Responder not found.")
+
+        prefs = responder.notif_preferences
+        responder.notif_preferences = prefs.model_copy(update={key: value})
+        db.add(responder)
+        await db.commit()
 
     async def send_otp(self, responder: Responder, db: AsyncSession) -> None:
 

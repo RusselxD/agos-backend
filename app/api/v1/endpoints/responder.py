@@ -4,10 +4,10 @@ from app.api.v1.dependencies import CurrentUser, require_auth
 from app.core.database import get_db
 from fastapi import Depends
 from uuid import UUID
-from app.schemas import ResponderCreate, ResponderDetailsResponse, ResponderListItem, ResponderDetails
+from app.schemas import ResponderCreate, ResponderDetailsResponse, ResponderListItem, ResponderDetails, NotifPreferenceUpdateRequest
 from app.schemas import ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderSendSMSRequest, ResponderRegistrationRequest
 from app.services import responder_service
-from app.core.rate_limiter import limiter
+from app.models.responder_related.responders import NotificationPreference
 
 router = APIRouter(prefix="/responder", tags=["responder"])
 
@@ -22,17 +22,35 @@ async def get_responder_details(responder_id: str, db:AsyncSession = Depends(get
     return await responder_service.get_responder_details(responder_id=responder_id, db=db)
 
 
-@router.get("/{responder_id}", response_model=ResponderDetails)
-async def get_responder_details_for_app(responder_id: UUID, db:AsyncSession = Depends(get_db)) -> ResponderDetails:
-    return await responder_service.get_responder_details_for_app(responder_id=responder_id, db=db)
-
-
 @router.post("/bulk", response_model=list[ResponderListItem])
 async def bulk_create_responders(
                             responders: list[ResponderCreate], 
                             db: AsyncSession = Depends(get_db),
                             user: CurrentUser = Depends(require_auth)) -> list[ResponderListItem]:
     return await responder_service.bulk_create_responders(responders=responders, db=db, user_id=user.id)
+
+
+# ========================== ================= ==========================
+# ========================== ================= ==========================
+# ========================== FOR RESPONDER APP ==========================
+# ========================== ================= ==========================
+# ========================== ================= ==========================
+
+@router.get("/{responder_id}", response_model=ResponderDetails)
+async def get_responder_details_for_app(responder_id: UUID, db:AsyncSession = Depends(get_db)) -> ResponderDetails:
+    return await responder_service.get_responder_details_for_app(responder_id=responder_id, db=db)
+
+
+@router.get("/notif-preferences/{responder_id}", response_model=NotificationPreference)
+async def get_responder_notif_preferences(responder_id: UUID, db:AsyncSession = Depends(get_db)) -> NotificationPreference:
+    return await responder_service.get_responder_notif_preferences(responder_id=responder_id, db=db)
+
+
+@router.put("/notif-preferences/{responder_id}", status_code=204)
+async def update_responder_notif_preferences(responder_id: UUID, request: NotifPreferenceUpdateRequest, db:AsyncSession = Depends(get_db)) -> None:
+    await responder_service.update_responder_notif_preferences(
+        responder_id=responder_id, key=request.key, value=request.value, db=db
+    )
 
 
 @router.post("/for-approval", response_model=ResponderForApproval)
@@ -53,48 +71,3 @@ async def verify_otp(verify_request: ResponderOTPVerifyRequest, db: AsyncSession
 @router.post("/send-sms", status_code=204)
 async def send_sms(send_request: ResponderSendSMSRequest, db: AsyncSession = Depends(get_db)) -> None:
     await responder_service.send_sms(send_request=send_request, db=db)
-
-# @router.put("/approve/{responder_id}", status_code=204)
-# async def approve_responder_registration(responder_id: str, db: AsyncSession = Depends(get_db), user: CurrentUser = Depends(require_auth)) -> None:
-#     await responder_service.approve_responder_registration(responder_id=responder_id, db=db, user=user)
-
-
-# @router.post("/send-otp", response_model=ResponderOTPResponse)
-# @limiter.limit("2/minute")
-# async def send_otp(request: Request, otp_request:ResponderOTPRequest, db: AsyncSession = Depends(get_db)) -> ResponderOTPResponse:
-#     is_success, message = await responder_service.send_otp(phone_number=otp_request.phone_number, db=db)
-#     return ResponderOTPResponse(
-#         success=is_success, 
-#         message=message
-#     )
-
-
-# @router.post("/verify-otp", response_model=ResponderOTPVerifyResponse)
-# @limiter.limit("5/minute")
-# async def verify_otp(
-#     request: Request, 
-#     verify_request: ResponderOTPVerifyRequest, 
-#     db: AsyncSession = Depends(get_db)) -> ResponderOTPVerifyResponse:
-    
-#     is_success, message, send_again = await responder_service.verify_otp(verify_request=verify_request, db=db)
-    
-#     return ResponderOTPVerifyResponse(
-#         success=is_success, 
-#         message=message, 
-#         send_again=send_again
-#     )
-
-
-# @router.post("/upload-id-photo", response_model=UploadResponse)
-# @limiter.limit("4/minute")
-# async def upload_responder_id_photo(request: Request, file: UploadFile = File(...)) -> UploadResponse:
-#     file_path = await upload_service.upload_responder_id_photo(file=file)
-#     return UploadResponse(
-#         file_path=file_path
-#     )
-
-
-# @router.post("/create", status_code=204)
-# @limiter.limit("3/minute")
-# async def create_responder(request: Request, responder_data: ResponderCreate, db: AsyncSession = Depends(get_db)) -> None:
-#     await responder_service.create_responder(responder_data=responder_data, db=db)

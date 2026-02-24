@@ -1,14 +1,38 @@
 import uuid
-from sqlalchemy import Column, Table, String, UUID, DateTime, ForeignKey, Enum, Integer
+from sqlalchemy import Column, Table, String, UUID, DateTime, ForeignKey, Enum, Integer, JSON, text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
 from ..base import Base
+from pydantic import BaseModel
+from sqlalchemy.types import TypeDecorator
 
 
 class ResponderStatus(enum.Enum):
     PENDING = 'pending'
     ACTIVE = 'active'
+
+
+class NotificationPreference(BaseModel):
+    warning: bool
+    critical: bool
+    blockage: bool
+    announcement: bool
+
+
+class NotificationPreferenceType(TypeDecorator):
+    impl = JSON
+    cache_ok = True
+
+    def process_bind_param(self, value, _):
+        if isinstance(value, NotificationPreference):
+            return value.model_dump()
+        return value
+    
+    def process_result_value(self, value, _):
+        if value is not None:
+            return NotificationPreference(**value)
+        return value
 
 
 responder_groups = Table(
@@ -29,6 +53,12 @@ class Responder(Base):
     status = Column(Enum(ResponderStatus), nullable=False, default=ResponderStatus.PENDING)
     location_id = Column(Integer, ForeignKey("locations.id"), nullable=False, server_default="1")
     activated_at = Column(DateTime(timezone=True), nullable=True)
+    notif_preferences = Column(
+        NotificationPreferenceType,
+        nullable=False,
+        default=lambda: NotificationPreference(warning=True, critical=True, blockage=True, announcement=True),
+        server_default=text("'{\"warning\": true, \"critical\": true, \"blockage\": true, \"announcement\": true}'::json"),
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.timezone('UTC', func.now()))
     created_by = Column(UUID(as_uuid=True), ForeignKey("admin_users.id"), nullable=False)
 

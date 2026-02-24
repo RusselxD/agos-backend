@@ -178,11 +178,13 @@ class WeatherService:
                     except httpx.HTTPStatusError as e:
                         last_error = e
                         logger.warning(
-                            "Weather API returned %s for location_id=%s",
+                            "Weather API returned %s for location_id=%s (attempt %s/2)",
                             e.response.status_code,
                             coord.id,
+                            attempt,
                         )
-                        break
+                        if e.response.status_code < 500:
+                            break
                     except httpx.HTTPError as e:
                         last_error = e
                         logger.warning(

@@ -1,5 +1,9 @@
+from typing import Literal
+
 from app.models.responder_related.responders import ResponderStatus
 from pydantic import BaseModel
+
+NotifPreferenceKey = Literal["warning", "critical", "blockage", "announcement"]
 from datetime import datetime
 from uuid import UUID
 
@@ -67,3 +71,8 @@ class ResponderDetails(BaseModel):
     location_name: str
     created_at: datetime
     activated_at: datetime | None
+
+
+class NotifPreferenceUpdateRequest(BaseModel):
+    key: NotifPreferenceKey
+    value: bool

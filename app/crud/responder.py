@@ -140,6 +140,5 @@ class CRUDResponder(CRUDBase[None, None, None]):
         if commit:
             await db.commit()
 
-
 responder_otp_verification_crud = CRUDResponderOTPVerification(OTPModel)
 responder_crud = CRUDResponder(Responder)
