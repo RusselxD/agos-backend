@@ -4,6 +4,7 @@ from .notification import Notification, NotificationType
 from .password_reset_otp import PasswordResetOTP
 from .refresh_token import RefreshToken
 from .system_settings import SystemSettings
+from .notification import Notification
 
 from .data_sources import *
 from .responder_related import *
