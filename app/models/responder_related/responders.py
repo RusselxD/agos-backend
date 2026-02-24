@@ -67,3 +67,5 @@ class Responder(Base):
     groups = relationship("Group", secondary=responder_groups, back_populates="responders", passive_deletes=True)
     otp_verification = relationship("RespondersOTPVerification", back_populates="responder", uselist=False)
     acknowledgements = relationship("Acknowledgement", back_populates="responder", cascade="all, delete-orphan")
+    deliveries = relationship("NotificationDelivery", back_populates="responder", cascade="all, delete-orphan")
+    push_subscriptions = relationship("PushSubscription", back_populates="responder", cascade="all, delete-orphan")
