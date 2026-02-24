@@ -10,6 +10,7 @@ from app.core.state import fusion_state_manager
 from app.core.config import settings
 from app.schemas import SensorReadingResponse, SensorReadingCreate, SensorReadingPaginatedResponse, SensorDataRecordedResponse
 from app.schemas import SensorReadingSummary, WaterLevelSummary, AlertSummary
+from app.utils.sensor_utils import *
 
 DURATION_DELTAS = {
     '1_hour': timedelta(hours=1),
@@ -34,7 +35,7 @@ class SensorReadingService:
         items = []
         # Process each item to determine status and change rate
         for item in db_items[:page_size]:
-            status, change_rate = self._get_status_and_change_rate(item.water_level_cm, item.prev_water_level)
+            status, change_rate = get_status_and_change_rate(item.water_level_cm, item.prev_water_level)
 
             items.append(SensorReadingResponse(
                 id=item.id,
@@ -153,15 +154,15 @@ class SensorReadingService:
         readings = []
         for record in records:
 
-            status, change_rate = self._get_status_and_change_rate(record.water_level_cm, record.prev_water_level)
+            status, change_rate = get_status_and_change_rate(record.water_level_cm, record.prev_water_level)
 
             readings.append(SensorReadingForExport(
-                timestamp=self._format_datetime_for_excel(record.timestamp),
+                timestamp=format_datetime_for_excel(record.timestamp),
                 water_level_cm=record.water_level_cm,
                 status=status,
                 change_rate=change_rate,
                 signal_strength=record.signal_strength,
-                signal_quality=self.get_signal_quality(record.signal_strength)
+                signal_quality=get_signal_quality(record.signal_strength)
             ))
         
         return SensorReadingForExportResponse(
@@ -276,41 +277,6 @@ class SensorReadingService:
             distance_from_critical_cm = round(max(0, current_cm - crit), 1),
             percentage_of_critical=round((current_cm / crit) * 100, 1)
         )
-
-
-    def get_signal_quality(self, signal_strength: int) -> str:
-        if signal_strength >= -50:
-            quality = 'excellent'
-        elif signal_strength >= -60:
-            quality = 'good'
-        elif signal_strength >= -70:
-            quality = 'fair'
-        else:
-            quality = 'poor'
-
-        return quality
-    
-
-    def _get_status_and_change_rate(self, current_cm: float, prev_cm: float | None) -> tuple[str, float]:
-        if prev_cm is None:
-            return "stable", 0.0
-
-        change_rate = round(current_cm - prev_cm, 2)
-
-        if change_rate > 1:
-            status = 'rising'
-        elif change_rate < -1:
-            status = 'falling'
-        else:
-            status = 'stable'
-
-        return status, change_rate
-
-
-    def _format_datetime_for_excel(self, dt: datetime) -> str:
-        # Convert UTC to UTC+8 for display
-        local_dt = dt.astimezone(timezone(timedelta(hours=settings.UTC_OFFSET_HOURS)))
-        return local_dt.strftime("%Y-%m-%d %H:%M")
 
 
 sensor_reading_service = SensorReadingService()

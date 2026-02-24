@@ -8,10 +8,7 @@ from app.models.data_sources.weather import Weather
 from app.crud.daily_summary import daily_summary_crud
 from app.services.cache_service import cache_service
 from app.core.config import settings
-
-
-BLOCKAGE_SEVERITY = {"clear": 0, "partial": 1, "blocked": 2}
-
+from app.utils.summary_utils import *
 
 class DailySummaryService:
 
@@ -157,7 +154,7 @@ class DailySummaryService:
         # Use sensor readings as primary timeline
         if sensor_readings:
             for sensor in sensor_readings:
-                score = self._calc_water_score(float(sensor.water_level_cm), critical_level)
+                score = calc_water_score(float(sensor.water_level_cm), critical_level)
                 score += self._find_and_calc_blockage_score(model_readings, sensor.timestamp)
                 score += self._find_and_calc_weather_score(weather_readings, sensor.timestamp)
                 
@@ -169,7 +166,7 @@ class DailySummaryService:
         # Fallback to model readings timeline
         elif model_readings:
             for model in model_readings:
-                score = self._calc_blockage_score(model.blockage_status)
+                score = calc_blockage_score(model.blockage_status)
                 score += self._find_and_calc_weather_score(weather_readings, model.timestamp)
                 
                 if score < min_score:
@@ -180,7 +177,7 @@ class DailySummaryService:
         # Fallback to weather-only
         elif weather_readings:
             for weather in weather_readings:
-                score = self._calc_weather_score(weather.precipitation_mm)
+                score = calc_weather_score(weather.precipitation_mm)
                 
                 if score < min_score:
                     min_score, min_timestamp = score, weather.created_at
@@ -198,48 +195,16 @@ class DailySummaryService:
         }
 
 
-    def _calc_water_score(self, water_level_cm: float, critical_level: float) -> int:
-        """Calculate water level contribution to risk score."""
-        critical_pct = (water_level_cm / critical_level) * 100
-        if critical_pct < 50:
-            return 10
-        elif critical_pct < 75:
-            return 20
-        elif critical_pct < 90:
-            return 30
-        return 45
-
-
-    def _calc_blockage_score(self, status: str) -> int:
-        """Calculate blockage contribution to risk score."""
-        if status == "blocked":
-            return 35
-        elif status == "partial":
-            return 20
-        return 0
-
-
-    def _calc_weather_score(self, precipitation_mm: float) -> int:
-        """Calculate weather contribution to risk score."""
-        if precipitation_mm >= 7.5:
-            return 20
-        elif precipitation_mm >= 2.55:
-            return 15
-        elif precipitation_mm >= 1:
-            return 8
-        return 0
-
-
     def _find_and_calc_blockage_score(self, model_readings: list, target_time: datetime, max_gap_minutes: int = 15) -> int:
         """Find closest model reading and calculate blockage score."""
         closest = self._find_closest(model_readings, target_time, 'timestamp', max_gap_minutes)
-        return self._calc_blockage_score(closest.blockage_status) if closest else 0
+        return calc_blockage_score(closest.blockage_status) if closest else 0
 
 
     def _find_and_calc_weather_score(self, weather_readings: list, target_time: datetime, max_gap_minutes: int = 15) -> int:
         """Find closest weather reading and calculate weather score."""
         closest = self._find_closest(weather_readings, target_time, 'created_at', max_gap_minutes)
-        return self._calc_weather_score(closest.precipitation_mm) if closest else 0
+        return calc_weather_score(closest.precipitation_mm) if closest else 0
 
 
     def _find_closest(self, readings: list, target_time: datetime, time_attr: str, max_gap_minutes: int):
