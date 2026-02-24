@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.responder_related.push_subscription import PushSubscription
 
-class CRUDPushSubscription(CRUDBase(PushSubscription, None, None)):
+class CRUDPushSubscription(CRUDBase):
     
     async def get_by_responder_id(self, responder_id: int, endpoint: str, db: AsyncSession) -> bool:
         result = await db.execute(
