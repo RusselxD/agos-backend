@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+import logging
 import httpx
 from fastapi import HTTPException
 from app.models import Weather
@@ -15,6 +16,9 @@ from app.core.database import get_db
 from app.core.database import AsyncSessionLocal
 
 
+logger = logging.getLogger(__name__)
+
+
 class WeatherService:
 
     def __init__(self):
@@ -25,7 +29,10 @@ class WeatherService:
 
         # Fetch initial weather data on startup
         async with AsyncSessionLocal() as db:
-            await self._fetch_initial_weather(db=db, location_id=1) # hardcoded 1, this is for initial anyway, the _periodic job will take care of the rest
+            try:
+                await self._fetch_initial_weather(db=db, location_id=1) # hardcoded 1, this is for initial anyway, the _periodic job will take care of the rest
+            except Exception:
+                logger.exception("Initial weather fetch failed during startup")
 
         """Start the scheduler with jobs."""
         self.scheduler.add_job(
@@ -74,10 +81,18 @@ class WeatherService:
         from app.services.websocket_service import websocket_service
 
         async with AsyncSessionLocal() as db:
+            try:
+                # Step 1: Fetch weather data from external API
+                # weather_code, precipitation = await self._fetch_weather(db=db, sensor_id=sensor_id)
+                weather_conditions: list[WeatherCreate] = await self._fetch_weather(db=db)
+            except Exception:
+                # Do not raise HTTPException from a background scheduler job.
+                logger.exception("Scheduled weather fetch/update failed")
+                return
 
-            # Step 1: Fetch weather data from external API
-            # weather_code, precipitation = await self._fetch_weather(db=db, sensor_id=sensor_id)
-            weather_conditions: list[WeatherCreate] = await self._fetch_weather(db=db)
+            if not weather_conditions:
+                logger.warning("Scheduled weather fetch returned no data; skipping update cycle")
+                return
 
             for condition in weather_conditions:
 
@@ -117,10 +132,11 @@ class WeatherService:
         coordinates: list[LocationCoordinate] = await cache_service.get_all_location_coordinates(db=db)
 
         if not coordinates:
-            raise HTTPException(status_code=404, detail="No location coordinates found")
+            raise RuntimeError("No location coordinates found")
 
         weather_conditions: list[WeatherCreate] = []
-        async with httpx.AsyncClient() as client:
+        timeout = httpx.Timeout(20.0, connect=10.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             for coord in coordinates:
 
                 lat = coord.latitude
@@ -132,24 +148,59 @@ class WeatherService:
                     f"current=precipitation,weather_code,temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,cloud_cover"
                 )
 
-                try:
-                    response = await client.get(api_url, timeout=20)
-                    response.raise_for_status()  # Raises exception for 4xx/5xx status codes
-                    data = response.json()
-                    current = data["current"]
-                    weather_conditions.append(
-                        WeatherCreate(
-                            location_id=coord.id,
-                            precipitation_mm=current["precipitation"],
-                            weather_code=current["weather_code"],
-                            temperature_2m=current["temperature_2m"],
-                            relative_humidity_2m=current["relative_humidity_2m"],
-                            wind_speed_10m=current["wind_speed_10m"],
-                            wind_direction_10m=current["wind_direction_10m"],
-                            cloud_cover=current["cloud_cover"]
-                        ))
-                except httpx.HTTPError as e:
-                    raise HTTPException(status_code=500, detail=f"Error fetching weather data: {str(e)}")
+                last_error: Exception | None = None
+                for attempt in range(1, 3):
+                    try:
+                        response = await client.get(api_url)
+                        response.raise_for_status()  # Raises exception for 4xx/5xx status codes
+                        data = response.json()
+                        current = data["current"]
+                        weather_conditions.append(
+                            WeatherCreate(
+                                location_id=coord.id,
+                                precipitation_mm=current["precipitation"],
+                                weather_code=current["weather_code"],
+                                temperature_2m=current["temperature_2m"],
+                                relative_humidity_2m=current["relative_humidity_2m"],
+                                wind_speed_10m=current["wind_speed_10m"],
+                                wind_direction_10m=current["wind_direction_10m"],
+                                cloud_cover=current["cloud_cover"]
+                            ))
+                        last_error = None
+                        break
+                    except httpx.TimeoutException as e:
+                        last_error = e
+                        logger.warning(
+                            "Weather API timeout for location_id=%s (attempt %s/2)",
+                            coord.id,
+                            attempt,
+                        )
+                    except httpx.HTTPStatusError as e:
+                        last_error = e
+                        logger.warning(
+                            "Weather API returned %s for location_id=%s",
+                            e.response.status_code,
+                            coord.id,
+                        )
+                        break
+                    except httpx.HTTPError as e:
+                        last_error = e
+                        logger.warning(
+                            "Weather API request failed for location_id=%s: %s",
+                            coord.id,
+                            type(e).__name__,
+                        )
+                        break
+
+                if last_error is not None:
+                    logger.error(
+                        "Skipping weather fetch for location_id=%s after failure: %s",
+                        coord.id,
+                        type(last_error).__name__,
+                    )
+
+        if not weather_conditions:
+            raise RuntimeError("Weather fetch failed for all locations")
         return weather_conditions
 
 

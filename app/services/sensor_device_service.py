@@ -67,6 +67,14 @@ class SensorDeviceService:
         return sensor_config
 
 
+    async def get_device_config_by_location(self, db: AsyncSession, location_id: int) -> SensorConfig:
+        print("NAKAPASOK NA DITO")
+        print(location_id)
+        sensor_config = await sensor_device_crud.get_device_config_by_location(db=db, location_id=location_id)
+        if not sensor_config:
+            raise HTTPException(status_code=404, detail="Sensor device config not found for this location")
+        return sensor_config
+
 
 
 sensor_device_service = SensorDeviceService()
