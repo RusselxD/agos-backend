@@ -10,8 +10,14 @@ from app.crud import notification_delivery_crud, push_subscription_crud
 from app.models.responder_related.notification_delivery import DeliveryStatus
 from app.models.responder_related.push_subscription import PushSubscription
 
+
+class PushResult:
+    SENT = "sent"
+    FAILED = "failed"
+    GONE = "gone"  # 410 - subscription expired/unsubscribed, should be removed
+
+
 class NotificationService:
-    
     async def send_notification_to_subscribers(
         self,
         notif_id: int,
@@ -20,9 +26,6 @@ class NotificationService:
         responder_ids: list[UUID],
         db: AsyncSession,
     ) -> None:
-        # query subscriptions per responder_ids
-        # iterate all subs, and call send_push
-        # while iterating, also create NotificationDelivery records with status based on send_push result
         if not responder_ids:
             return
 
@@ -35,16 +38,31 @@ class NotificationService:
 
         deliveries_by_responder: dict[UUID, dict] = {}
         now = datetime.now(timezone.utc)
+        subscriptions_to_remove: list[PushSubscription] = []
 
         for subscription in subscriptions:
-            is_sent = await self.send_push(
+            result = await self.send_push(
                 subscription=subscription,
                 notif_title=notif_title,
                 notif_message=notif_message,
             )
             current = deliveries_by_responder.get(subscription.responder_id)
 
-            if is_sent:
+            if result == PushResult.GONE:
+                subscriptions_to_remove.append(subscription)
+            if result == PushResult.GONE and current and current["status"] == DeliveryStatus.SENT:
+                continue
+            if result == PushResult.GONE:
+                deliveries_by_responder[subscription.responder_id] = {
+                    "responder_id": subscription.responder_id,
+                    "subscription_id": None,  # Sub is being deleted
+                    "status": DeliveryStatus.FAILED,
+                    "sent_at": None,
+                    "error_message": "Push subscription expired or unsubscribed",
+                }
+                continue
+
+            if result == PushResult.SENT:
                 deliveries_by_responder[subscription.responder_id] = {
                     "responder_id": subscription.responder_id,
                     "subscription_id": subscription.id,
@@ -65,34 +83,47 @@ class NotificationService:
                 "error_message": "Push delivery failed",
             }
 
+        for sub in subscriptions_to_remove:
+            await db.delete(sub)
+        if subscriptions_to_remove:
+            await db.commit()
+
         await notification_delivery_crud.upsert_many_results(
             db=db,
             notification_id=notif_id,
             delivery_rows=list(deliveries_by_responder.values()),
         )
 
-
-
-    async def send_push(self, subscription: PushSubscription, notif_title: str, notif_message: str) -> bool:
+    async def send_push(
+        self,
+        subscription: PushSubscription,
+        notif_title: str,
+        notif_message: str,
+    ) -> str:
+        """Returns PushResult.SENT, PushResult.FAILED, or PushResult.GONE (410)."""
         try:
             webpush(
                 subscription_info={
                     "endpoint": subscription.endpoint,
                     "keys": {
                         "p256dh": subscription.p256dh,
-                        "auth": subscription.auth
-                    }
+                        "auth": subscription.auth,
+                    },
                 },
                 data=json.dumps({
                     "title": notif_title,
-                    "message": notif_message
+                    "message": notif_message,
                 }),
                 vapid_private_key=settings.VAPID_PRIVATE_KEY,
-                vapid_claims={"sub": settings.VAPID_CLAIM_EMAIL}
+                vapid_claims={"sub": settings.VAPID_CLAIM_EMAIL},
             )
-            return True
+            return PushResult.SENT
         except WebPushException as e:
-            print(f"Push failed: {e}")
-            return False
+            status = getattr(getattr(e, "response", None), "status_code", None) or getattr(
+                getattr(e, "response", None), "status", None
+            )
+            if status == 410:
+                return PushResult.GONE
+            return PushResult.FAILED
 
 notification_service = NotificationService()
