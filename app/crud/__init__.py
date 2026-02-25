@@ -3,7 +3,6 @@ from .admin_user import admin_user_crud
 from .camera_device import camera_device_crud
 from .daily_summary import daily_summary_crud
 from .location import location_crud
-from .message_template import message_template_crud
 from .model_readings import model_readings_crud
 from .responder_group import responder_group_crud
 from .responder import responder_crud
@@ -13,3 +12,4 @@ from .system_settings import system_settings_crud
 from .weather import weather_crud
 from .refresh_token import refresh_token_crud
 from .push_subscription import push_subscription_crud
+from .notification_template import notification_template_crud

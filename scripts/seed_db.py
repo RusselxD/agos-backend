@@ -9,7 +9,7 @@ from sqlalchemy import select
 from app.core.database import AsyncSessionLocal
 from app.core.security import get_password_hash
 from app.models.data_sources.sensor_device import SensorConfig
-from app.models import AdminUser, AdminAuditLog, SystemSettings, SensorDevice, CameraDevice, Location
+from app.models import AdminUser, AdminAuditLog, SystemSettings, SensorDevice, CameraDevice, Location, NotificationTemplate, NotificationType
 
 async def seed_db():
     async with AsyncSessionLocal() as db:
@@ -32,7 +32,23 @@ async def seed_db():
                 print("✅ Seeded superuser + audit log")
             else:
                 print("ℹ️ Superuser already exists, skipping")
-            
+
+            admin_user = existing_user if existing_user else user
+
+            # --- Notification Templates ---
+            notification_templates = [
+                (NotificationType.WARNING, "Warning Alert", "A warning-level condition has been detected."),
+                (NotificationType.CRITICAL, "Critical Alert", "A critical condition has been detected."),
+                (NotificationType.BLOCKAGE, "Blockage Alert", "A blockage has been detected."),
+            ]
+            for ntype, title, message in notification_templates:
+                existing = await db.execute(select(NotificationTemplate).where(NotificationTemplate.type == ntype))
+                if existing.scalar_one_or_none():
+                    print(f"ℹ️ Notification template '{ntype.value}' already exists, skipping")
+                    continue
+                db.add(NotificationTemplate(type=ntype, title=title, message=message, created_by_id=admin_user.id))
+                print(f"✅ Seeded notification template '{ntype.value}'")
+
             # --- Settings ---
             settings = [
                 {"key": "alert_thresholds", "json_value": {"tier_1_max": 44, "tier_2_min": 45, "tier_2_max": 75, "tier_3_min": 76}},

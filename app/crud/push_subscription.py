@@ -9,7 +9,7 @@ class CRUDPushSubscription(CRUDBase):
     
     async def get_by_responder_id(self, responder_id: int, endpoint: str, db: AsyncSession) -> bool:
         result = await db.execute(
-            select(PushSubscription).filter_by(
+            select(self.model).filter_by(
                 responder_id=responder_id,
                 endpoint=endpoint
             )

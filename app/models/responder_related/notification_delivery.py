@@ -11,6 +11,8 @@ class DeliveryStatus(enum.Enum):
     SENT = "sent"
     FAILED = "failed"
 
+
+"""What's actually being sent."""
 class NotificationDelivery(Base):
     __tablename__ = "notification_deliveries"
     __table_args__ = (UniqueConstraint("notification_id", "responder_id", name="uq_delivery_notification_responder"),)
@@ -24,6 +26,7 @@ class NotificationDelivery(Base):
     error_message = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.timezone("UTC", func.now()), nullable=False)
 
-    notification = relationship("Notification", back_populates="deliveries")
+    notification = relationship("NotificationTemplate", back_populates="deliveries")
     responder = relationship("Responder", back_populates="deliveries")
     subscription = relationship("PushSubscription", back_populates="deliveries")
+    acknowledgement = relationship("Acknowledgement", back_populates="delivery", uselist=False, cascade="all, delete-orphan")

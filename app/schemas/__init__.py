@@ -18,7 +18,6 @@ from .reading_summary_response import ModelWebSocketResponse
 from .reading_summary_response import WeatherWebSocketResponse
 from .reading_summary_response import FusionWebSocketResponse
 
-from .message_template import MessageTemplateResponse, MessageTemplateCreate
 from .responder_group import ResponderGroupItem, ResponderGroupCreate
 
 from .location import LocationCoordinate, DevicePerLocation
@@ -30,3 +29,4 @@ from .fusion_analysis import FusionData, BlockageStatus, WaterLevelStatus, Weath
 from .daily_summary import DailySummaryResponse, DailySummaryAnalysisRequest
 
 from .subscription import SubscriptionKeys, SubscriptionSchema
+from .notification import NotificationTemplateResponse, CreateNotificationTemplateRequest

@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: f91a4965931f
+Revision ID: c06531ad46e2
 Revises: 
-Create Date: 2026-02-21 12:25:11.945007
+Create Date: 2026-02-25 22:52:37.779941
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'f91a4965931f'
+revision: str = 'c06531ad46e2'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -56,20 +56,6 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
     )
-    op.create_table('message_templates',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('template_name', sa.String(length=100), nullable=False),
-    sa.Column('template_content', sa.Text(), nullable=False),
-    sa.Column('auto_send_on_warning', sa.Boolean(), nullable=True),
-    sa.Column('auto_send_on_critical', sa.Boolean(), nullable=True),
-    sa.Column('auto_send_on_blocked', sa.Boolean(), nullable=True),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('template_name')
-    )
-    op.create_index(op.f('ix_message_templates_id'), 'message_templates', ['id'], unique=False)
-    op.create_index('uq_message_templates_auto_send_blocked_true', 'message_templates', ['auto_send_on_blocked'], unique=True, postgresql_where=sa.text('auto_send_on_blocked IS true'))
-    op.create_index('uq_message_templates_auto_send_critical_true', 'message_templates', ['auto_send_on_critical'], unique=True, postgresql_where=sa.text('auto_send_on_critical IS true'))
-    op.create_index('uq_message_templates_auto_send_warning_true', 'message_templates', ['auto_send_on_warning'], unique=True, postgresql_where=sa.text('auto_send_on_warning IS true'))
     op.create_table('system_settings',
     sa.Column('key', sa.Text(), nullable=False),
     sa.Column('json_value', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
@@ -120,6 +106,18 @@ def upgrade() -> None:
     sa.UniqueConstraint('location_id', 'summary_date', name='uq_location_date')
     )
     op.create_index(op.f('ix_daily_summaries_summary_date'), 'daily_summaries', ['summary_date'], unique=False)
+    op.create_table('notifications',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('type', sa.Enum('WARNING', 'CRITICAL', 'BLOCKAGE', 'ANNOUNCEMENT', name='notificationtype'), nullable=False),
+    sa.Column('title', sa.String(), nullable=False),
+    sa.Column('message', sa.String(), nullable=False),
+    sa.Column('created_by_id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.ForeignKeyConstraint(['created_by_id'], ['admin_users.id'], ondelete='RESTRICT'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_notifications_id'), 'notifications', ['id'], unique=False)
+    op.create_index('uq_notifications_single_system_template_type', 'notifications', ['type'], unique=True, postgresql_where=sa.text("type IN ('WARNING', 'CRITICAL', 'BLOCKAGE')"))
     op.create_table('password_reset_otps',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('admin_id', sa.UUID(), nullable=False),
@@ -143,10 +141,13 @@ def upgrade() -> None:
     sa.Column('first_name', sa.String(length=50), nullable=False),
     sa.Column('last_name', sa.String(length=50), nullable=False),
     sa.Column('status', sa.Enum('PENDING', 'ACTIVE', name='responderstatus'), nullable=False),
+    sa.Column('location_id', sa.Integer(), server_default='1', nullable=False),
     sa.Column('activated_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('notif_preferences', sa.JSON(), server_default=sa.text('\'{"warning": true, "critical": true, "blockage": true, "announcement": true}\'::json'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=True),
     sa.Column('created_by', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['created_by'], ['admin_users.id'], ),
+    sa.ForeignKeyConstraint(['location_id'], ['locations.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('phone_number')
     )
@@ -185,6 +186,17 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['camera_device_id'], ['camera_devices.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('push_subscriptions',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('responder_id', sa.UUID(), nullable=False),
+    sa.Column('endpoint', sa.Text(), nullable=False),
+    sa.Column('p256dh', sa.Text(), nullable=False),
+    sa.Column('auth', sa.Text(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.ForeignKeyConstraint(['responder_id'], ['responders.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('responder_id', 'endpoint', name='uq_push_subscription_responder_endpoint')
+    )
     op.create_table('responder_groups',
     sa.Column('responder_id', sa.UUID(), nullable=False),
     sa.Column('group_id', sa.Integer(), nullable=False),
@@ -215,34 +227,80 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_sensor_readings_id'), 'sensor_readings', ['id'], unique=False)
     op.create_index(op.f('ix_sensor_readings_timestamp'), 'sensor_readings', ['timestamp'], unique=False)
+    op.create_table('notification_deliveries',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('notification_id', sa.Integer(), nullable=False),
+    sa.Column('responder_id', sa.UUID(), nullable=False),
+    sa.Column('subscription_id', sa.UUID(), nullable=True),
+    sa.Column('status', sa.Enum('PENDING', 'SENT', 'FAILED', name='deliverystatus'), nullable=False),
+    sa.Column('sent_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('error_message', sa.Text(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.ForeignKeyConstraint(['notification_id'], ['notifications.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['responder_id'], ['responders.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['subscription_id'], ['push_subscriptions.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('notification_id', 'responder_id', name='uq_delivery_notification_responder')
+    )
+    op.create_table('acknowledgements',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('delivery_id', sa.UUID(), nullable=False),
+    sa.Column('responder_id', sa.UUID(), nullable=False),
+    sa.Column('message', sa.String(), nullable=True),
+    sa.Column('acknowledged_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.ForeignKeyConstraint(['delivery_id'], ['notification_deliveries.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['responder_id'], ['responders.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('delivery_id', 'responder_id', name='uq_acknowledgement_delivery_responder')
+    )
+    op.drop_index(op.f('ix_message_templates_id'), table_name='message_templates')
+    op.drop_index(op.f('uq_message_templates_auto_send_blocked_true'), table_name='message_templates', postgresql_where='(auto_send_on_blocked IS TRUE)')
+    op.drop_index(op.f('uq_message_templates_auto_send_critical_true'), table_name='message_templates', postgresql_where='(auto_send_on_critical IS TRUE)')
+    op.drop_index(op.f('uq_message_templates_auto_send_warning_true'), table_name='message_templates', postgresql_where='(auto_send_on_warning IS TRUE)')
+    op.drop_table('message_templates')
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.create_table('message_templates',
+    sa.Column('id', sa.INTEGER(), autoincrement=True, nullable=False),
+    sa.Column('template_name', sa.VARCHAR(length=100), autoincrement=False, nullable=False),
+    sa.Column('template_content', sa.TEXT(), autoincrement=False, nullable=False),
+    sa.Column('auto_send_on_warning', sa.BOOLEAN(), autoincrement=False, nullable=True),
+    sa.Column('auto_send_on_critical', sa.BOOLEAN(), autoincrement=False, nullable=True),
+    sa.Column('auto_send_on_blocked', sa.BOOLEAN(), autoincrement=False, nullable=True),
+    sa.PrimaryKeyConstraint('id', name=op.f('message_templates_pkey')),
+    sa.UniqueConstraint('template_name', name=op.f('message_templates_template_name_key'), postgresql_include=[], postgresql_nulls_not_distinct=False)
+    )
+    op.create_index(op.f('uq_message_templates_auto_send_warning_true'), 'message_templates', ['auto_send_on_warning'], unique=True, postgresql_where='(auto_send_on_warning IS TRUE)')
+    op.create_index(op.f('uq_message_templates_auto_send_critical_true'), 'message_templates', ['auto_send_on_critical'], unique=True, postgresql_where='(auto_send_on_critical IS TRUE)')
+    op.create_index(op.f('uq_message_templates_auto_send_blocked_true'), 'message_templates', ['auto_send_on_blocked'], unique=True, postgresql_where='(auto_send_on_blocked IS TRUE)')
+    op.create_index(op.f('ix_message_templates_id'), 'message_templates', ['id'], unique=False)
+    op.drop_table('acknowledgements')
+    op.drop_table('notification_deliveries')
     op.drop_index(op.f('ix_sensor_readings_timestamp'), table_name='sensor_readings')
     op.drop_index(op.f('ix_sensor_readings_id'), table_name='sensor_readings')
     op.drop_table('sensor_readings')
     op.drop_index(op.f('ix_responders_otp_verification_responder_id'), table_name='responders_otp_verification')
     op.drop_table('responders_otp_verification')
     op.drop_table('responder_groups')
+    op.drop_table('push_subscriptions')
     op.drop_table('model_readings')
     op.drop_table('weather')
     op.drop_table('sensor_devices')
     op.drop_table('responders')
     op.drop_table('refresh_tokens')
     op.drop_table('password_reset_otps')
+    op.drop_index('uq_notifications_single_system_template_type', table_name='notifications', postgresql_where=sa.text("type IN ('WARNING', 'CRITICAL', 'BLOCKAGE')"))
+    op.drop_index(op.f('ix_notifications_id'), table_name='notifications')
+    op.drop_table('notifications')
     op.drop_index(op.f('ix_daily_summaries_summary_date'), table_name='daily_summaries')
     op.drop_table('daily_summaries')
     op.drop_table('camera_devices')
     op.drop_table('admin_audit_logs')
     op.drop_table('system_settings')
-    op.drop_index('uq_message_templates_auto_send_warning_true', table_name='message_templates', postgresql_where=sa.text('auto_send_on_warning IS true'))
-    op.drop_index('uq_message_templates_auto_send_critical_true', table_name='message_templates', postgresql_where=sa.text('auto_send_on_critical IS true'))
-    op.drop_index('uq_message_templates_auto_send_blocked_true', table_name='message_templates', postgresql_where=sa.text('auto_send_on_blocked IS true'))
-    op.drop_index(op.f('ix_message_templates_id'), table_name='message_templates')
-    op.drop_table('message_templates')
     op.drop_table('locations')
     op.drop_index(op.f('ix_groups_id'), table_name='groups')
     op.drop_table('groups')
