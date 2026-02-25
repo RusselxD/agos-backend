@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from app.core.config import settings
 
-def get_signal_quality(self, signal_strength: int) -> str:
+def get_signal_quality(signal_strength: int) -> str:
     if signal_strength >= -50:
         quality = 'excellent'
     elif signal_strength >= -60:
@@ -13,7 +13,7 @@ def get_signal_quality(self, signal_strength: int) -> str:
     return quality
 
 
-def get_status_and_change_rate(self, current_cm: float, prev_cm: float | None) -> tuple[str, float]:
+def get_status_and_change_rate(current_cm: float, prev_cm: float | None) -> tuple[str, float]:
     if prev_cm is None:
         return "stable", 0.0
     change_rate = round(current_cm - prev_cm, 2)
@@ -26,7 +26,7 @@ def get_status_and_change_rate(self, current_cm: float, prev_cm: float | None) -
     return status, change_rate
 
 
-def format_datetime_for_excel(self, dt: datetime) -> str:
+def format_datetime_for_excel(dt: datetime) -> str:
     # Convert UTC to UTC+8 for display
     local_dt = dt.astimezone(timezone(timedelta(hours=settings.UTC_OFFSET_HOURS)))
     return local_dt.strftime("%Y-%m-%d %H:%M")

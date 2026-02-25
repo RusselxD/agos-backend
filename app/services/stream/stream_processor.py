@@ -1,172 +1,79 @@
+"""Stream processor: FFmpeg lifecycle, restart logic, and status."""
+
 import asyncio
-import subprocess
 import logging
+import subprocess
+import threading
 from pathlib import Path
 from typing import Optional
-import shutil
-import threading
+
 from app.core.config import settings
+
+from .ffmpeg_commands import find_ffmpeg, build_ffmpeg_command
+
 
 logger = logging.getLogger(__name__)
 
 
+def _log_monitor(process: subprocess.Popen, log_path: Path) -> None:
+    """Background thread: read FFmpeg stdout, write to file, rotate at 1000 lines."""
+    try:
+        with open(log_path, "w") as f:
+            line_count = 0
+            for line in process.stdout:
+                if line_count >= 1000:
+                    f.seek(0)
+                    f.truncate()
+                    f.write("--- Log Cleared (Limit Reached) ---\n")
+                    line_count = 0
+                f.write(line)
+                f.flush()
+                line_count += 1
+    except Exception as e:
+        logger.error(f"Log monitor thread failed: {e}")
+
+
 class StreamProcessor:
-    """
-    The 'Engine Room' of the video pipeline.
-    
-    Responsibilities:
-    1. WRAPPER: Wraps the external 'ffmpeg.exe' binary so Python can control it.
-    2. LIFECYCLE: Starts, stops, and auto-restarts the video processing job.
-    3. PROCESSING: Tells FFmpeg to take ONE input stream and split it into TWO outputs:
-        - Output A: HLS Video segments (.ts files) for the web player.
-        - Output B: Periodic snapshots (.jpg files) for the ML Service.
-    """
+    """FFmpeg wrapper: starts, stops, and auto-restarts the video pipeline."""
 
     def __init__(self):
         self.process: Optional[subprocess.Popen] = None
         self.is_running = False
         self.restart_count = 0
         self.max_restarts = 50
-        
-        # 1. Locate the FFmpeg tool on the host OS
-        self.ffmpeg_path = self._find_ffmpeg()
+
+        self.ffmpeg_path = find_ffmpeg()
         if not self.ffmpeg_path:
             logger.error("FFmpeg not found in PATH!")
         else:
             logger.info(f"Found FFmpeg at: {self.ffmpeg_path}")
-        
-        # 2. Prepare the workspace (Storage Folders)
+
         self.hls_dir = Path(settings.HLS_OUTPUT_DIR)
         self.frames_dir = Path(settings.FRAMES_OUTPUT_DIR)
         self.log_file_path = Path("app/storage/ffmpeg.log")
-        
+
         self.hls_dir.mkdir(parents=True, exist_ok=True)
         self.frames_dir.mkdir(parents=True, exist_ok=True)
         self.log_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-
-    def _log_monitor(self, process: subprocess.Popen, log_path: Path):
-        """
-        Background thread to read FFmpeg stdout and write to file.
-        Rotates (clears) the log file if it exceeds 1000 lines.
-        """
-        try:
-            # Open with 'w' to clear previous session logs (User requirement 1)
-            with open(log_path, "w") as f:
-                line_count = 0
-                # process.stdout is a TextIOWrapper because universal_newlines=True
-                for line in process.stdout:
-                    if line_count >= 1000:
-                        f.seek(0)
-                        f.truncate()
-                        f.write("--- Log Cleared (Limit Reached) ---\n")
-                        line_count = 0
-                    
-                    f.write(line)
-                    f.flush() # Ensure tail -f sees it immediately
-                    line_count += 1
-        except Exception as e:
-            logger.error(f"Log monitor thread failed: {e}")
-    
-
-    def _find_ffmpeg(self) -> Optional[str]:
-        """Helper to find where ffmpeg.exe is installed on the system."""
-        # Check explicit path in config
-        if Path(settings.FFMPEG_PATH).exists():
-            return settings.FFMPEG_PATH
-        
-        # Check system PATH environment variable
-        ffmpeg_path = shutil.which(settings.FFMPEG_PATH)
-        if ffmpeg_path:
-            return ffmpeg_path
-        
-        logger.error(f"FFmpeg not found at: {settings.FFMPEG_PATH}")
-        return None
-    
-
     def _build_ffmpeg_command(self) -> list[str]:
-        """
-        Constructs the complex command-line string to launch FFmpeg.
-        
-        This is the most critical logic. It translates our python settings
-        into arguments that FFmpeg understands.
-        """
-        
-        if not self.ffmpeg_path:
-            raise RuntimeError("FFmpeg not found!")
-        
-        # Define where the outputs will land on the hard drive
-        hls_path = self.hls_dir / "stream.m3u8"
-        # Pattern %Y%m%d... tells FFmpeg to auto-name files by current time
-        frame_pattern = self.frames_dir / "frame_%Y%m%d_%H%M%S.jpg"
-        
-        cmd = [self.ffmpeg_path]
+        return build_ffmpeg_command(
+            ffmpeg_path=self.ffmpeg_path,
+            hls_dir=self.hls_dir,
+            frames_dir=self.frames_dir,
+        )
 
-        # Conditional RTSP flags
-        if settings.STREAM_URL.lower().startswith("rtsp"):
-            cmd.extend(['-rtsp_transport', 'tcp'])
-
-        cmd.extend([
-            # --- INPUT CONFIGURATION ---
-            # '-re',                      # Remove this for better buffering
-            '-i', settings.STREAM_URL,  # The Source (RTSP/RTMP/HTTP)
-            
-            # Resilience: Keep trying to connect if network blips
-            '-reconnect', '1',
-            '-reconnect_streamed', '1',
-            '-reconnect_delay_max', '10',
-            
-            # --- OUTPUT 1: HLS STREAM (For Frontend) ---
-            # This allows the web browser to play the video.
-            '-map', '0:v',             # Take video track from input 0
-            '-c:v', 'copy',         # Change from 'libx264' to 'copy' (no re-encoding)
-            # '-preset', 'ultrafast',    # Speed: Sacrifice compression for low CPU usage
-            
-            # Keyframe Logic: Force a "cut point" exactly every X frames.
-            # This ensures segments are perfectly aligned for the player.
-            # '-g', str(settings.HLS_TIME * 30), 
-            # '-sc_threshold', '0',      # Disable scene detection (keeps timing constant)
-            
-            '-f', 'hls',               # Format: Apple HLS
-            '-hls_time', str(settings.HLS_TIME),       # Segment length (e.g., 6s)
-            '-hls_list_size', str(settings.HLS_LIST_SIZE), # Keep only last N segments
-            '-hls_flags', 'delete_segments',               # Delete old segments to save disk space
-            '-hls_segment_filename', str(self.hls_dir / 'segment_%03d.ts'),
-            str(hls_path),             # The "Menu" file (.m3u8)
-            
-            # --- OUTPUT 2: SNAPSHOTS (For ML Service) ---
-            # This grabs still images for analysis.
-            '-map', '0:v',             # Take video track again
-            '-vf', f'fps=1/{settings.FRAME_CAPTURE_INTERVAL_SECONDS},scale={settings.FRAME_WIDTH}:{settings.FRAME_HEIGHT}',
-                                       # Filter: Take 1 frame every X seconds + Resize
-            '-q:v', str(settings.FRAME_QUALITY), # Jpeg Quality
-            '-f', 'image2',            # Format: Image Sequence
-            '-strftime', '1',          # Allow using time patterns in filename
-            str(frame_pattern),        # Output path template
-        ])
-
-        return cmd
-
-
-    async def start(self):
-        """
-        The 'Ignition Switch'.
-        Cleans up old mess and starts the engine.
-        """
+    async def start(self) -> None:
         if self.is_running:
             logger.warning("Stream processor already running")
             return
-        
         if not self.ffmpeg_path:
             logger.error("Cannot start: FFmpeg not found!")
             return
 
-        # 1. CLEANUP: Delete old HLS files
-        # If we don't do this, the video player might see old files from yesterday
-        # and get confused (Time Jump/404s).
         logger.info("Cleaning up old HLS files...")
         for file_path in self.hls_dir.glob("*"):
-            if file_path.suffix in ['.ts', '.m3u8']:
+            if file_path.suffix in [".ts", ".m3u8"]:
                 try:
                     file_path.unlink()
                 except Exception as e:
@@ -178,88 +85,65 @@ class StreamProcessor:
                 file_path.unlink()
             except Exception as e:
                 logger.warning(f"Failed to delete old frame {file_path}: {e}")
-        
+
         logger.info("Starting stream processor...")
         self.is_running = True
-        
-        # 2. BACKGROUND TASK: Run the process loop without blocking Python
         asyncio.create_task(self._run_ffmpeg())
 
-        # 3. WAIT FOR READINESS
-        # We wait briefly for FFmpeg to produce the first playlist file.
-        # This prevents the frontend from getting 404s if it connects immediately.
         print("⏳ Waiting for stream to initialize...")
         hls_path = self.hls_dir / "stream.m3u8"
-        for _ in range(30): # Wait up to 30 seconds (FFmpeg can be slow to probe)
+        for _ in range(30):
             if hls_path.exists():
                 print("✅ Stream processor started and ready!")
                 return
             await asyncio.sleep(1)
-            
         print("⚠️ Stream processor started, but playlist not yet ready (check logs).")
-    
 
-    async def _run_ffmpeg(self):
-        """
-        The 'Monitor'.
-        Keeps the FFmpeg process running. If it crashes, it restarts it.
-        """
+    async def _run_ffmpeg(self) -> None:
         while self.is_running and self.restart_count < self.max_restarts:
             try:
                 cmd = self._build_ffmpeg_command()
                 logger.info(f"FFmpeg command: {' '.join(cmd)}")
-                
                 logger.info(f"Starting FFmpeg process (attempt {self.restart_count + 1})")
-                
-                # 3. LAUNCH: Use PIPE so we can intercept and control the logs
+
                 self.process = subprocess.Popen(
                     cmd,
-                    stdout=subprocess.PIPE,   # We read this
-                    stderr=subprocess.STDOUT, # Merge stderr into stdout
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
                     universal_newlines=True,
                     shell=False,
-                    # Windows specific: Don't pop up a black CMD window
-                    creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+                    creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
                 )
-                
-                # Start the background thread to handle logging and rotation
+
                 log_thread = threading.Thread(
-                    target=self._log_monitor, 
+                    target=_log_monitor,
                     args=(self.process, self.log_file_path),
-                    daemon=True # Dies if main process dies
+                    daemon=True,
                 )
                 log_thread.start()
-                
-                # 4. WATCH: Check every second if it's still alive
+
                 while self.is_running:
                     if self.process.poll() is not None:
-                        # Process died! Break loop to trigger restart logic
-                        logger.error(f"FFmpeg process died. Check console logs.")
+                        logger.error("FFmpeg process died. Check console logs.")
                         break
-                    
                     await asyncio.sleep(1)
-                
-                # If we get here, the process died.
+
                 self.restart_count += 1
-                
                 if self.restart_count < self.max_restarts:
                     logger.info(f"Restarting in 5 seconds... ({self.restart_count}/{self.max_restarts})")
                     await asyncio.sleep(5)
                 else:
                     logger.error("Max restart attempts reached. Giving up.")
                     self.is_running = False
-                    
+
             except Exception as e:
                 logger.error(f"Error in FFmpeg process: {e}", exc_info=True)
                 self.restart_count += 1
                 await asyncio.sleep(5)
-    
 
-    async def stop(self):
-        """Gracefully shuts down the FFmpeg process."""
+    async def stop(self) -> None:
         self.is_running = False
         print("✅ Stream processor stopping...")
-        
         if self.process and self.process.poll() is None:
             try:
                 self.process.terminate()
@@ -270,10 +154,8 @@ class StreamProcessor:
                 self.process.wait()
             except Exception as e:
                 logger.error(f"Error stopping process: {e}")
-    
 
     def get_status(self) -> dict:
-        """Returns the health status of the processor."""
         return {
             "is_running": self.is_running,
             "restart_count": self.restart_count,

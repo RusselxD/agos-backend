@@ -1,6 +1,14 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import AsyncSessionLocal
-from app.schemas import FusionData, BlockageStatus, WaterLevelStatus, WeatherStatus, FusionAnalysisData, AlertThresholdsResponse
+from app.core.fusion_scoring import calculate_fusion_data
+from app.schemas import (
+    FusionData,
+    BlockageStatus,
+    WaterLevelStatus,
+    WeatherStatus,
+    FusionAnalysisData,
+)
 from app.schemas.reading_summary_response import FusionWebSocketResponse
 from app.services.cache_service import cache_service
 from app.schemas import DevicePerLocation
@@ -48,8 +56,8 @@ class FusionAnalysisState:
         from app.crud import sensor_reading_crud
         from app.crud import model_readings_crud
         from app.crud import weather_crud
-        from app.services.sensor_reading_service import sensor_reading_service
-        from app.services.weather_service import weather_service
+        from app.services import sensor_reading_service
+        from app.services import weather_service
         from app.core.config import settings
         from datetime import datetime, timezone, timedelta
 
@@ -127,106 +135,25 @@ class FusionAnalysisState:
         await self._recalculate_fusion_data()
 
 
-    async def _recalculate_fusion_data(self):
-        from app.core.database import AsyncSessionLocal
-        
-        score = 0
-        conditions = []
-        
-        # --- Blockage Score (0-30) ---
-        if self.blockage_status:
-            if self.blockage_status.status == "blocked":
-                score += 30
-                conditions.append("Waterway is BLOCKED - Immediate action required.")
-            elif self.blockage_status.status == "partial":
-                score += 20
-                conditions.append("Partial blockage detected in waterway.")
-
-        # --- Water Level Score (0-45) ---
-        if self.water_level_status:
-            if self.water_level_status.critical_percentage < 50:
-                score += 10
-                conditions.append("Water level is within normal range.")
-            elif 50 <= self.water_level_status.critical_percentage < 75:
-                score += 20
-                conditions.append("Water level is elevated.")
-            elif 75 <= self.water_level_status.critical_percentage < 90:
-                score += 30
-                conditions.append("Water level is high.")
-            elif 90 <= self.water_level_status.critical_percentage < 100:
-                score += 45
-                conditions.append("Water level nearing critical threshold.")
-            elif self.water_level_status.critical_percentage == 100:
-                score += 45
-                conditions.append("Water level at CRITICAL threshold!")
-            else:
-                score += 45
-                conditions.append("Water level above CRITICAL threshold!")
-
-            # Add points for rising trend and rapid change rate
-            if self.water_level_status.trend == "rising":
-                score += 5
-
-            if self.water_level_status.change_rate >= 2:
-                conditions.append("Water level rising quickly.")
-            elif self.water_level_status.change_rate >= 1.5:
-                conditions.append("Water level rising.")
-
-        # --- Weather Score (0-20) ---
-        if self.weather_status:
-            if 1 <= self.weather_status.precipitation_mm < 2.55:
-                score += 8
-                conditions.append("Light rainfall detected.")
-            elif 2.55 <= self.weather_status.precipitation_mm < 7.5:
-                score += 15
-                conditions.append("Moderate rainfall detected.")
-            elif self.weather_status.precipitation_mm >= 7.5:
-                score += 20
-                conditions.append("Heavy rainfall detected.")
-
-        # --- Critical Combination Check ---
-        if (self.blockage_status and self.blockage_status.status == "blocked" and
-            self.water_level_status and self.water_level_status.critical_percentage >= 90 and
-            self.weather_status and self.weather_status.precipitation_mm >= 7.5):
-            conditions.append("MULTIPLE CRITICAL FACTORS")
-
-        # Retreive cached alert thresholds
+    async def _recalculate_fusion_data(self) -> None:
         async with AsyncSessionLocal() as db:
-            alert_thresholds: AlertThresholdsResponse = await cache_service.get_alert_thresholds(db)
+            alert_thresholds = await cache_service.get_alert_thresholds(db)
 
-        # Determine Alert Name based on score
-        alert_name = "Normal"
-        if alert_thresholds.tier_2_min <= score <= alert_thresholds.tier_2_max:
-            alert_name = "Warning"
-        elif alert_thresholds.tier_3_min <= score:
-            alert_name = "Critical"
-
-        if alert_name == "Normal":
-            if not conditions:
-                conditions = [
-                    "All systems operating within normal parameters",
-                    "Drainage system clear and functioning",
-                    "Water levels within safe range"
-                ]
-            else:
-                # Some conditions present but overall normal
-                conditions = ["Conditions normal - Continue routine monitoring"] + conditions
-            
-        self.fusion_data = FusionData(
-            alert_name=alert_name,
-            combined_risk_score=score,
-            triggered_conditions=conditions
+        self.fusion_data = calculate_fusion_data(
+            blockage_status=self.blockage_status,
+            water_level_status=self.water_level_status,
+            weather_status=self.weather_status,
+            alert_thresholds=alert_thresholds,
         )
-        
-        # Update fusion analysis only if all components are present
+
         if self.blockage_status and self.water_level_status and self.weather_status:
             self.fusion_analysis = FusionAnalysisData(
                 fusion_data=self.fusion_data,
                 blockage_status=self.blockage_status,
                 water_level_status=self.water_level_status,
-                weather_status=self.weather_status
+                weather_status=self.weather_status,
             )
-        
+
         await self.broadcast_fusion_analysis()
 
 

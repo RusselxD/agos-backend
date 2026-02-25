@@ -1,17 +1,40 @@
+"""Responder group service: CRUD, validation, and audit."""
+
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.v1.dependencies import CurrentUser
-from app.crud import responder_crud
-from app.crud import responder_group_crud
-from app.crud import admin_audit_log_crud
+from app.crud import responder_crud, responder_group_crud, admin_audit_log_crud
 from app.models.responder_related.group import DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME
-from app.schemas import AdminAuditLogCreate
-from app.schemas import ResponderGroupCreate, ResponderGroupItem
+from app.schemas import AdminAuditLogCreate, ResponderGroupCreate, ResponderGroupItem
+
+from .validation import validate_group_name, validate_not_default_group
+
+
+def _build_group_update_audit_action(
+    previous_group_name: str,
+    updated_group_name: str,
+    name_changed: bool,
+    added_count: int,
+    removed_count: int,
+) -> str:
+    if name_changed and (added_count or removed_count):
+        return (
+            f"Renamed responder group '{previous_group_name}' to '{updated_group_name}' "
+            f"and updated members (+{added_count}, -{removed_count})"
+        )
+    if name_changed:
+        return f"Renamed responder group '{previous_group_name}' to '{updated_group_name}'"
+    if added_count or removed_count:
+        return (
+            f"Updated members of responder group '{updated_group_name}' "
+            f"(+{added_count}, -{removed_count})"
+        )
+    return f"Submitted update for responder group '{updated_group_name}' with no changes"
 
 
 class ResponderGroupService:
-
     async def get_all_groups(self, db: AsyncSession) -> list[ResponderGroupItem]:
         await responder_group_crud.ensure_exists(
             db=db,
@@ -27,20 +50,10 @@ class ResponderGroupService:
             for group in groups
         ]
 
-
-    async def create_group(self,db: AsyncSession, group: ResponderGroupCreate, current_user: CurrentUser) -> ResponderGroupItem:
-        normalized_name = group.group_name.strip()
-        if not normalized_name:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Group name cannot be empty.",
-            )
-        if normalized_name.casefold() == DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME.casefold():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This group name is reserved for the system default active-responders group.",
-            )
-
+    async def create_group(
+        self, db: AsyncSession, group: ResponderGroupCreate, current_user: CurrentUser
+    ) -> ResponderGroupItem:
+        normalized_name = validate_group_name(group.group_name)
         dedup_member_ids = list(dict.fromkeys(group.member_ids))
 
         try:
@@ -69,8 +82,8 @@ class ResponderGroupService:
                 db=db,
                 obj_in=AdminAuditLogCreate(
                     admin_user_id=current_user.id,
-                    action=f"Created responder group '{normalized_name}'"
-                )
+                    action=f"Created responder group '{normalized_name}'",
+                ),
             )
 
             await db.commit()
@@ -93,15 +106,14 @@ class ResponderGroupService:
             member_ids=dedup_member_ids,
         )
 
-
-    async def update_group(self, db: AsyncSession, group_id: int, group: ResponderGroupCreate, current_user: CurrentUser) -> ResponderGroupItem:
-        normalized_name = group.group_name.strip()
-        if not normalized_name:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Group name cannot be empty.",
-            )
-
+    async def update_group(
+        self,
+        db: AsyncSession,
+        group_id: int,
+        group: ResponderGroupCreate,
+        current_user: CurrentUser,
+    ) -> ResponderGroupItem:
+        normalized_name = validate_group_name(group.group_name)
         dedup_member_ids = list(dict.fromkeys(group.member_ids))
 
         try:
@@ -130,8 +142,7 @@ class ResponderGroupService:
                 )
 
             existing_name_match = await responder_group_crud.get_by_name(
-                db=db,
-                name=normalized_name,
+                db=db, name=normalized_name
             )
             if existing_name_match and existing_name_match.id != group_id:
                 raise HTTPException(
@@ -149,15 +160,17 @@ class ResponderGroupService:
 
             previous_group_name = existing_group.name
             name_changed = previous_group_name != normalized_name
-            updated_group, added_count, removed_count = await responder_group_crud.update_with_members(
-                db=db,
-                group=existing_group,
-                name=normalized_name,
-                member_ids=dedup_member_ids,
+            updated_group, added_count, removed_count = (
+                await responder_group_crud.update_with_members(
+                    db=db,
+                    group=existing_group,
+                    name=normalized_name,
+                    member_ids=dedup_member_ids,
+                )
             )
 
             if name_changed or added_count or removed_count:
-                audit_action = self._build_group_update_audit_action(
+                audit_action = _build_group_update_audit_action(
                     previous_group_name=previous_group_name,
                     updated_group_name=updated_group.name,
                     name_changed=name_changed,
@@ -192,33 +205,9 @@ class ResponderGroupService:
             member_ids=dedup_member_ids,
         )
 
-
-    def _build_group_update_audit_action(
-        self,
-        previous_group_name: str,
-        updated_group_name: str,
-        name_changed: bool,
-        added_count: int,
-        removed_count: int,
-    ) -> str:
-        if name_changed and (added_count or removed_count):
-            return (
-                f"Renamed responder group '{previous_group_name}' to '{updated_group_name}' "
-                f"and updated members (+{added_count}, -{removed_count})"
-            )
-        if name_changed:
-            return (
-                f"Renamed responder group '{previous_group_name}' to '{updated_group_name}'"
-            )
-        if added_count or removed_count:
-            return (
-                f"Updated members of responder group '{updated_group_name}' "
-                f"(+{added_count}, -{removed_count})"
-            )
-        return f"Submitted update for responder group '{updated_group_name}' with no changes"
-
-
-    async def delete_group(self, db: AsyncSession, group_id: int, current_user: CurrentUser) -> None:
+    async def delete_group(
+        self, db: AsyncSession, group_id: int, current_user: CurrentUser
+    ) -> None:
         try:
             existing_group = await responder_group_crud.get_with_lock(db=db, id=group_id)
             if not existing_group:
@@ -227,11 +216,9 @@ class ResponderGroupService:
                     detail="Responder group not found.",
                 )
 
-            if existing_group.name.casefold() == DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME.casefold():
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="The system default active-responders group cannot be deleted.",
-                )
+            validate_not_default_group(
+                existing_group.name, action="deleted"
+            )
 
             previous_group_name = existing_group.name
             await responder_group_crud.delete_no_commit(db=db, group=existing_group)
@@ -245,7 +232,6 @@ class ResponderGroupService:
             )
 
             await db.commit()
-            print("Dito")
         except HTTPException:
             await db.rollback()
             raise

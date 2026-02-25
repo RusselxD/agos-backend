@@ -1,12 +1,12 @@
-from .sensor_reading_service import sensor_reading_service
+from .sensor_reading import sensor_reading_service
 from .sensor_device_service import sensor_device_service
 from .auth_service import auth_service
 from .admin_user_service import admin_user_service
+from .weather import weather_service  # before websocket: websocket imports weather
 from .websocket_service import websocket_service
 from .cache_service import cache_service
 from .admin_audit_log_service import admin_audit_log_service
-from .daily_summary_service import daily_summary_service
-from .weather_service import weather_service
+from .daily_summary import daily_summary_service
 from .responder_service import responder_service
 from .ml_service import ml_service
 from .system_settings_service import system_settings_service
@@ -14,7 +14,7 @@ from .upload_service import upload_service
 from .core_service import core_service
 from .stream import stream_processor, frame_manager
 from .sms_service import sms_service
-from .message_template_service import message_template_service
-from .responder_group_service import responder_group_service
+from .message_template import message_template_service
+from .responder_group import responder_group_service
 from .analysis_service import analysis_service
 from .notification_service import notification_service

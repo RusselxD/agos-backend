@@ -1,8 +1,8 @@
 from app.schemas import ModelWebSocketResponse, WeatherWebSocketResponse, SensorWebSocketResponse, FusionWebSocketResponse
 from app.schemas import WeatherConditionResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.services.sensor_reading_service import sensor_reading_service
-from app.services.weather_service import weather_service
+from app.services import sensor_reading_service
+from app.services import weather_service
 from fastapi import WebSocket
 from app.models import SensorReading
 from app.crud import sensor_reading_crud
