@@ -3,6 +3,7 @@ from sqlalchemy import exists, select, update
 from app.schemas.responder import ResponderOTPVerificationCreate
 from app.models import RespondersOTPVerification as OTPModel
 from app.models import Responder
+from app.models.responder_related.push_subscription import PushSubscription
 from app.models.responder_related.responders import ResponderStatus
 from sqlalchemy import delete
 from datetime import datetime, timezone
@@ -50,6 +51,13 @@ class CRUDResponder(CRUDBase[None, None, None]):
             .execution_options(populate_existing=False)
         )
         return result.scalars().unique().all()
+
+    async def get_responder_ids_with_push_subscription(self, db: AsyncSession) -> set[UUID]:
+        """Returns responder IDs that have at least one push subscription. Lightweight query, no relationship load."""
+        result = await db.execute(
+            select(PushSubscription.responder_id).distinct()
+        )
+        return {row[0] for row in result.all()}
 
 
     async def get_by_phone_number(self, db: AsyncSession, phone_number: str) -> Responder | None:

@@ -19,7 +19,18 @@ class ResponderService:
 
     async def get_all_responders(self, db: AsyncSession) -> list[ResponderListItem]:
         responders = await responder_crud.get_all(db=db)
-        return responders
+        ids_with_push = await responder_crud.get_responder_ids_with_push_subscription(db=db)
+        return [
+            ResponderListItem(
+                id=r.id,
+                first_name=r.first_name,
+                last_name=r.last_name,
+                phone_number=r.phone_number,
+                status=r.status,
+                has_push_subscription=r.id in ids_with_push,
+            )
+            for r in responders
+        ]
     
 
     async def get_responder_details(self, responder_id: str, db: AsyncSession) -> ResponderDetailsResponse | None:
@@ -44,7 +55,7 @@ class ResponderService:
                 last_name=responder.last_name,
                 phone_number=responder.phone_number,
                 status=responder.status,
-                groups=[group.name for group in responder.groups]
+                has_push_subscription=False,  # newly created responders have no subscriptions yet
             ) for responder in created_responders
         ]
 

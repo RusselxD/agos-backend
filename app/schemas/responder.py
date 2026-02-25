@@ -47,6 +47,7 @@ class ResponderListItem(BaseModel):
     last_name: str
     phone_number: str
     status: ResponderStatus
+    has_push_subscription: bool = False
 
     class Config:
         from_attributes = True

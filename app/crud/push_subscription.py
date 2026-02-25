@@ -4,6 +4,7 @@ from .base import CRUDBase
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.responder_related.push_subscription import PushSubscription
+from uuid import UUID
 
 class CRUDPushSubscription(CRUDBase):
     
@@ -26,5 +27,17 @@ class CRUDPushSubscription(CRUDBase):
         )
         db.add(sub)
         await db.commit()
+
+
+    async def get_by_responder_ids(self, responder_ids: list[UUID], db: AsyncSession) -> list[PushSubscription]:
+        if not responder_ids:
+            return []
+
+        result = await db.execute(
+            select(self.model)
+            .where(PushSubscription.responder_id.in_(responder_ids))
+            .execution_options(populate_existing=False)
+        )
+        return list(result.scalars().all())
 
 push_subscription_crud = CRUDPushSubscription(PushSubscription)

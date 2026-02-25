@@ -9,18 +9,31 @@ from alembic.config import Config
 from alembic import command
 
 async def drop_tables():
-    """Drop all tables using async engine"""
-    from app.models.base import Base
-    
-    print("🗑️  Dropping all tables...")
+    """Drop all tables and enum types in public schema (does not require schema owner)"""
+    print("🗑️  Dropping all tables and types...")
+    drop_all_sql = text("""
+        DO $$
+        DECLARE
+            r RECORD;
+        BEGIN
+            -- Drop tables first
+            FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                EXECUTE 'DROP TABLE IF EXISTS public.' || quote_ident(r.tablename) || ' CASCADE';
+            END LOOP;
+            -- Drop enum types (e.g. notificationtype, responderstatus) - they persist after table drop
+            FOR r IN (
+                SELECT t.typname
+                FROM pg_type t
+                JOIN pg_namespace n ON t.typnamespace = n.oid
+                WHERE n.nspname = 'public' AND t.typtype = 'e'
+            ) LOOP
+                EXECUTE 'DROP TYPE IF EXISTS public.' || quote_ident(r.typname) || ' CASCADE';
+            END LOOP;
+        END $$;
+    """)
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    print("✅ Tables dropped!")
-
-    print("🗑️  Dropping alembic_version table...")
-    async with engine.begin() as conn:
-        await conn.execute(text("DROP TABLE IF EXISTS alembic_version;"))
-    print("✅ Alembic version table dropped!")
+        await conn.execute(drop_all_sql)
+    print("✅ All tables and types dropped!")
 
 async def main():
     await drop_tables()

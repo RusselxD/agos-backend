@@ -1,12 +1,5 @@
 from uuid import UUID
-
-import json
-from pywebpush import webpush, WebPushException
-
-from app.models import NotificationTemplate
 from app.models.notification_template import NotificationType
-from app.models.responder_related.push_subscription import PushSubscription
-from app.core.config import settings
 from app.schemas import NotificationTemplateResponse, CreateNotificationTemplateRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud import notification_template_crud, admin_audit_log_crud
@@ -87,29 +80,6 @@ class NotificationTemplateService:
             title=template.title,
             message=template.message
         )
-
-
-    async def send_push(self, subscription: PushSubscription, notification: NotificationTemplate) -> bool:
-        try:
-            webpush(
-                subscription_info={
-                    "endpoint": subscription.endpoint,
-                    "keys": {
-                        "p256dh": subscription.p256dh,
-                        "auth": subscription.auth
-                    }
-                },
-                data=json.dumps({
-                    "title": notification.title,
-                    "message": notification.message
-                }),
-                vapid_private_key=settings.VAPID_PRIVATE_KEY,
-                vapid_claims={"sub": settings.VAPID_CLAIM_EMAIL}
-            )
-            return True
-        except WebPushException as e:
-            print(f"Push failed: {e}")
-            return False
 
 
 notification_template_service = NotificationTemplateService()

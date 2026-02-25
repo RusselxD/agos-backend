@@ -15,7 +15,7 @@ class NotificationType(enum.Enum):
 
 
 class NotificationTemplate(Base):
-    __tablename__ = "notifications"
+    __tablename__ = "notification_templates"
 
     id = Column(Integer, primary_key=True, index=True)
     type = Column(Enum(NotificationType), nullable=False)
@@ -26,7 +26,7 @@ class NotificationTemplate(Base):
 
     __table_args__ = (
         Index(
-            "uq_notifications_single_system_template_type",
+            "uq_notification_templates_single_system_template_type",
             "type",
             unique=True,
             postgresql_where=type.in_(
