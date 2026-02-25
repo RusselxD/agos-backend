@@ -1,6 +1,4 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from slowapi import _rate_limit_exceeded_handler
@@ -12,6 +10,7 @@ from app.core.cloudinary import init_cloudinary
 
 from app.core.config import settings
 from app.core.rate_limiter import limiter
+from app.middleware import register_middleware
 
 from app.services.stream import stream_processor
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -63,32 +62,16 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.FRONTEND_URLS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# GZip Compression Middleware
-# Compresses responses larger than 1000 bytes (reduces JSON payload size by ~70%)
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+register_middleware(app)
 
 # Include routers
 app.include_router(ws_router)
-app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router)
 
 # Serve static HLS files
 hls_path = Path(settings.HLS_OUTPUT_DIR)
 hls_path.mkdir(parents=True, exist_ok=True)
 app.mount("/hls", StaticFiles(directory=str(hls_path)), name="hls")
-
-# Serve other static storage files (e.g., responder IDs)
-storage_path = Path("app/storage")
-storage_path.mkdir(parents=True, exist_ok=True)
-app.mount("/app/storage", StaticFiles(directory=str(storage_path)), name="storage")
 
 # Add Prometheus metrics
 Instrumentator().instrument(app).expose(app)
