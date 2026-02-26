@@ -1,4 +1,7 @@
 from uuid import UUID
+
+from fastapi import HTTPException, status
+
 from app.models.notification_template import NotificationType
 from app.schemas import NotificationTemplateResponse, CreateNotificationTemplateRequest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +26,7 @@ class NotificationTemplateService:
     async def _demote_existing_if_conflicts(
         self, db: AsyncSession, incoming_type: NotificationType, exclude_template_id: int | None = None
     ) -> None:
+        
         """If another template holds the incoming type, demote it to ANNOUNCEMENT to enforce uniqueness."""
         if incoming_type == NotificationType.ANNOUNCEMENT:
             return
@@ -37,6 +41,7 @@ class NotificationTemplateService:
         db: AsyncSession,
         created_by_id: UUID,
     ) -> NotificationTemplateResponse:
+        
         await self._demote_existing_if_conflicts(db, payload.type)
         template = await notification_template_crud.create(
             db=db, obj_in=payload, created_by_id=created_by_id
@@ -63,6 +68,7 @@ class NotificationTemplateService:
         db: AsyncSession,
         updated_by_id: UUID,
     ) -> NotificationTemplateResponse:
+
         await self._demote_existing_if_conflicts(db, payload.type, exclude_template_id=template_id)
         template = await notification_template_crud.update(
             db=db, template_id=template_id, obj_in=payload
@@ -88,12 +94,24 @@ class NotificationTemplateService:
         db: AsyncSession,
         deleted_by_id: UUID,
     ) -> None:
-        title = await notification_template_crud.delete(db=db, template_id=template_id)
+        
+        template = await notification_template_crud.get(db, template_id)
+        if not template:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Notification template not found",
+            )
+        if template.type != NotificationType.ANNOUNCEMENT:
+            raise HTTPException(
+                status_code=400,
+                detail="Only announcement templates can be deleted",
+            )
+        await notification_template_crud.delete(db=db, template=template)
         await admin_audit_log_crud.create_only(
             db=db,
             obj_in=AdminAuditLogCreate(
                 admin_user_id=deleted_by_id,
-                action=f"Deleted notification template '{title}'.",
+                action=f"Deleted notification template '{template.title}'.",
             ),
         )
 
