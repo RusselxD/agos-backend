@@ -18,7 +18,7 @@ class NotificationTemplateService:
             )    
             for notif in notifs        
         ]
-    
+
 
     async def _demote_existing_if_conflicts(
         self, db: AsyncSession, incoming_type: NotificationType, exclude_template_id: int | None = None
@@ -79,6 +79,22 @@ class NotificationTemplateService:
             type=template.type,
             title=template.title,
             message=template.message
+        )
+
+
+    async def delete_notification_template(
+        self,
+        template_id: int,
+        db: AsyncSession,
+        deleted_by_id: UUID,
+    ) -> None:
+        title = await notification_template_crud.delete(db=db, template_id=template_id)
+        await admin_audit_log_crud.create_only(
+            db=db,
+            obj_in=AdminAuditLogCreate(
+                admin_user_id=deleted_by_id,
+                action=f"Deleted notification template '{title}'.",
+            ),
         )
 
 

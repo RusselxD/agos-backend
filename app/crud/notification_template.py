@@ -70,5 +70,15 @@ class CRUDNotificationTemplate(CRUDBase):
         await db.refresh(template, ["creator"])
         return template
 
+    async def delete(self, db: AsyncSession, template_id: int) -> str:
+        """Delete template by id. Returns the template title for audit logging. Raises 404 if not found."""
+        template = await self.get(db, template_id)
+        if not template:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification template not found")
+        title = template.title
+        db.delete(template)
+        await db.commit()
+        return title
+
 
 notification_template_crud = CRUDNotificationTemplate(NotificationTemplate)

@@ -40,3 +40,17 @@ async def update_notification_template(
         db=db,
         updated_by_id=current_user.id,
     )
+
+
+@router.delete("/{template_id}", status_code=204)
+async def delete_notification_template(
+    template_id: int,
+    current_user: CurrentUser = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    await notification_template_service.delete_notification_template(
+        template_id=template_id,
+        db=db,
+        deleted_by_id=current_user.id,
+    )
+

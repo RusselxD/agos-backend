@@ -30,6 +30,7 @@ async def send_notification_to_responders(payload: SendNotificationSchema, db: A
         notif_id=payload.notif_template.id,
         notif_title=payload.notif_template.title,
         notif_message=payload.notif_template.message,
+        notif_type=payload.notif_template.type,
         responder_ids=payload.responder_ids,
-        db=db
+        db=db,
     )

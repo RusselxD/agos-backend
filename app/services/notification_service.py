@@ -2,10 +2,12 @@ import json
 from datetime import datetime, timezone
 from uuid import UUID
 
+from fastapi import HTTPException
 from pywebpush import webpush, WebPushException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.models.notification_template import NotificationType
 from app.crud import notification_delivery_crud, push_subscription_crud
 from app.models.responder_related.notification_delivery import DeliveryStatus
 from app.models.responder_related.push_subscription import PushSubscription
@@ -23,9 +25,17 @@ class NotificationService:
         notif_id: int,
         notif_title: str,
         notif_message: str,
+        notif_type: NotificationType,
         responder_ids: list[UUID],
         db: AsyncSession,
     ) -> None:
+        
+        if notif_type != NotificationType.ANNOUNCEMENT:
+            raise HTTPException(
+                status_code=400,
+                detail="Manual notifications are only supported for announcements",
+            )
+
         if not responder_ids:
             return
 
@@ -94,13 +104,14 @@ class NotificationService:
             delivery_rows=list(deliveries_by_responder.values()),
         )
 
+
     async def send_push(
         self,
         subscription: PushSubscription,
         notif_title: str,
         notif_message: str,
-    ) -> str:
-        """Returns PushResult.SENT, PushResult.FAILED, or PushResult.GONE (410)."""
+    ) -> PushResult:
+        
         try:
             webpush(
                 subscription_info={
@@ -122,7 +133,7 @@ class NotificationService:
             status = getattr(getattr(e, "response", None), "status_code", None) or getattr(
                 getattr(e, "response", None), "status", None
             )
-            if status == 410:
+            if status == 410: # subscription is no longer valid
                 return PushResult.GONE
             return PushResult.FAILED
 
