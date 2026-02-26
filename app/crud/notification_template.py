@@ -6,8 +6,8 @@ from .base import CRUDBase
 from app.models import NotificationTemplate
 from app.models.notification_template import NotificationType
 from app.schemas import CreateNotificationTemplateRequest
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 
@@ -70,9 +70,10 @@ class CRUDNotificationTemplate(CRUDBase):
         await db.refresh(template, ["creator"])
         return template
 
+
     async def delete(self, db: AsyncSession, template: NotificationTemplate) -> None:
         """Delete the given template."""
-        db.delete(template)
+        await db.execute(delete(NotificationTemplate).where(NotificationTemplate.id == template.id))
         await db.commit()
 
 
