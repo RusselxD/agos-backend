@@ -1,5 +1,3 @@
-from sqlalchemy import select
-
 from fastapi import APIRouter, Depends
 from app.api.v1.dependencies import require_auth
 from app.core.config import settings
@@ -27,10 +25,6 @@ async def save_subscription(data: SubscriptionSchema, db: AsyncSession = Depends
 @router.post("/send-notification", status_code=204, dependencies=[Depends(require_auth)])
 async def send_notification_to_responders(payload: SendNotificationSchema, db: AsyncSession = Depends(get_db)) -> None:
     await notification_service.send_notification_to_subscribers(
-        notif_id=payload.notif_template.id,
-        notif_title=payload.notif_template.title,
-        notif_message=payload.notif_template.message,
-        notif_type=payload.notif_template.type,
-        responder_ids=payload.responder_ids,
+        payload=payload,
         db=db,
     )

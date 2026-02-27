@@ -40,4 +40,4 @@ class NotificationTemplate(Base):
     )
 
     creator = relationship("AdminUser", back_populates="notifications")
-    deliveries = relationship("NotificationDelivery", back_populates="notification", cascade="all, delete-orphan")
+    dispatches = relationship("NotificationDispatch", back_populates="template")

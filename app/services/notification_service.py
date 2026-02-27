@@ -7,10 +7,16 @@ from pywebpush import webpush, WebPushException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.crud import (
+    notification_delivery_crud,
+    notification_dispatch_crud,
+    notification_template_crud,
+    push_subscription_crud,
+)
 from app.models.notification_template import NotificationType
-from app.crud import notification_delivery_crud, push_subscription_crud
 from app.models.responder_related.notification_delivery import DeliveryStatus
 from app.models.responder_related.push_subscription import PushSubscription
+from app.schemas.subscription import SendNotificationSchema
 
 
 class PushResult:
@@ -22,50 +28,61 @@ class PushResult:
 class NotificationService:
     async def send_notification_to_subscribers(
         self,
-        notif_id: int,
-        notif_title: str,
-        notif_message: str,
-        notif_type: NotificationType,
-        responder_ids: list[UUID],
+        payload: SendNotificationSchema,
         db: AsyncSession,
     ) -> None:
-        
-        if notif_type != NotificationType.ANNOUNCEMENT:
-            raise HTTPException(
-                status_code=400,
-                detail="Manual notifications are only supported for announcements",
-            )
-
+        responder_ids = list(dict.fromkeys(payload.responder_ids))
         if not responder_ids:
             return
+
+        template_id, notif_title, notif_message, notif_type = await self._resolve_notification_content(
+            payload=payload,
+            db=db,
+        )
+        dispatch = await notification_dispatch_crud.create_for_send(
+            db=db,
+            template_id=template_id,
+            notif_type=notif_type,
+            title=notif_title,
+            message=notif_message,
+        )
+
+        deliveries_by_responder: dict[UUID, dict] = {
+            responder_id: {
+                "responder_id": responder_id,
+                "subscription_id": None,
+                "status": DeliveryStatus.FAILED,
+                "sent_at": None,
+                "error_message": "No active push subscription",
+            }
+            for responder_id in responder_ids
+        }
+        now = datetime.now(timezone.utc)
+        subscriptions_to_remove: list[PushSubscription] = []
 
         subscriptions = await push_subscription_crud.get_by_responder_ids(
             responder_ids=responder_ids,
             db=db,
         )
-        if not subscriptions:
-            return
-
-        deliveries_by_responder: dict[UUID, dict] = {}
-        now = datetime.now(timezone.utc)
-        subscriptions_to_remove: list[PushSubscription] = []
 
         for subscription in subscriptions:
+            if subscription.responder_id not in deliveries_by_responder:
+                continue
+
             result = await self.send_push(
                 subscription=subscription,
                 notif_title=notif_title,
                 notif_message=notif_message,
             )
-            current = deliveries_by_responder.get(subscription.responder_id)
+            current = deliveries_by_responder[subscription.responder_id]
 
             if result == PushResult.GONE:
                 subscriptions_to_remove.append(subscription)
-            if result == PushResult.GONE and current and current["status"] == DeliveryStatus.SENT:
-                continue
-            if result == PushResult.GONE:
+                if current["status"] == DeliveryStatus.SENT:
+                    continue
                 deliveries_by_responder[subscription.responder_id] = {
                     "responder_id": subscription.responder_id,
-                    "subscription_id": None,  # Sub is being deleted
+                    "subscription_id": None,
                     "status": DeliveryStatus.FAILED,
                     "sent_at": None,
                     "error_message": "Push subscription expired or unsubscribed",
@@ -82,7 +99,7 @@ class NotificationService:
                 }
                 continue
 
-            if current and current["status"] == DeliveryStatus.SENT:
+            if current["status"] == DeliveryStatus.SENT:
                 continue
 
             deliveries_by_responder[subscription.responder_id] = {
@@ -95,14 +112,57 @@ class NotificationService:
 
         for sub in subscriptions_to_remove:
             await db.delete(sub)
-        if subscriptions_to_remove:
-            await db.commit()
 
         await notification_delivery_crud.upsert_many_results(
             db=db,
-            notification_id=notif_id,
+            dispatch_id=dispatch.id,
             delivery_rows=list(deliveries_by_responder.values()),
         )
+
+
+    async def _resolve_notification_content(
+        self,
+        payload: SendNotificationSchema,
+        db: AsyncSession,
+    ) -> tuple[int | None, str, str, NotificationType]:
+        has_template = payload.template_id is not None
+        has_custom_notification = payload.custom_notification is not None
+
+        if has_template == has_custom_notification:
+            raise HTTPException(
+                status_code=400,
+                detail="Provide exactly one of template_id or custom_notification",
+            )
+
+        if payload.template_id is not None:
+            template = await notification_template_crud.get(db=db, id=payload.template_id)
+            if not template:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Notification template not found",
+                )
+            if template.type != NotificationType.ANNOUNCEMENT:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Manual notifications are only supported for announcements",
+                )
+            return template.id, template.title, template.message, template.type
+
+        custom_notification = payload.custom_notification
+        if custom_notification.type != NotificationType.ANNOUNCEMENT:
+            raise HTTPException(
+                status_code=400,
+                detail="Custom notifications must be announcement type",
+            )
+
+        custom_title = custom_notification.title.strip()
+        custom_message = custom_notification.message.strip()
+        if not custom_title or not custom_message:
+            raise HTTPException(
+                status_code=400,
+                detail="Custom notification title and message cannot be empty",
+            )
+        return None, custom_title, custom_message, custom_notification.type
 
 
     async def send_push(

@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: 50d841586660
+Revision ID: 556143715d7a
 Revises: 
-Create Date: 2026-02-26 00:28:10.648263
+Create Date: 2026-02-27 09:34:49.316786
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '50d841586660'
+revision: str = '556143715d7a'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -186,6 +186,17 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['camera_device_id'], ['camera_devices.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('notification_dispatches',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('template_id', sa.Integer(), nullable=True),
+    sa.Column('type', sa.Enum('WARNING', 'CRITICAL', 'BLOCKAGE', 'ANNOUNCEMENT', name='notificationtype'), nullable=False),
+    sa.Column('title', sa.String(), nullable=False),
+    sa.Column('message', sa.String(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
+    sa.ForeignKeyConstraint(['template_id'], ['notification_templates.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_notification_dispatches_id'), 'notification_dispatches', ['id'], unique=False)
     op.create_table('push_subscriptions',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('responder_id', sa.UUID(), nullable=False),
@@ -229,18 +240,18 @@ def upgrade() -> None:
     op.create_index(op.f('ix_sensor_readings_timestamp'), 'sensor_readings', ['timestamp'], unique=False)
     op.create_table('notification_deliveries',
     sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('notification_id', sa.Integer(), nullable=False),
+    sa.Column('dispatch_id', sa.Integer(), nullable=False),
     sa.Column('responder_id', sa.UUID(), nullable=False),
     sa.Column('subscription_id', sa.UUID(), nullable=True),
     sa.Column('status', sa.Enum('PENDING', 'SENT', 'FAILED', name='deliverystatus'), nullable=False),
     sa.Column('sent_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('error_message', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
-    sa.ForeignKeyConstraint(['notification_id'], ['notification_templates.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['dispatch_id'], ['notification_dispatches.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['responder_id'], ['responders.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['subscription_id'], ['push_subscriptions.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('notification_id', 'responder_id', name='uq_delivery_notification_responder')
+    sa.UniqueConstraint('dispatch_id', 'responder_id', name='uq_delivery_dispatch_responder')
     )
     op.create_table('acknowledgements',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -268,6 +279,8 @@ def downgrade() -> None:
     op.drop_table('responders_otp_verification')
     op.drop_table('responder_groups')
     op.drop_table('push_subscriptions')
+    op.drop_index(op.f('ix_notification_dispatches_id'), table_name='notification_dispatches')
+    op.drop_table('notification_dispatches')
     op.drop_table('model_readings')
     op.drop_table('weather')
     op.drop_table('sensor_devices')

@@ -13,7 +13,7 @@ class CRUDNotificationDelivery(CRUDBase):
     async def upsert_many_results(
         self,
         db: AsyncSession,
-        notification_id: int,
+        dispatch_id: int,
         delivery_rows: list[dict[str, Any]],
     ) -> None:
         if not delivery_rows:
@@ -21,7 +21,7 @@ class CRUDNotificationDelivery(CRUDBase):
 
         rows = [
             {
-                "notification_id": notification_id,
+                "dispatch_id": dispatch_id,
                 **row,
             }
             for row in delivery_rows
@@ -29,7 +29,7 @@ class CRUDNotificationDelivery(CRUDBase):
 
         stmt = insert(self.model).values(rows)
         stmt = stmt.on_conflict_do_update(
-            constraint="uq_delivery_notification_responder",
+            constraint="uq_delivery_dispatch_responder",
             set_={
                 "subscription_id": stmt.excluded.subscription_id,
                 "status": stmt.excluded.status,

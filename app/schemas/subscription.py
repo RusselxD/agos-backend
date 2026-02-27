@@ -2,7 +2,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from .notification_template import NotificationTemplateResponse
+from app.models.notification_template import NotificationType
 
 class SubscriptionKeys(BaseModel):
     p256dh: str
@@ -14,6 +14,13 @@ class SubscriptionSchema(BaseModel):
     responder_id: UUID
 
 
+class CustomNotificationPayload(BaseModel):
+    title: str
+    message: str
+    type: NotificationType = NotificationType.ANNOUNCEMENT
+
+
 class SendNotificationSchema(BaseModel):
-    notif_template: NotificationTemplateResponse
     responder_ids: list[UUID]
+    template_id: int | None = None
+    custom_notification: CustomNotificationPayload | None = None

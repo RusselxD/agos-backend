@@ -28,5 +28,5 @@ from .upload import UploadResponse
 from .fusion_analysis import FusionData, BlockageStatus, WaterLevelStatus, WeatherStatus, FusionAnalysisData
 from .daily_summary import DailySummaryResponse, DailySummaryAnalysisRequest
 
-from .subscription import SubscriptionKeys, SubscriptionSchema, SendNotificationSchema
+from .subscription import SubscriptionKeys, SubscriptionSchema, SendNotificationSchema, CustomNotificationPayload
 from .notification_template import NotificationTemplateResponse, CreateNotificationTemplateRequest

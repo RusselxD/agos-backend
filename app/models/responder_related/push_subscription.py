@@ -18,4 +18,4 @@ class PushSubscription(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.timezone("UTC", func.now()), nullable=False)
 
     responder = relationship("Responder", back_populates="push_subscriptions")
-    deliveries = relationship("NotificationDelivery", back_populates="subscription", cascade="all, delete-orphan")
+    deliveries = relationship("NotificationDelivery", back_populates="subscription")
