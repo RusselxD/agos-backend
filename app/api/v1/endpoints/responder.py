@@ -6,6 +6,7 @@ from fastapi import Depends
 from uuid import UUID
 from app.schemas import ResponderCreate, ResponderDetailsResponse, ResponderListItem, ResponderDetails, NotifPreferenceUpdateRequest, AlertListItem
 from app.schemas import ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderSendSMSRequest, ResponderRegistrationRequest
+from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
 from app.services import responder_service
 from app.models.responder_related.responders import NotificationPreference
 
@@ -49,6 +50,11 @@ async def get_unread_alerts_count(responder_id: UUID, db: AsyncSession = Depends
 @router.get("/alerts/{responder_id}", response_model=list[AlertListItem])
 async def get_responder_alerts(responder_id: UUID, db: AsyncSession = Depends(get_db)):
     return await responder_service.get_responder_alerts(responder_id=responder_id, db=db)
+
+
+@router.post("/acknowledge-alert", response_model=AcknowledgeNotifResponse)
+async def acknowledge_alert(payload: AcknowledgeNotifRequest, db: AsyncSession = Depends(get_db)) -> AcknowledgeNotifResponse:
+    return await responder_service.acknowledge_alert(payload=payload, db=db)
 
 
 @router.get("/notif-preferences/{responder_id}", response_model=NotificationPreference)

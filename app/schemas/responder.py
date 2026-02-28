@@ -88,3 +88,15 @@ class AlertListItem(BaseModel):
     timestamp: datetime
     is_acknowledged: bool
     acknowledged_at: datetime | None
+    acknowledge_message: str | None
+
+
+class AcknowledgeNotifRequest(BaseModel):
+    delivery_id: UUID
+    responder_id: UUID
+    message: str | None = None
+
+
+class AcknowledgeNotifResponse(BaseModel):
+    acknowledged_at: datetime
+    acknowledge_message: str | None = None

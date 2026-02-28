@@ -15,3 +15,4 @@ from .push_subscription import push_subscription_crud
 from .notification_delivery import notification_delivery_crud
 from .notification_dispatch import notification_dispatch_crud
 from .notification_template import notification_template_crud
+from .acknowledgement import acknowledgement_crud

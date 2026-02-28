@@ -13,8 +13,11 @@ from app.models import Responder
 from app.models.responder_related.group import DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME
 from app.models.responder_related.responders import NotificationPreference, ResponderStatus
 from app.schemas import ResponderListItem, ResponderDetailsResponse, ResponderOTPVerifyResponse, AlertListItem
+from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
 from app.schemas.responder import ResponderCreate, ResponderDetails, ResponderForApproval, ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderSendSMSRequest
 from app.services.sms_service import sms_service
+from app.crud import acknowledgement_crud
+from app.models import Acknowledgement
 
 
 class ResponderService:
@@ -121,10 +124,24 @@ class ResponderService:
                 message=delivery.dispatch.message,
                 timestamp=delivery.sent_at,
                 is_acknowledged=delivery.acknowledgement is not None,
-                acknowledged_at=delivery.acknowledgement.acknowledged_at if delivery.acknowledgement else None
+                acknowledged_at=delivery.acknowledgement.acknowledged_at if delivery.acknowledgement else None,
+                acknowledge_message=delivery.acknowledgement.message if delivery.acknowledgement else None
             ) for delivery in deliveries
         ]
-    
+
+
+    async def acknowledge_alert(self, payload: AcknowledgeNotifRequest, db: AsyncSession) -> AcknowledgeNotifResponse:
+        ack: Acknowledgement = await acknowledgement_crud.create_acknowledgement(
+            responder_id=payload.responder_id,
+            delivery_id=payload.delivery_id,
+            message=payload.message,
+            db=db
+        )
+        return AcknowledgeNotifResponse(
+            acknowledged_at=ack.acknowledged_at,
+            acknowledge_message=ack.message
+        )
+
 
     async def get_responder_notif_preferences(self, responder_id: UUID, db: AsyncSession) -> NotificationPreference:
         responder: Responder = await responder_crud.get(db=db, id=responder_id)
