@@ -1,7 +1,5 @@
 from datetime import datetime, timezone, timedelta
-
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.core.config import settings
 from app.crud import sensor_reading_crud
 from app.schemas.sensor_reading import SensorReadingTrendResponse
@@ -27,6 +25,7 @@ AGGREGATION_INTERVALS = {
 
 
 def _format_trend_label(dt: datetime, interval: timedelta) -> str:
+
     local_dt = dt.astimezone(timezone(timedelta(hours=settings.UTC_OFFSET_HOURS)))
     if interval >= timedelta(days=1):
         return local_dt.strftime("%d %b")
@@ -37,8 +36,10 @@ def _format_trend_label(dt: datetime, interval: timedelta) -> str:
 
 
 def _process_trend_data(
-    items: list, interval: timedelta, start_time: datetime
-) -> SensorReadingTrendResponse:
+    items: list, 
+    interval: timedelta, 
+    start_time: datetime) -> SensorReadingTrendResponse:
+    
     grouped_data: dict[float, list[float]] = {}
     interval_seconds = interval.total_seconds()
 
@@ -73,8 +74,8 @@ def _process_trend_data(
 async def get_readings_trend(
     db: AsyncSession,
     duration: str,
-    sensor_device_id: int,
-) -> SensorReadingTrendResponse:
+    sensor_device_id: int) -> SensorReadingTrendResponse:
+    
     delta = DURATION_DELTAS.get(duration)
     if delta is None:
         raise ValueError(f"Invalid duration: {duration}")

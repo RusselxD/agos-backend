@@ -15,9 +15,9 @@ async def get_all_admins(db: AsyncSession = Depends(get_db)) -> list[AdminUserRe
 
 
 @router.post("/", response_model=AdminUserResponse)
-async def create_admin_user(admin_user_create: AdminUserCreate, 
-                            db: AsyncSession = Depends(get_db),
-                            current_user: CurrentUser = Depends(require_superuser)
-                            ) -> AdminUserResponse:
+async def create_admin_user(
+    admin_user_create: AdminUserCreate, 
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_superuser)) -> AdminUserResponse:
     
     return await admin_user_service.create_new_admin_user(db=db, admin_user_create=admin_user_create, current_user=current_user)

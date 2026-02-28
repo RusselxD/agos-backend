@@ -1,5 +1,3 @@
-"""Validation helpers for responder group operations."""
-
 from fastapi import HTTPException, status
 
 from app.models.responder_related.group import DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME

@@ -35,6 +35,7 @@ async def logout(
 async def refresh_token(
     body: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db)) -> Token:
+
     return await auth_service.refresh_access_token(db=db, refresh_token=body.refresh_token)
 
 

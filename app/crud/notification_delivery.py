@@ -1,20 +1,18 @@
 from typing import Any
 from uuid import UUID
-
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-
 from app.models.responder_related.acknowledgement import Acknowledgement
 from app.models.responder_related.notification_delivery import DeliveryStatus, NotificationDelivery
-
 from .base import CRUDBase
 
 
 class CRUDNotificationDelivery(CRUDBase):
 
     async def upsert_many_results(self, db: AsyncSession, dispatch_id: int, delivery_rows: list[dict[str, Any]]) -> None:
+
         if not delivery_rows:
             return
 
@@ -41,6 +39,7 @@ class CRUDNotificationDelivery(CRUDBase):
 
 
     async def get_alerts_per_responder(self, responder_id: UUID, db: AsyncSession) -> list[NotificationDelivery]:
+
         result = await db.execute(
             select(self.model)
             .options(
@@ -54,6 +53,7 @@ class CRUDNotificationDelivery(CRUDBase):
 
 
     async def get_unread_alerts_count(self, responder_id: UUID, db: AsyncSession) -> int:
+
         result = await db.execute(
             select(func.count(NotificationDelivery.id))
             .outerjoin(

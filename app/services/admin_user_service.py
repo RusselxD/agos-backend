@@ -12,6 +12,7 @@ from app.utils import format_name_proper
 class AdminUserService:
     
     async def get_all_admins(self, db: AsyncSession) -> list[AdminUserResponse]:
+
         admins: list[AdminUser] = await admin_user_crud.get_all_admins(db=db)
         result = [
             AdminUserResponse(
@@ -28,7 +29,11 @@ class AdminUserService:
         return result
 
 
-    async def create_new_admin_user(self, db: AsyncSession, admin_user_create: AdminUserCreate, current_user: CurrentUser) -> AdminUserResponse:
+    async def create_new_admin_user(
+        self, 
+        db: AsyncSession, 
+        admin_user_create: 
+        AdminUserCreate, current_user: CurrentUser) -> AdminUserResponse:
 
         # Check if phone number already exists
         if await admin_user_crud.phone_exists(db=db, phone_number=admin_user_create.phone_number):

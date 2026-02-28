@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class PushSubscriptionService:
     
     async def subscribe(self, data: SubscriptionSchema, db: AsyncSession) -> None:
+        
         existing = await push_subscription_crud.get_by_responder_id(
             responder_id=data.responder_id,
             endpoint=data.endpoint,

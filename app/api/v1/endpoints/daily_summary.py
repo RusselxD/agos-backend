@@ -9,7 +9,12 @@ from app.services import daily_summary_service
 router = APIRouter(prefix="/daily-summaries", tags=["daily-summaries"])
 
 @router.get("", response_model=list[DailySummaryResponse], dependencies=[Depends(require_auth)])
-async def get_daily_summaries(location_id: int, start_date: datetime, end_date: datetime, db: AsyncSession = Depends(get_db)) -> list[DailySummaryResponse]:
+async def get_daily_summaries(
+    location_id: int, 
+    start_date: datetime, 
+    end_date: datetime, 
+    db: AsyncSession = Depends(get_db)) -> list[DailySummaryResponse]:
+    
     return await daily_summary_service.get_daily_summaries(db=db, location_id=location_id, start_date=start_date, end_date=end_date)
 
 

@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from app.crud import notification_delivery_crud
-from app.crud.responder import responder_crud, responder_otp_verification_crud
+from app.crud import responder_otp_verification_crud
 from app.crud.responder_group import responder_group_crud
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
@@ -8,62 +8,23 @@ from app.core.config import settings
 from app.models import NotificationDelivery
 from uuid import UUID
 import random
-from app.core.security import get_otp_hash, verify_otp as verify_otp_hash
-from app.models import Responder
-from app.models.responder_related.group import DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME
-from app.models.responder_related.responders import NotificationPreference, ResponderStatus
-from app.schemas import ResponderListItem, ResponderDetailsResponse, ResponderOTPVerifyResponse, AlertListItem
-from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
-from app.schemas.responder import ResponderCreate, ResponderDetails, ResponderForApproval, ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderSendSMSRequest
+from app.schemas import ResponderDetails, ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderSendSMSRequest
+from app.models.responder_related.responders import NotificationPreference
+from app.schemas.responder import ResponderForApproval
 from app.services.sms_service import sms_service
 from app.crud import acknowledgement_crud
 from app.models import Acknowledgement
+from app.core.security import get_otp_hash, verify_otp as verify_otp_hash
+from app.models import Responder
+from app.crud.responder import responder_crud
+from app.schemas import ResponderOTPVerifyResponse, AlertListItem
+from app.models.responder_related.group import DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME
+from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
+from app.models.responder_related.responders import ResponderStatus
 
 
-class ResponderService:
-
-    async def get_all_responders(self, db: AsyncSession) -> list[ResponderListItem]:
-        responders = await responder_crud.get_all(db=db)
-        ids_with_push = await responder_crud.get_responder_ids_with_push_subscription(db=db)
-        return [
-            ResponderListItem(
-                id=r.id,
-                first_name=r.first_name,
-                last_name=r.last_name,
-                phone_number=r.phone_number,
-                status=r.status,
-                has_push_subscription=r.id in ids_with_push,
-            )
-            for r in responders
-        ]
+class ResponderAppService:
     
-
-    async def get_responder_details(self, responder_id: str, db: AsyncSession) -> ResponderDetailsResponse | None:
-        responder: Responder = await responder_crud.get_details(db=db, id=responder_id)
-        
-        if not responder:
-            raise HTTPException(status_code=404, detail="Responder not found.")
-        
-        return ResponderDetailsResponse(
-            created_at=responder.created_at,
-            created_by=f"{responder.admin_user.first_name} {responder.admin_user.last_name}",
-            activated_at=responder.activated_at
-        )
-    
-
-    async def bulk_create_responders(self, responders: list[ResponderCreate], db: AsyncSession, user_id: str) -> list[ResponderListItem]:
-        created_responders = await responder_crud.bulk_create_and_return(db=db, objs_in=responders, created_by_id=user_id)
-        return [
-            ResponderListItem(
-                id=responder.id,
-                first_name=responder.first_name,
-                last_name=responder.last_name,
-                phone_number=responder.phone_number,
-                status=responder.status,
-                has_push_subscription=False,  # newly created responders have no subscriptions yet
-            ) for responder in created_responders
-        ]
-
 
     async def get_responder_for_approval(self, phone_number: str, db: AsyncSession) -> ResponderForApproval | None:
         responder: Responder = await responder_crud.get_by_phone_number(db=db, phone_number=phone_number)
@@ -267,4 +228,4 @@ class ResponderService:
         )
 
 
-responder_service = ResponderService()
+responder_app_service = ResponderAppService()

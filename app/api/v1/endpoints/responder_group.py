@@ -15,19 +15,19 @@ async def get_all_groups(db: AsyncSession = Depends(get_db)) -> list[ResponderGr
 
 @router.post("", response_model=ResponderGroupItem)
 async def create_group(
-                    group: ResponderGroupCreate, 
-                    db: AsyncSession = Depends(get_db), 
-                    current_user: CurrentUser = Depends(require_auth)) -> ResponderGroupItem:
+    group: ResponderGroupCreate, 
+    db: AsyncSession = Depends(get_db), 
+    current_user: CurrentUser = Depends(require_auth)) -> ResponderGroupItem:
     
     return await responder_group_service.create_group(group=group, db=db, current_user=current_user)
 
 
 @router.put("/{group_id}", response_model=ResponderGroupItem)
 async def update_group(
-                    group_id: int, 
-                    group: ResponderGroupCreate, 
-                    db: AsyncSession = Depends(get_db), 
-                    current_user: CurrentUser = Depends(require_auth)) -> ResponderGroupItem:
+    group_id: int, 
+    group: ResponderGroupCreate, 
+    db: AsyncSession = Depends(get_db), 
+    current_user: CurrentUser = Depends(require_auth)) -> ResponderGroupItem:
     
     return await responder_group_service.update_group(
         group_id=group_id,
@@ -38,5 +38,9 @@ async def update_group(
 
 
 @router.delete("/{group_id}", status_code=204)
-async def delete_group(group_id: int, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_auth)) -> None:
+async def delete_group(
+    group_id: int, 
+    db: AsyncSession = Depends(get_db), 
+    current_user: CurrentUser = Depends(require_auth)) -> None:
+    
     await responder_group_service.delete_group(group_id=group_id, db=db, current_user=current_user)

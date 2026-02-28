@@ -27,11 +27,7 @@ class PushResult:
 
 class NotificationService:
 
-    async def send_notification_to_subscribers(
-        self,
-        payload: SendNotificationSchema,
-        db: AsyncSession,
-    ) -> None:
+    async def send_notification_to_subscribers(self, payload: SendNotificationSchema, db: AsyncSession) -> None:
         
         responder_ids = list(dict.fromkeys(payload.responder_ids))
         if not responder_ids:
@@ -121,11 +117,7 @@ class NotificationService:
         )
 
 
-    async def _resolve_notification_content(
-        self,
-        payload: SendNotificationSchema,
-        db: AsyncSession,
-    ) -> tuple[str, str, NotificationType]:
+    async def _resolve_notification_content(self, payload: SendNotificationSchema, db: AsyncSession) -> tuple[str, str, NotificationType]:
         
         has_template = payload.template_id is not None
         has_custom_notification = payload.custom_notification is not None
@@ -167,12 +159,7 @@ class NotificationService:
         return custom_title, custom_message, custom_notification.type
 
 
-    async def send_push(
-        self,
-        subscription: PushSubscription,
-        notif_title: str,
-        notif_message: str,
-    ) -> PushResult:
+    async def send_push(self, subscription: PushSubscription, notif_title: str, notif_message: str) -> PushResult:
         
         try:
             webpush(

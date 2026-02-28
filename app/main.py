@@ -10,7 +10,7 @@ from app.core.cloudinary import init_cloudinary
 
 from app.core.config import settings
 from app.core.rate_limiter import limiter
-from app.middleware import register_middleware
+from app.middleware.registry import register_middleware
 
 from app.services.stream import stream_processor
 from prometheus_fastapi_instrumentator import Instrumentator

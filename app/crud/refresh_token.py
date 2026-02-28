@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 class CRUDRefreshToken(CRUDBase[None, None, None]):
     
     async def get_by_token(self, db: AsyncSession, token: str) -> RefreshToken:
+        
         result = await db.execute(
             select(RefreshToken).
             where(RefreshToken.token == token)
@@ -18,6 +19,7 @@ class CRUDRefreshToken(CRUDBase[None, None, None]):
 
 
     async def create(self, user_id: UUID, token: str, expires_at: datetime, db: AsyncSession) -> None:
+
         db_token = RefreshToken(
             admin_user_id=user_id,
             token=token,
@@ -28,6 +30,7 @@ class CRUDRefreshToken(CRUDBase[None, None, None]):
 
 
     async def delete_by_user_id(self, db: AsyncSession, user_id: UUID) -> None:
+
         await db.execute(
             delete(RefreshToken)
             .where(RefreshToken.admin_user_id == user_id)

@@ -1,5 +1,4 @@
 from app.schemas.subscription import SubscriptionSchema
-
 from .base import CRUDBase
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +8,7 @@ from uuid import UUID
 class CRUDPushSubscription(CRUDBase):
     
     async def get_by_responder_id(self, responder_id: int, endpoint: str, db: AsyncSession) -> bool:
+
         result = await db.execute(
             select(self.model).filter_by(
                 responder_id=responder_id,
@@ -19,6 +19,7 @@ class CRUDPushSubscription(CRUDBase):
 
 
     async def create(self, data: SubscriptionSchema, db: AsyncSession) -> None:
+
         sub = PushSubscription(
             responder_id=data.responder_id,
             endpoint=data.endpoint,
@@ -30,6 +31,7 @@ class CRUDPushSubscription(CRUDBase):
 
 
     async def get_by_responder_ids(self, responder_ids: list[UUID], db: AsyncSession) -> list[PushSubscription]:
+        
         if not responder_ids:
             return []
 

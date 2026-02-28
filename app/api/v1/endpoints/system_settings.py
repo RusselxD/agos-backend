@@ -20,11 +20,12 @@ async def get_system_setting_value(key: str, db: AsyncSession = Depends(get_db))
 
 
 @router.put("/{key}", response_model=None)
-async def update_system_setting(key: str, 
-                                value: SystemSettingsUpdate, 
-                                db: AsyncSession = Depends(get_db),
-                                current_user: CurrentUser = Depends(require_auth)
-                                ) -> any:
+async def update_system_setting(
+    key: str, 
+    value: SystemSettingsUpdate, 
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_auth)) -> any:
+    
     return await system_settings_service.update_setting(
         db=db,
         key=key,

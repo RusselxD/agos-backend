@@ -12,6 +12,7 @@ from datetime import datetime
 class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
     
     async def get_all_admins(self, db: AsyncSession) -> list[AdminUser]:
+
         items: list[AdminUser] = await db.execute(
             select(self.model)
             .options(joinedload(self.model.admin_creator))
@@ -21,6 +22,7 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
 
 
     async def get_by_phone(self, db: AsyncSession, phone_number: str) -> AdminUser | None:
+
         result = await db.execute(
             select(self.model)
             .filter(self.model.phone_number == phone_number)
@@ -30,6 +32,7 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
     
 
     async def phone_exists(self, db: AsyncSession, phone_number: str) -> bool:
+
         result = await db.execute(
             select(exists().where(self.model.phone_number == phone_number))
         )
@@ -37,6 +40,7 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
 
 
     async def create(self, db: AsyncSession, obj_in: AdminUserCreate) -> AdminUser:
+
         db_obj = AdminUser(
             phone_number=obj_in.phone_number,
             first_name=obj_in.first_name,
@@ -57,6 +61,7 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
 
 
     async def update_password(self, db: AsyncSession, user_id: str, new_password: str) -> AdminUser:
+
         result = await db.execute(
             select(AdminUser).filter(AdminUser.id == user_id)
         )
@@ -76,6 +81,7 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
 
 
     async def update_last_login(self, db: AsyncSession, user: AdminUser, last_login: datetime) -> None:
+        
         user.last_login = last_login
         await db.commit()
 

@@ -14,6 +14,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
 
     async def get(self, db: AsyncSession, id: int) -> Optional[ModelType]:
+
         result = await db.execute(
             select(self.model).filter(self.model.id == id)
             .execution_options(populate_existing=False)
@@ -22,6 +23,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     
 
     async def get_all(self, db: AsyncSession) -> List[ModelType]:
+
         result = await db.execute(
             select(self.model)
             .execution_options(populate_existing=False)
@@ -30,6 +32,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     
 
     async def get_with_lock(self, db: AsyncSession, id: str) -> ModelType:
+
         result = await db.execute(
             select(self.model)
             .filter(self.model.id == id)
@@ -39,6 +42,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
 
     async def create_and_return(self, db: AsyncSession, obj_in: CreateSchemaType) -> ModelType:
+
         obj_in_data = obj_in.model_dump()
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
@@ -48,6 +52,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     
 
     async def create_only(self, db: AsyncSession, obj_in: CreateSchemaType) -> None:
+
         obj_in_data = obj_in.model_dump()
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
@@ -55,6 +60,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
 
     async def create_multi(self, db: AsyncSession, objs_in: List[CreateSchemaType]) -> List[ModelType]:
+
         db_objs = []
         for obj_in in objs_in:
             obj_in_data = obj_in.model_dump()
@@ -65,6 +71,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
 
     async def update(self, db: AsyncSession, db_obj: ModelType, obj_in: UpdateSchemaType) -> ModelType:
+
         obj_data = obj_in.model_dump(exclude_unset=True)
         for field, value in obj_data.items():
             setattr(db_obj, field, value)
@@ -75,6 +82,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     
 
     async def delete(self, db: AsyncSession, id: int) -> Optional[ModelType]:
+        
         result = await db.execute(
             select(self.model).filter(self.model.id == id)
         )

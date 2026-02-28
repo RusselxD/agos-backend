@@ -18,9 +18,9 @@ async def get_all_notifications(db: AsyncSession = Depends(get_db)) -> list[Noti
 
 @router.post("/", response_model=NotificationTemplateResponse)
 async def create_notification_template(
-                                    payload: CreateNotificationTemplateRequest,
-                                    db: AsyncSession = Depends(get_db),
-                                    current_user: CurrentUser = Depends(require_auth)) -> NotificationTemplateResponse:
+    payload: CreateNotificationTemplateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_auth)) -> NotificationTemplateResponse:
 
     return await notification_template_service.create_notification_template(
         payload=payload, db=db, created_by_id=current_user.id
@@ -29,10 +29,10 @@ async def create_notification_template(
 
 @router.put("/{template_id}", response_model=NotificationTemplateResponse)
 async def update_notification_template(
-                                    template_id: int,
-                                    payload: CreateNotificationTemplateRequest,
-                                    current_user: CurrentUser = Depends(require_auth),
-                                    db: AsyncSession = Depends(get_db)) -> NotificationTemplateResponse:
+    template_id: int,
+    payload: CreateNotificationTemplateRequest,
+    current_user: CurrentUser = Depends(require_auth),
+    db: AsyncSession = Depends(get_db)) -> NotificationTemplateResponse:
 
     return await notification_template_service.update_notification_template(
         template_id=template_id,
@@ -46,8 +46,8 @@ async def update_notification_template(
 async def delete_notification_template(
     template_id: int,
     current_user: CurrentUser = Depends(require_auth),
-    db: AsyncSession = Depends(get_db),
-) -> None:
+    db: AsyncSession = Depends(get_db),) -> None:
+    
     await notification_template_service.delete_notification_template(
         template_id=template_id,
         db=db,

@@ -6,6 +6,7 @@ from app.core.cloudinary import upload_image
 class UploadService():
     
     async def upload_responder_id_photo(self, file: UploadFile = File(...)):
+        
         """
         Uploads a responder's ID photo directly to Cloudinary.
         """

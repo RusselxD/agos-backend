@@ -50,6 +50,7 @@ class WebSocketService:
 
 
     async def _get_initial_sensor_reading_data(self, db: AsyncSession, sensor_device_id: int) -> SensorWebSocketResponse:
+        
         latest_sensor_reading: SensorReading = await sensor_reading_crud.get_latest_reading(db=db, sensor_device_id=sensor_device_id)
 
         # If no reading found or beyond the warning period, send error message
@@ -79,6 +80,7 @@ class WebSocketService:
 
 
     async def _get_initial_model_reading_data(self, db: AsyncSession, camera_device_id: int) -> ModelWebSocketResponse:
+
         latest_model_reading = await model_readings_crud.get_latest_reading(db=db, camera_device_id=camera_device_id)
 
         # If no reading found or beyond the warning period, send error message
@@ -105,6 +107,7 @@ class WebSocketService:
 
 
     async def _get_initial_weather_data(self, db: AsyncSession, location_id: int) -> WeatherWebSocketResponse:
+
         latest_weather_condition = await weather_crud.get_latest_weather(db=db, location_id=location_id)
 
         # If no reading found or beyond the warning period, send error message
@@ -138,6 +141,7 @@ class WebSocketService:
 
 
     async def _get_initial_fusion_analysis_data(self, location_id: int) -> FusionWebSocketResponse:
+
         fusion_analysis_data = fusion_state_manager.get_fusion_analysis_state(location_id=location_id)
 
         if not fusion_analysis_data:
@@ -155,6 +159,7 @@ class WebSocketService:
 
 
     async def broadcast_update(self, update_type: str, data: dict, location_id: int):
+
         await ws_manager.broadcast_to_location({
             "type": update_type,
             "data": data

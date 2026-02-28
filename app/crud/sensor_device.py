@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload
 class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
     async def get_default_sensor_by_location(self, db: AsyncSession, location_id: int) -> SensorDevice | None:
+
         result = await db.execute(
             select(self.model.id, self.model.device_name)
             .filter(self.model.location_id == location_id)
@@ -18,6 +19,7 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
 
     async def get_sensor_device_name(self, db: AsyncSession, sensor_device_id: int) -> str:
+
         result = await db.execute(
             select(self.model.device_name)
             .filter(self.model.id == sensor_device_id)
@@ -27,6 +29,7 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
 
     async def get(self, db: AsyncSession, id: int) ->  SensorDeviceResponse | None:
+
         sensor_devices = await db.execute(
             select(self.model)
             .filter(self.model.id == id)
@@ -45,6 +48,7 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
 
     async def get_device_config(self, db: AsyncSession, sensor_device_id: int) -> SensorConfig:
+        
         sensor_device = await db.execute(
             select(self.model.sensor_config)
             .filter(self.model.id == sensor_device_id)
@@ -53,6 +57,7 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
 
     async def get_device_config_by_location(self, db: AsyncSession, location_id: int) -> SensorConfig:
+
         sensor_device = await db.execute(
             select(self.model.sensor_config)
             .filter(self.model.location_id == location_id)
@@ -61,6 +66,7 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
 
 
     async def get_id_by_location(self, db: AsyncSession, location_id: int) -> int | None:
+
         result = await db.execute(
             select(self.model.id)
             .filter(self.model.location_id == location_id)

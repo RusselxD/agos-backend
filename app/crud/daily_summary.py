@@ -7,7 +7,12 @@ from app.crud.base import CRUDBase
 
 class CRUDDailySummary(CRUDBase):
     
-    async def get_by_location_and_date(self, db: AsyncSession, location_id: int, summary_date: date) -> DailySummary | None:
+    async def get_by_location_and_date(
+            self, 
+            db: AsyncSession, 
+            location_id: int, 
+            summary_date: date) -> DailySummary | None:
+        
         result = await db.execute(
             select(self.model).where(
                 and_(
@@ -20,6 +25,7 @@ class CRUDDailySummary(CRUDBase):
 
 
     async def get_summaries_by_location(self, db: AsyncSession, location_id: int, limit: int = 30) -> list[DailySummary]:
+
         """Get recent daily summaries for a location, ordered by date descending."""
         result = await db.execute(
             select(self.model)
@@ -30,7 +36,13 @@ class CRUDDailySummary(CRUDBase):
         return result.scalars().all()
 
 
-    async def get_summaries_in_range(self, db: AsyncSession, location_id: int, start_date: date, end_date: date) -> list[DailySummary]:
+    async def get_summaries_in_range(
+            self, 
+            db: AsyncSession, 
+            location_id: int, 
+            start_date: date, 
+            end_date: date) -> list[DailySummary]:
+        
         """Get daily summaries for a location within a date range."""
         result = await db.execute(
             select(self.model).where(
@@ -44,7 +56,13 @@ class CRUDDailySummary(CRUDBase):
         return result.scalars().all()
 
 
-    async def create_daily_summary(self, db: AsyncSession, location_id: int, summary_date: date, summary_data: dict) -> DailySummary:
+    async def create_daily_summary(
+            self, 
+            db: AsyncSession, 
+            location_id: int, 
+            summary_date: date, 
+            summary_data: dict) -> DailySummary:
+        
         db_summary = self.model(
             location_id=location_id,
             summary_date=summary_date,
@@ -56,7 +74,13 @@ class CRUDDailySummary(CRUDBase):
         return db_summary
 
 
-    async def get_daily_summaries(self, db: AsyncSession, location_id: int, start_date: datetime, end_date: datetime) -> list[DailySummary]:
+    async def get_daily_summaries(
+            self, 
+            db: AsyncSession, 
+            location_id: int, 
+            start_date: datetime, 
+            end_date: datetime) -> list[DailySummary]:
+        
         """Get daily summaries for a location within a datetime range."""
         result = await db.execute(
             select(self.model).where(
@@ -72,6 +96,7 @@ class CRUDDailySummary(CRUDBase):
 
 
     async def get_available_summary_days(self, db: AsyncSession, location_id: int) -> list[datetime]:
+        
         """Get list of dates for which summaries are available for a location."""
         result = await db.execute(
             select(func.distinct(func.date(DailySummary.summary_date)))

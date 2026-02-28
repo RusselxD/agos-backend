@@ -1,8 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.notification_dispatch import NotificationDispatch
 from app.models.notification_template import NotificationType
-
 from .base import CRUDBase
 
 
@@ -15,6 +13,7 @@ class CRUDNotificationDispatch(CRUDBase):
         title: str,
         message: str,
     ) -> NotificationDispatch:
+        
         dispatch = NotificationDispatch(
             type=notif_type,
             title=title,

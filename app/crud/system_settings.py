@@ -10,6 +10,7 @@ from typing import Any
 class CRUDSystemSettings(CRUDBase[SystemSettings, SystemSettingsCreate, SystemSettingsUpdate]):
     
     async def get(self, db: AsyncSession, key: str) -> SystemSettings:
+
         result = await db.execute(
             select(self.model)
             .filter(self.model.key == key)
@@ -25,6 +26,7 @@ class CRUDSystemSettings(CRUDBase[SystemSettings, SystemSettingsCreate, SystemSe
 
 
     async def get_value(self, db: AsyncSession, key: str) -> Any:
+        
         setting = await self.get(db, key)
         
         if not setting:

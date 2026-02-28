@@ -7,6 +7,7 @@ from sqlalchemy import select
 class CRUDLocation(CRUDBase[None, None, None]):
     
     async def get_default_location(self, db: AsyncSession) -> Location | None:
+        
         result = await db.execute(
             select(self.model.id, self.model.name).limit(1)
         )
@@ -14,6 +15,7 @@ class CRUDLocation(CRUDBase[None, None, None]):
 
 
     async def get_all_ids(self, db: AsyncSession) -> list[int]:
+
         result = await db.execute(
             select(self.model.id)
         )
@@ -22,6 +24,7 @@ class CRUDLocation(CRUDBase[None, None, None]):
 
 
     async def get_all_coordinates(self, db: AsyncSession):
+
         result = await db.execute(
             select(self.model.id, self.model.latitude, self.model.longitude)
         )

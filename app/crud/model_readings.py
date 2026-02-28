@@ -8,6 +8,7 @@ from sqlalchemy import select
 class CRUDModelReadings(CRUDBase[ModelReadings, ModelReadingCreate, None]):
     
     async def get_latest_reading(self, db: AsyncSession, camera_device_id: int) -> ModelReadings | None:
+        
         result = await db.execute(
             select(self.model.blockage_status, self.model.timestamp)
             .filter(self.model.camera_device_id == camera_device_id)

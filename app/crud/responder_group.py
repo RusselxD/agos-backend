@@ -13,6 +13,7 @@ from app.models.responder_related.responders import responder_groups
 class CRUDResponderGroup(CRUDBase[Group, None, None]):
     
     async def get_by_name(self, db: AsyncSession, name: str) -> Group | None:
+
         result = await db.execute(
             select(self.model).where(self.model.name == name)
         )
@@ -20,6 +21,7 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
 
 
     async def get_all_with_member_ids(self, db: AsyncSession) -> list[Group]:
+
         result = await db.execute(
             select(self.model)
             .options(
@@ -33,6 +35,7 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
 
 
     async def create_with_members(self, db: AsyncSession, name: str, responders: list[Responder]) -> Group:
+
         # Assign relationship while the instance is transient to avoid async lazy-load
         # of the previous collection state (MissingGreenlet).
         group = self.model(name=name, responders=responders)
@@ -47,6 +50,7 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
         name: str,
         member_ids: list[UUID],
     ) -> tuple[Group, int, int]:
+        
         desired_member_ids = set(member_ids)
         result = await db.execute(
             select(responder_groups.c.responder_id).where(
@@ -83,6 +87,7 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
 
 
     async def name_exists(self, db: AsyncSession, name: str) -> bool:
+
         result = await db.execute(
             select(self.model).where(self.model.name == name)
         )
@@ -90,6 +95,7 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
 
 
     async def ensure_exists(self, db: AsyncSession, name: str) -> Group:
+
         existing = await self.get_by_name(db=db, name=name)
         if existing:
             return existing
@@ -110,7 +116,14 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
         return group
 
 
-    async def add_member(self, db: AsyncSession, group_id: int, responder_id: UUID, *, commit: bool = True) -> None:
+    async def add_member(
+            self, 
+            db: AsyncSession, 
+            group_id: int, 
+            responder_id: UUID, 
+            *, 
+            commit: bool = True) -> None:
+
         await db.execute(
             insert(responder_groups).values(
                 responder_id=responder_id,
@@ -122,6 +135,7 @@ class CRUDResponderGroup(CRUDBase[Group, None, None]):
 
 
     async def delete_no_commit(self, db: AsyncSession, group: Group) -> None:
+
         await db.delete(group)
 
 

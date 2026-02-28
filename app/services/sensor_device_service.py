@@ -12,6 +12,7 @@ from app.services import sensor_reading_service
 class SensorDeviceService:
     
     async def get_device_status(self, db: AsyncSession, sensor_device_id: int) -> SensorDeviceStatusResponse:
+        
         sensor_device: SensorDeviceResponse = await sensor_device_crud.get(db=db, id=sensor_device_id)
 
         if not sensor_device:
@@ -61,6 +62,7 @@ class SensorDeviceService:
 
 
     async def get_device_config(self, db: AsyncSession, sensor_device_id: int) -> SensorConfig:
+
         sensor_config = await sensor_device_crud.get_device_config(db=db, sensor_device_id=sensor_device_id)
         if not sensor_config:
             raise HTTPException(status_code=404, detail="Sensor device config not found")
@@ -68,8 +70,7 @@ class SensorDeviceService:
 
 
     async def get_device_config_by_location(self, db: AsyncSession, location_id: int) -> SensorConfig:
-        print("NAKAPASOK NA DITO")
-        print(location_id)
+
         sensor_config = await sensor_device_crud.get_device_config_by_location(db=db, location_id=location_id)
         if not sensor_config:
             raise HTTPException(status_code=404, detail="Sensor device config not found for this location")

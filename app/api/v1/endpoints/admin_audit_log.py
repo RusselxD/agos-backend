@@ -9,8 +9,9 @@ router = APIRouter(prefix="/admin-audit-logs", tags=["admin-audit-logs"])
 
 
 @router.get("/paginated", response_model=AdminAuditLogPaginatedResponse, dependencies=[Depends(require_auth)])
-async def get_admin_audit_logs_paginated(page: int = 1, 
-                                        page_size: int = 10, 
-                                        db: AsyncSession = Depends(get_db)) -> AdminAuditLogPaginatedResponse:
+async def get_admin_audit_logs_paginated(
+    page: int = 1, 
+    page_size: int = 10, 
+    db: AsyncSession = Depends(get_db)) -> AdminAuditLogPaginatedResponse:
     
     return await admin_audit_log_service.get_admin_logs_paginated(db=db, page=page, page_size=page_size)

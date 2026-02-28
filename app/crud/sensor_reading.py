@@ -1,17 +1,18 @@
 import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import SensorReading
-from app.schemas import SensorReadingMinimalResponse, SensorReadingCreate, SensorReadingForExport
+from app.schemas import SensorReadingMinimalResponse, SensorReadingCreate
 from app.crud.base import CRUDBase
 from app.models import SensorDevice
 from sqlalchemy import func, select, Row
 from typing import List, Sequence
-from sqlalchemy.orm import joinedload
+
 
 class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
 
     # For getting the latest reading for a specific sensor
     async def get_latest_reading(self, db: AsyncSession, sensor_device_id: int) -> SensorReading | None:
+
         result = await db.execute(
             select(self.model)
             .filter(self.model.sensor_device_id == sensor_device_id)
@@ -24,6 +25,7 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
 
     # For getting the previous reading before a specific timestamp
     async def get_previous_reading(self, db: AsyncSession, before_timestamp: datetime) -> SensorReading | None:
+
         result = await db.execute(
             select(self.model)
             .filter(self.model.timestamp < before_timestamp)
@@ -35,11 +37,12 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
 
 
     # For "Sensor" page's table
-    async def get_items_paginated(self, 
-                                db: AsyncSession, 
-                                sensor_device_id: int, 
-                                page: int = 1, 
-                                page_size: int = 10) -> List[SensorReadingMinimalResponse]:
+    async def get_items_paginated(
+        self, 
+        db: AsyncSession, 
+        sensor_device_id: int, 
+        page: int = 1, 
+        page_size: int = 10) -> List[SensorReadingMinimalResponse]:
 
         # Use LAG window function to get previous reading's water level
         prev_water_level = func.lag(self.model.water_level_cm).over(
@@ -67,6 +70,7 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
 
 
     async def get_readings_since(self, db: AsyncSession, sensor_device_id: int, since_datetime: datetime) -> Sequence[Row]:
+
         result = await db.execute(
             select(self.model.water_level_cm, self.model.timestamp)
             .filter(self.model.sensor_device_id == sensor_device_id)
@@ -77,6 +81,7 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
 
 
     async def get_available_reading_days(self, db: AsyncSession, sensor_device_id: int) -> List[str]:
+
         result = await db.execute(
             select(func.distinct(func.date(self.model.timestamp)))
             .filter(self.model.sensor_device_id == sensor_device_id)
@@ -86,7 +91,13 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
         return [date.isoformat() for date in dates]
 
 
-    async def get_readings_for_export(self, db: AsyncSession, start_datetime: datetime, end_datetime: datetime, sensor_device_id: int) -> list[SensorReading]:
+    async def get_readings_for_export(
+        self, 
+        db: AsyncSession, 
+        start_datetime: datetime, 
+        end_datetime: datetime, 
+        sensor_device_id: int) -> list[SensorReading]:
+        
         # Use LAG window function to get previous reading's water level
         prev_water_level = func.lag(self.model.water_level_cm).over(
             order_by=self.model.timestamp
@@ -109,6 +120,7 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
 
     # For sensor's periodic reading insertion
     async def create_record(self, db: AsyncSession, db_obj: SensorReading) -> SensorReading:
+
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)

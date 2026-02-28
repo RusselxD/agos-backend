@@ -1,7 +1,5 @@
 from uuid import UUID
-
 from fastapi import HTTPException, status
-
 from app.models.notification_template import NotificationType
 from app.schemas import NotificationTemplateResponse, CreateNotificationTemplateRequest
 from sqlalchemy.ext.asyncio import AsyncSession

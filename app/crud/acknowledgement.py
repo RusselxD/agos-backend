@@ -5,7 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 class CRUDAcknowledgement(CRUDBase):
     
-    async def create_acknowledgement(self, responder_id: UUID, delivery_id: UUID, message: str | None, db: AsyncSession) -> Acknowledgement:
+    async def create_acknowledgement(
+            self, 
+            responder_id: UUID, 
+            delivery_id: UUID, 
+            message: str | None, db: AsyncSession) -> Acknowledgement:
+        
         new_ack = Acknowledgement(
             responder_id=responder_id,
             delivery_id=delivery_id,
