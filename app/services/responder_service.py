@@ -120,6 +120,7 @@ class ResponderService:
                 title=delivery.dispatch.title,
                 message=delivery.dispatch.message,
                 timestamp=delivery.sent_at,
+                is_acknowledged=delivery.acknowledgement is not None,
                 acknowledged_at=delivery.acknowledgement.acknowledged_at if delivery.acknowledgement else None
             ) for delivery in deliveries
         ]
