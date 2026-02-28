@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Index, Integer, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -15,7 +15,11 @@ class DeliveryStatus(enum.Enum):
 """What's actually being sent."""
 class NotificationDelivery(Base):
     __tablename__ = "notification_deliveries"
-    __table_args__ = (UniqueConstraint("dispatch_id", "responder_id", name="uq_delivery_dispatch_responder"),)
+    __table_args__ = (
+        UniqueConstraint("dispatch_id", "responder_id", name="uq_delivery_dispatch_responder"),
+        UniqueConstraint("id", "responder_id", name="uq_delivery_id_responder"),
+        Index("ix_notification_deliveries_responder_status", "responder_id", "status"),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     dispatch_id = Column(Integer, ForeignKey("notification_dispatches.id", ondelete="CASCADE"), nullable=False)
@@ -29,4 +33,10 @@ class NotificationDelivery(Base):
     dispatch = relationship("NotificationDispatch", back_populates="deliveries")
     responder = relationship("Responder", back_populates="deliveries")
     subscription = relationship("PushSubscription", back_populates="deliveries")
-    acknowledgement = relationship("Acknowledgement", back_populates="delivery", uselist=False, cascade="all, delete-orphan")
+    acknowledgement = relationship(
+        "Acknowledgement",
+        back_populates="delivery",
+        uselist=False,
+        cascade="all, delete-orphan",
+        foreign_keys="Acknowledgement.delivery_id",
+    )

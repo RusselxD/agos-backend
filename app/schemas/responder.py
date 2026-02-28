@@ -1,5 +1,6 @@
 from typing import Literal
 
+from app.models.notification_template import NotificationType
 from app.models.responder_related.responders import ResponderStatus
 from pydantic import BaseModel
 
@@ -77,3 +78,13 @@ class ResponderDetails(BaseModel):
 class NotifPreferenceUpdateRequest(BaseModel):
     key: NotifPreferenceKey
     value: bool
+
+
+class AlertListItem(BaseModel):
+    id: UUID
+    type: NotificationType
+    title: str
+    message: str
+    timestamp: datetime
+    is_acknowledged: bool
+    acknowledged_at: datetime | None

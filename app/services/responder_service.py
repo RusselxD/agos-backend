@@ -1,16 +1,18 @@
 from fastapi import HTTPException
+from app.crud import notification_delivery_crud
 from app.crud.responder import responder_crud, responder_otp_verification_crud
 from app.crud.responder_group import responder_group_crud
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 from app.core.config import settings
+from app.models import NotificationDelivery
 from uuid import UUID
 import random
 from app.core.security import get_otp_hash, verify_otp as verify_otp_hash
 from app.models import Responder
 from app.models.responder_related.group import DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME
 from app.models.responder_related.responders import NotificationPreference, ResponderStatus
-from app.schemas import ResponderListItem, ResponderDetailsResponse, ResponderOTPVerifyResponse
+from app.schemas import ResponderListItem, ResponderDetailsResponse, ResponderOTPVerifyResponse, AlertListItem
 from app.schemas.responder import ResponderCreate, ResponderDetails, ResponderForApproval, ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderSendSMSRequest
 from app.services.sms_service import sms_service
 
@@ -98,6 +100,31 @@ class ResponderService:
         )
 
 
+    async def get_unread_alerts_count(self, responder_id: UUID, db: AsyncSession) -> int:
+        return await notification_delivery_crud.get_unread_alerts_count(
+            responder_id=responder_id,
+            db=db,
+        )
+
+
+    async def get_responder_alerts(self, responder_id: UUID, db: AsyncSession) -> list[AlertListItem]:
+        deliveries: list[NotificationDelivery] = await notification_delivery_crud.get_alerts_per_responder(
+            responder_id=responder_id,
+            db=db,
+        )
+
+        return [
+            AlertListItem(
+                id=delivery.id,
+                type=delivery.dispatch.type,
+                title=delivery.dispatch.title,
+                message=delivery.dispatch.message,
+                timestamp=delivery.sent_at,
+                acknowledged_at=delivery.acknowledgement.acknowledged_at if delivery.acknowledgement else None
+            ) for delivery in deliveries
+        ]
+    
+
     async def get_responder_notif_preferences(self, responder_id: UUID, db: AsyncSession) -> NotificationPreference:
         responder: Responder = await responder_crud.get(db=db, id=responder_id)
         
@@ -118,6 +145,7 @@ class ResponderService:
         responder.notif_preferences = prefs.model_copy(update={key: value})
         db.add(responder)
         await db.commit()
+
 
     async def send_otp(self, responder: Responder, db: AsyncSession) -> None:
 

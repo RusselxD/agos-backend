@@ -4,7 +4,7 @@ from app.api.v1.dependencies import CurrentUser, require_auth
 from app.core.database import get_db
 from fastapi import Depends
 from uuid import UUID
-from app.schemas import ResponderCreate, ResponderDetailsResponse, ResponderListItem, ResponderDetails, NotifPreferenceUpdateRequest
+from app.schemas import ResponderCreate, ResponderDetailsResponse, ResponderListItem, ResponderDetails, NotifPreferenceUpdateRequest, AlertListItem
 from app.schemas import ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderSendSMSRequest, ResponderRegistrationRequest
 from app.services import responder_service
 from app.models.responder_related.responders import NotificationPreference
@@ -39,6 +39,16 @@ async def bulk_create_responders(
 @router.get("/{responder_id}", response_model=ResponderDetails)
 async def get_responder_details_for_app(responder_id: UUID, db:AsyncSession = Depends(get_db)) -> ResponderDetails:
     return await responder_service.get_responder_details_for_app(responder_id=responder_id, db=db)
+
+
+@router.get("/unread-alerts-count/{responder_id}", response_model=int)
+async def get_unread_alerts_count(responder_id: UUID, db: AsyncSession = Depends(get_db)) -> int:
+    return await responder_service.get_unread_alerts_count(responder_id=responder_id, db=db)
+
+
+@router.get("/alerts/{responder_id}", response_model=list[AlertListItem])
+async def get_responder_alerts(responder_id: UUID, db: AsyncSession = Depends(get_db)):
+    return await responder_service.get_responder_alerts(responder_id=responder_id, db=db)
 
 
 @router.get("/notif-preferences/{responder_id}", response_model=NotificationPreference)

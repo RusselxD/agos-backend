@@ -13,7 +13,7 @@ from app.crud import (
     notification_template_crud,
     push_subscription_crud,
 )
-from app.models.notification_template import NotificationType
+from app.models.notification_template import NotificationTemplate, NotificationType
 from app.models.responder_related.notification_delivery import DeliveryStatus
 from app.models.responder_related.push_subscription import PushSubscription
 from app.schemas.subscription import SendNotificationSchema
@@ -26,22 +26,23 @@ class PushResult:
 
 
 class NotificationService:
+
     async def send_notification_to_subscribers(
         self,
         payload: SendNotificationSchema,
         db: AsyncSession,
     ) -> None:
+        
         responder_ids = list(dict.fromkeys(payload.responder_ids))
         if not responder_ids:
             return
 
-        template_id, notif_title, notif_message, notif_type = await self._resolve_notification_content(
+        notif_title, notif_message, notif_type = await self._resolve_notification_content(
             payload=payload,
             db=db,
         )
         dispatch = await notification_dispatch_crud.create_for_send(
             db=db,
-            template_id=template_id,
             notif_type=notif_type,
             title=notif_title,
             message=notif_message,
@@ -124,7 +125,8 @@ class NotificationService:
         self,
         payload: SendNotificationSchema,
         db: AsyncSession,
-    ) -> tuple[int | None, str, str, NotificationType]:
+    ) -> tuple[str, str, NotificationType]:
+        
         has_template = payload.template_id is not None
         has_custom_notification = payload.custom_notification is not None
 
@@ -135,7 +137,7 @@ class NotificationService:
             )
 
         if payload.template_id is not None:
-            template = await notification_template_crud.get(db=db, id=payload.template_id)
+            template: NotificationTemplate = await notification_template_crud.get(db=db, id=payload.template_id)
             if not template:
                 raise HTTPException(
                     status_code=404,
@@ -146,7 +148,7 @@ class NotificationService:
                     status_code=400,
                     detail="Manual notifications are only supported for announcements",
                 )
-            return template.id, template.title, template.message, template.type
+            return template.title, template.message, template.type
 
         custom_notification = payload.custom_notification
         if custom_notification.type != NotificationType.ANNOUNCEMENT:
@@ -162,7 +164,7 @@ class NotificationService:
                 status_code=400,
                 detail="Custom notification title and message cannot be empty",
             )
-        return None, custom_title, custom_message, custom_notification.type
+        return custom_title, custom_message, custom_notification.type
 
 
     async def send_push(
