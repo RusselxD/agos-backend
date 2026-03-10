@@ -20,3 +20,4 @@ from .analysis_service import analysis_service
 from .notification_template_service import notification_template_service
 from .push_subscription_service import push_subscription_service
 from .notification_service import notification_service
+from .notification_log_service import notification_log_service
