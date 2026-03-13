@@ -135,15 +135,20 @@ async def rpi_websocket_endpoint(websocket: WebSocket):
                     await websocket.send_json(
                         {"type": "frame_processed", "data": result}
                     )
+                except WebSocketDisconnect:
+                    break
                 except Exception:
                     logger.exception(
                         "ML inference failed for camera_device_id=%s, location_id=%s",
                         camera_device_id,
                         location_id,
                     )
-                    await websocket.send_json(
-                        {"type": "error", "message": "Internal server error"}
-                    )
+                    try:
+                        await websocket.send_json(
+                            {"type": "error", "message": "Internal server error"}
+                        )
+                    except WebSocketDisconnect:
+                        break
 
             # ── Text frame: control messages (ping, etc.) ────────────────────
             elif message.get("text"):
