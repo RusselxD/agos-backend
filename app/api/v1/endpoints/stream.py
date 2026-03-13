@@ -1,7 +1,7 @@
 import base64
 import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Query, Request, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
 from fastapi.responses import FileResponse, Response
 from pathlib import Path
 from app.schemas import StreamStatus, FrameResponse, FrameListResponse
@@ -9,6 +9,10 @@ from app.services import stream_processor, frame_manager
 from app.core.config import settings
 from app.core.rate_limiter import limiter
 from app.core.ws_manager import ws_manager
+from app.api.v1.dependencies import require_iot_api_key
+from app.core.database import get_db
+from app.crud import camera_device_crud
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +83,22 @@ async def list_frames(
 @router.post("/upload-image")
 @limiter.limit("35/minute")
 async def upload_camera_image(
-    request: Request, location_id: int, file: UploadFile = File(...)
+    request: Request,
+    location_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_iot_api_key),
 ):
     """Receive an image from the RPi and broadcast it to connected WebSocket clients."""
+    camera_device_id = await camera_device_crud.get_id_by_location(
+        db=db, location_id=location_id
+    )
+    if camera_device_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Device is not authorized for this location_id",
+        )
+
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
     image_bytes = await file.read(settings.MAX_IMAGE_UPLOAD_BYTES + 1)
@@ -109,7 +126,11 @@ async def upload_camera_image(
 @router.get("/frames/{filename}")
 async def get_frame_by_filename(filename: str):
     """Get a specific frame by filename (returns image file)"""
-    frame_path = Path(settings.FRAMES_OUTPUT_DIR) / filename
+    frame_path = (Path(settings.FRAMES_OUTPUT_DIR) / filename).resolve(strict=False)
+    base_dir = Path(settings.FRAMES_OUTPUT_DIR).resolve()
+
+    if not frame_path.is_relative_to(base_dir):
+        raise HTTPException(status_code=400, detail="Invalid filename")
 
     if not frame_path.exists() or not frame_path.is_file():
         raise HTTPException(status_code=404, detail="Frame not found")

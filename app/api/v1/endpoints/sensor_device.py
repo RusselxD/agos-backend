@@ -20,6 +20,6 @@ async def get_sensor_device_config(id: int = 1, db: AsyncSession = Depends(get_d
 
 
 # used in responders app
-@router.get("/{location_id}/config/by-location", response_model=SensorConfig)
+@router.get("/{location_id}/config/by-location", response_model=SensorConfig, dependencies=[Depends(require_auth)])
 async def get_sensor_device_config_by_location(location_id: int = 1, db: AsyncSession = Depends(get_db)) -> SensorConfig:
     return await sensor_device_service.get_device_config_by_location(db=db, location_id=location_id)

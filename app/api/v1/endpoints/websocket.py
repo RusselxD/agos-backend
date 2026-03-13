@@ -48,6 +48,12 @@ async def websocket_endpoint(websocket: WebSocket, db: AsyncSession = Depends(ge
         while True:
             await websocket.receive_text()  # Keep the connection alive
     except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.exception(
+            "Unexpected error in frontend WebSocket loop — location_id=%s", location_id
+        )
+    finally:
         await ws_manager.disconnect(websocket=websocket, location_id=location_id)
 
 
@@ -150,3 +156,14 @@ async def rpi_websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         print(f"📷 RPi disconnected — cam={camera_device_id}, loc={location_id}")
+    except Exception:
+        logger.exception(
+            "Unexpected error in WebSocket loop — camera_device_id=%s, location_id=%s",
+            camera_device_id,
+            location_id,
+        )
+        try:
+            await websocket.send_json({"type": "error", "message": "Internal server error"})
+            await websocket.close()
+        except Exception:
+            pass

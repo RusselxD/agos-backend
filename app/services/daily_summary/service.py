@@ -36,7 +36,7 @@ class DailySummaryService:
         device_ids = await cache_service.get_device_ids_per_location(db, location_id)
         sensor_config = await cache_service.get_sensor_config(db)
         if not sensor_config:
-            raise ValueError(f"Missing sensor config for location_id={location_id}")
+            raise ValueError("Missing global sensor config from cache_service.get_sensor_config()")
 
         critical_level = float(sensor_config.critical_threshold)
 

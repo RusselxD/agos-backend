@@ -12,7 +12,7 @@ from app.core.database import get_db
 from app.services import sensor_reading_service
 from typing import List
 from app.core.rate_limiter import limiter
-from app.api.v1.dependencies import require_auth
+from app.api.v1.dependencies import require_auth, require_iot_api_key
 
 router = APIRouter(prefix="/sensor-readings", tags=["sensor-readings"])
 
@@ -85,7 +85,7 @@ async def get_sensor_readings_for_export(
     "/record",
     response_model=SensorDataRecordedResponse,
     status_code=201,
-    dependencies=[Depends(require_auth)],
+    dependencies=[Depends(require_iot_api_key)],
 )
 @limiter.limit("60/minute")
 async def record_sensor_reading(

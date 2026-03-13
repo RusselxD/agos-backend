@@ -76,7 +76,22 @@ class CacheService:
     async def get_sensor_config(self, db: AsyncSession) -> SensorConfig:
 
         if self._sensor_config_cache is None:
-            await self.update_sensor_config_cache(db=db, sensor_device_id=self._device_ids_cache[1].sensor_device_id)  # Assuming location ID 1 for now
+            if self._device_ids_cache is None:
+                await self.update_device_ids_cache(db=db)
+
+            device_ids = self._device_ids_cache.get(1)
+            if device_ids is None:
+                first_location_id = next(iter(self._device_ids_cache), None)
+                if first_location_id is None:
+                    raise ValueError("No device IDs found in cache to load sensor config.")
+                device_ids = self._device_ids_cache.get(first_location_id)
+
+            if device_ids is None or device_ids.sensor_device_id is None:
+                raise ValueError("No sensor device ID available to load sensor config.")
+
+            await self.update_sensor_config_cache(
+                db=db, sensor_device_id=device_ids.sensor_device_id
+            )
 
         return self._sensor_config_cache
 

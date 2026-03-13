@@ -50,13 +50,12 @@ async def drop_tables():
                 await conn.execute(text(f"DROP TYPE IF EXISTS {qualified_name} CASCADE"))
     except sqlalchemy.exc.DBAPIError as exc:
         message = str(exc).lower()
-        if "statement timeout" in message and ":6543/" in str(engine.url):
+        if "statement timeout" in message and engine.url.port == 6543:
             raise RuntimeError(
                 "Drop timed out on Supabase pooler (port 6543). "
                 "Use the direct database URL on port 5432 for fresh/migration scripts."
             ) from exc
         raise
-
     print("✅ All tables and types dropped!")
 
 async def main():
