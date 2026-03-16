@@ -21,3 +21,4 @@ from .notification_template_service import notification_template_service
 from .push_subscription_service import push_subscription_service
 from .notification_service import notification_service
 from .notification_log_service import notification_log_service
+from .model_reading_log_service import model_reading_log_service
