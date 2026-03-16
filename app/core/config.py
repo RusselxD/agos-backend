@@ -6,7 +6,6 @@ from datetime import timedelta, timezone, tzinfo
 
 
 class Settings(BaseSettings):
-
     UTC_OFFSET_HOURS: float = 8
 
     OTP_LENGTH: int = 6
@@ -24,6 +23,7 @@ class Settings(BaseSettings):
     FRAME_WIDTH: int = 640
     FRAME_HEIGHT: int = 360
     FRAME_QUALITY: int = 3  # 1-31, lower is better
+    MAX_IMAGE_UPLOAD_BYTES: int = 5 * 1024 * 1024  # 5 MB
 
     # HLS Settings
     HLS_TIME: int = 6  # seconds per segment (Increased to prevent keyframe mismatch)
@@ -31,13 +31,14 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str
     SECRET_KEY: str
+    IOT_API_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     GROQ_API_KEYS: Union[list[str], str]
     VAPID_PRIVATE_KEY: str
     VAPID_PUBLIC_KEY: str
-    VAPID_CLAIM_EMAIL: str  
+    VAPID_CLAIM_EMAIL: str
 
     SENSOR_GRACE_PERIOD_MINUTES: int = 4
     SENSOR_WARNING_PERIOD_MINUTES: int = 8
@@ -45,27 +46,27 @@ class Settings(BaseSettings):
     DETECTION_GRACE_PERIOD_MINUTES: int = 5
     DETECTION_WARNING_PERIOD_MINUTES: int = 10
 
-    WEATHER_CONDITION_GRACE_PERIOD_MINUTES: int = 90 # 1.5 hours
-    WEATHER_CONDITION_WARNING_PERIOD_MINUTES: int = 120 # 2 hours
+    WEATHER_CONDITION_GRACE_PERIOD_MINUTES: int = 90  # 1.5 hours
+    WEATHER_CONDITION_WARNING_PERIOD_MINUTES: int = 120  # 2 hours
 
     FRONTEND_URLS: Union[list[str], str]
 
-    #runs implicitly before model initialization
-    @field_validator('FRONTEND_URLS', mode='before')
+    # runs implicitly before model initialization
+    @field_validator("FRONTEND_URLS", mode="before")
     @classmethod
     def parse_origins(cls, v):
         if isinstance(v, str):
-            return [item.strip() for item in v.split(',')]
+            return [item.strip() for item in v.split(",")]
         return v
-    
-    @field_validator('GROQ_API_KEYS', mode='before')
+
+    @field_validator("GROQ_API_KEYS", mode="before")
     @classmethod
     def parse_api_keys(cls, v):
         if isinstance(v, str):
-            return [item.strip() for item in v.split(',')]
+            return [item.strip() for item in v.split(",")]
         return v
-    
-    @field_validator('UTC_OFFSET_HOURS')
+
+    @field_validator("UTC_OFFSET_HOURS")
     @classmethod
     def validate_utc_offset_hours(cls, v):
         if v < -12 or v > 14:
@@ -76,7 +77,7 @@ class Settings(BaseSettings):
     def APP_TIMEZONE(self) -> tzinfo:
         return timezone(timedelta(hours=self.UTC_OFFSET_HOURS))
 
-    model_config = SettingsConfigDict(env_file='.env', extra='ignore')
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 @lru_cache()

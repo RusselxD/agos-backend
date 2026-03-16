@@ -1,11 +1,18 @@
+import base64
 import logging
-from fastapi import APIRouter, HTTPException, Query, Request
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File
 from fastapi.responses import FileResponse, Response
 from pathlib import Path
 from app.schemas import StreamStatus, FrameResponse, FrameListResponse
 from app.services import stream_processor, frame_manager
 from app.core.config import settings
 from app.core.rate_limiter import limiter
+from app.core.ws_manager import ws_manager
+from app.api.v1.dependencies import require_iot_api_key
+from app.core.database import get_db
+from app.crud import camera_device_crud
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +23,11 @@ router = APIRouter(prefix="/stream", tags=["stream"])
 async def get_stream_status():
     """Get current status of the stream processor"""
     status = stream_processor.get_status()
-    
+
     return StreamStatus(
         **status,
         stream_url=settings.STREAM_URL,
-        hls_endpoint="/api/v1/stream/hls/stream.m3u8"
+        hls_endpoint="/api/v1/stream/hls/stream.m3u8",
     )
 
 
@@ -52,56 +59,93 @@ async def stop_stream(request: Request):
 async def get_latest_frame():
     """Get the most recently captured frame"""
     frame = await frame_manager.get_latest_frame()
-    
+
     if not frame:
         raise HTTPException(status_code=404, detail="No frames captured yet")
-    
+
     return frame
 
 
 @router.get("/frames", response_model=FrameListResponse)
 async def list_frames(
-    limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0)
+    limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0)
 ):
     """List all captured frames with pagination"""
     frames = await frame_manager.list_frames(limit=limit, offset=offset)
-    
+
     # Get total count
     frames_dir = Path(settings.FRAMES_OUTPUT_DIR)
     total = len(list(frames_dir.glob("frame_*.jpg")))
-    
-    return FrameListResponse(
-        frames=frames,
-        total=total,
-        limit=limit,
-        offset=offset
+
+    return FrameListResponse(frames=frames, total=total, limit=limit, offset=offset)
+
+
+@router.post("/upload-image")
+@limiter.limit("35/minute")
+async def upload_camera_image(
+    request: Request,
+    location_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_iot_api_key),
+):
+    """Receive an image from the RPi and broadcast it to connected WebSocket clients."""
+    camera_device_id = await camera_device_crud.get_id_by_location(
+        db=db, location_id=location_id
     )
+    if camera_device_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Device is not authorized for this location_id",
+        )
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    image_bytes = await file.read(settings.MAX_IMAGE_UPLOAD_BYTES + 1)
+    if len(image_bytes) > settings.MAX_IMAGE_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413, detail="Image exceeds maximum allowed size"
+        )
+
+    encoded = base64.b64encode(image_bytes).decode("utf-8")
+
+    await ws_manager.broadcast_to_location(
+        {
+            "type": "camera_update",
+            "data": {
+                "image": encoded,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        },
+        location_id=location_id,
+    )
+
+    return {"status": "ok"}
 
 
 @router.get("/frames/{filename}")
 async def get_frame_by_filename(filename: str):
     """Get a specific frame by filename (returns image file)"""
-    frame_path = Path(settings.FRAMES_OUTPUT_DIR) / filename
-    
+    frame_path = (Path(settings.FRAMES_OUTPUT_DIR) / filename).resolve(strict=False)
+    base_dir = Path(settings.FRAMES_OUTPUT_DIR).resolve()
+
+    if not frame_path.is_relative_to(base_dir):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     if not frame_path.exists() or not frame_path.is_file():
         raise HTTPException(status_code=404, detail="Frame not found")
-    
-    return FileResponse(
-        frame_path,
-        media_type="image/jpeg",
-        filename=filename
-    )
+
+    return FileResponse(frame_path, media_type="image/jpeg", filename=filename)
 
 
 @router.delete("/frames/{filename}")
 async def delete_frame(filename: str):
     """Delete a specific frame"""
     success = await frame_manager.delete_frame(filename)
-    
+
     if not success:
         raise HTTPException(status_code=404, detail="Frame not found")
-    
+
     return {"message": f"Frame {filename} deleted", "success": True}
 
 
@@ -109,11 +153,11 @@ async def delete_frame(filename: str):
 async def cleanup_old_frames(keep_last: int = Query(100, ge=10, le=1000)):
     """Cleanup old frames, keeping only the most recent N"""
     deleted_count = await frame_manager.cleanup_old_frames(keep_last_n=keep_last)
-    
+
     return {
         "message": f"Cleaned up {deleted_count} old frames",
         "deleted_count": deleted_count,
-        "success": True
+        "success": True,
     }
 
 
@@ -121,13 +165,17 @@ async def cleanup_old_frames(keep_last: int = Query(100, ge=10, le=1000)):
 @router.api_route("/hls/{filename}", methods=["GET", "HEAD"])
 async def serve_hls_file(filename: str):
     """Serve HLS playlist or segment files"""
-    hls_path = Path(settings.HLS_OUTPUT_DIR) / filename
-    
+    base = Path(settings.HLS_OUTPUT_DIR).resolve()
+    hls_path = (base / filename).resolve(strict=False)
+
+    if not hls_path.is_relative_to(base):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     if not hls_path.exists():
         raise HTTPException(status_code=404, detail="HLS file not found")
-    
+
     # Determine content type
-    if filename.endswith('.m3u8'):
+    if filename.endswith(".m3u8"):
         media_type = "application/vnd.apple.mpegurl"
         # Read file into memory to avoid Content-Length mismatch if file changes
         try:
@@ -137,23 +185,20 @@ async def serve_hls_file(filename: str):
                 media_type=media_type,
                 headers={
                     "Cache-Control": "no-cache",
-                    "Access-Control-Allow-Origin": "*"
-                }
+                    "Access-Control-Allow-Origin": "*",
+                },
             )
         except Exception as e:
             logger.error(f"Error reading HLS playlist: {e}")
             raise HTTPException(status_code=500, detail="Error reading playlist")
 
-    elif filename.endswith('.ts'):
+    elif filename.endswith(".ts"):
         media_type = "video/mp2t"
     else:
         media_type = "application/octet-stream"
-    
+
     return FileResponse(
         hls_path,
         media_type=media_type,
-        headers={
-            "Cache-Control": "no-cache",
-            "Access-Control-Allow-Origin": "*"
-        }
+        headers={"Cache-Control": "no-cache", "Access-Control-Allow-Origin": "*"},
     )

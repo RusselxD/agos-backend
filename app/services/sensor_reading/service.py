@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +22,9 @@ from app.utils.sensor_utils import get_status_and_change_rate
 
 from .trend_service import get_readings_trend
 from .export_service import get_readings_for_export
+
+
+logger = logging.getLogger(__name__)
 
 
 class SensorReadingService:
@@ -99,7 +103,17 @@ class SensorReadingService:
             )
 
         sensor_config = await cache_service.get_sensor_config(db=db)
-        water_level_cm = sensor_config.installation_height - obj_in.raw_distance_cm
+        computed_water_level_cm = (
+            sensor_config.installation_height - obj_in.raw_distance_cm
+        )
+        if computed_water_level_cm < 0:
+            logger.warning(
+                "Computed negative water_level_cm; clamping to 0. "
+                "raw_distance_cm=%s installation_height=%s",
+                obj_in.raw_distance_cm,
+                sensor_config.installation_height,
+            )
+        water_level_cm = max(0.0, computed_water_level_cm)
 
         data = obj_in.model_dump()
         db_obj = SensorReading(**data)
@@ -186,10 +200,18 @@ class SensorReadingService:
         crit = float(sensor_config.critical_threshold)
 
         level = "normal"
-        if current_cm >= sensor_config.critical_threshold:
+        if current_cm >= crit:
             level = "critical"
-        elif current_cm >= sensor_config.warning_threshold:
+        elif current_cm >= warn:
             level = "warning"
+
+        if crit:
+            percentage_of_critical = round((current_cm / crit) * 100, 1)
+        else:
+            logger.warning(
+                "critical_threshold is 0; using 0.0 for percentage_of_critical"
+            )
+            percentage_of_critical = 0.0
 
         return AlertSummary(
             level=level,
@@ -197,7 +219,7 @@ class SensorReadingService:
             distance_from_warning_cm=round(max(0, warn - current_cm), 1),
             distance_to_critical_cm=round(crit - current_cm, 1),
             distance_from_critical_cm=round(max(0, current_cm - crit), 1),
-            percentage_of_critical=round((current_cm / crit) * 100, 1),
+            percentage_of_critical=percentage_of_critical,
         )
 
 

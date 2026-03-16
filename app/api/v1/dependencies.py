@@ -1,5 +1,7 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import secrets
+
+from fastapi import Depends,Header, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
 from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
@@ -7,6 +9,7 @@ from app.core.database import get_db
 from app.crud import admin_user_crud
 
 security = HTTPBearer()
+iot_api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
 class CurrentUser:
     
@@ -78,3 +81,20 @@ async def require_superuser(
             detail="Superuser access required"
         )
     return current_user
+
+
+async def require_iot_api_key(x_api_key: str | None = Depends(iot_api_key_header)) -> None:
+    """Validate static API key used by trusted IoT devices."""
+    expected = settings.IOT_API_KEY
+
+    if not expected:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="IOT_API_KEY is not configured",
+        )
+
+    if not x_api_key or not secrets.compare_digest(x_api_key, expected):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )

@@ -1,7 +1,7 @@
 import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import SensorReading
-from app.schemas import SensorReadingMinimalResponse, SensorReadingCreate
+from app.schemas import SensorReadingCreate
 from app.crud.base import CRUDBase
 from app.models import SensorDevice
 from sqlalchemy import func, select, Row
@@ -42,7 +42,7 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
         db: AsyncSession, 
         sensor_device_id: int, 
         page: int = 1, 
-        page_size: int = 10) -> List[SensorReadingMinimalResponse]:
+        page_size: int = 10) -> Sequence[Row]:
 
         # Use LAG window function to get previous reading's water level
         prev_water_level = func.lag(self.model.water_level_cm).over(
@@ -96,7 +96,7 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
         db: AsyncSession, 
         start_datetime: datetime, 
         end_datetime: datetime, 
-        sensor_device_id: int) -> list[SensorReading]:
+        sensor_device_id: int) -> Sequence[Row]:
         
         # Use LAG window function to get previous reading's water level
         prev_water_level = func.lag(self.model.water_level_cm).over(

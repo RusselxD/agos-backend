@@ -56,11 +56,12 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
         return sensor_device.scalars().first()
 
 
-    async def get_device_config_by_location(self, db: AsyncSession, location_id: int) -> SensorConfig:
+    async def get_device_config_by_location(self, db: AsyncSession, location_id: int) -> SensorConfig | None:
 
         sensor_device = await db.execute(
             select(self.model.sensor_config)
             .filter(self.model.location_id == location_id)
+            .limit(1)
         )
         return sensor_device.scalars().first()
 
