@@ -6,6 +6,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status, Depends
 from app.core.ws_manager import ws_manager
 from app.services.websocket_service import websocket_service
 from app.services.ml_service import ml_service
+from app.services.camera_status_service import camera_status_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 
@@ -102,6 +103,8 @@ async def rpi_websocket_endpoint(websocket: WebSocket):
 
             if message.get("bytes"):
                 image_bytes: bytes = message["bytes"]
+
+                camera_status_service.record_frame(location_id)
 
                 # Broadcast the raw frame immediately to all frontend clients
                 # so they see a live image feed (rapidly updating picture).

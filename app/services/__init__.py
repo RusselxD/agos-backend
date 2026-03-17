@@ -13,7 +13,7 @@ from .ml_service import ml_service
 from .system_settings_service import system_settings_service
 from .upload_service import upload_service
 from .core_service import core_service
-from .stream import stream_processor, frame_manager
+from .camera_status_service import camera_status_service
 from .sms_service import sms_service
 from .responder_group import responder_group_service
 from .analysis_service import analysis_service

@@ -7,7 +7,7 @@ from .sensor_reading import SensorReadingCreate, SensorReadingResponse, SensorRe
 from .model_readings import ModelReadingCreate
 from .admin_audit_log import AdminAuditLogCreate, AdminAuditLogPaginatedResponse, AdminAuditLogResponse
 from .auth import LoginRequest, ChangePasswordRequest
-from .stream import StreamStatus, FrameResponse, FrameListResponse, FrameListItem
+from .stream import CameraStatus
 from .weather import WeatherCreate, WeatherConditionResponse, WeatherComprehensiveResponse
 
 from .responder import ResponderCreate, ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderDetails, NotifPreferenceUpdateRequest, AlertListItem

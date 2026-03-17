@@ -1,24 +1,19 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from pathlib import Path
 from contextlib import asynccontextmanager
 from app.core.cloudinary import init_cloudinary
 
-from app.core.config import settings
 from app.core.rate_limiter import limiter
 from app.middleware.registry import register_middleware
 
-from app.services.stream import stream_processor
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.v1.router import api_router
 from app.api.v1.endpoints.websocket import router as ws_router
 
-from app.services import ml_service
 from app.services import weather_service
 # from app.services import database_cleanup_service
 from app.core.state import fusion_state_manager
@@ -29,15 +24,13 @@ async def lifespan(app: FastAPI):
     # Startup
     print("🚀 Starting application...")
     init_cloudinary()
-    await stream_processor.start()
-    await ml_service.start()
     await weather_service.start()
     # await database_cleanup_service.start()
     # Initialize Fusion Analysis State with latest data
     print("📊 Loading initial fusion analysis state...")
     await fusion_state_manager.start_all_states()
     print("✅ Fusion analysis state loaded.")
-    
+
     # Start scheduler for daily summary jobs
     start_scheduler()
 
@@ -46,8 +39,6 @@ async def lifespan(app: FastAPI):
     # Shutdown
     print("🛑 Shutting down application...")
     shutdown_scheduler()
-    await stream_processor.stop()
-    await ml_service.stop()
     await weather_service.stop()
     # await database_cleanup_service.stop()
 
@@ -67,11 +58,6 @@ register_middleware(app)
 # Include routers
 app.include_router(ws_router)
 app.include_router(api_router)
-
-# Serve static HLS files
-hls_path = Path(settings.HLS_OUTPUT_DIR)
-hls_path.mkdir(parents=True, exist_ok=True)
-app.mount("/hls", StaticFiles(directory=str(hls_path)), name="hls")
 
 # Add Prometheus metrics
 Instrumentator().instrument(app).expose(app)
