@@ -89,6 +89,7 @@ async def rpi_websocket_endpoint(websocket: WebSocket):
         }
     )
     print(f"📷 RPi connected — cam={camera_device_id}, loc={location_id}")
+    frame_count = 0
 
     try:
         while True:
@@ -102,12 +103,20 @@ async def rpi_websocket_endpoint(websocket: WebSocket):
 
             if message.get("bytes"):
                 image_bytes: bytes = message["bytes"]
+                frame_count += 1
+                print(
+                    "[WS_FRAME_RECEIVED] "
+                    f"location_id={location_id} "
+                    f"camera_device_id={camera_device_id} "
+                    f"frame_index={frame_count} "
+                    f"bytes={len(image_bytes)}"
+                )
 
                 # Broadcast the raw frame immediately to all frontend clients
                 # so they see a live image feed (rapidly updating picture).
                 # This happens before ML inference so the UI stays responsive.
                 try:
-                    await ws_manager.broadcast_to_location(
+                    delivered_clients = await ws_manager.broadcast_to_location(
                         {
                             "type": "camera_update",
                             "data": {
@@ -116,6 +125,20 @@ async def rpi_websocket_endpoint(websocket: WebSocket):
                             },
                         },
                         location_id=location_id,
+                    )
+
+                    logger.debug(
+                        "Processed incoming RPi frame | location_id=%s camera_device_id=%s delivered_ui_clients=%s",
+                        location_id,
+                        camera_device_id,
+                        delivered_clients,
+                    )
+                    print(
+                        "[WS_FRAME_DISPATCH] "
+                        f"location_id={location_id} "
+                        f"camera_device_id={camera_device_id} "
+                        f"frame_index={frame_count} "
+                        f"delivered_clients={delivered_clients}"
                     )
                 except Exception as e:
                     logger.error(
@@ -168,7 +191,9 @@ async def rpi_websocket_endpoint(websocket: WebSocket):
             location_id,
         )
         try:
-            await websocket.send_json({"type": "error", "message": "Internal server error"})
+            await websocket.send_json(
+                {"type": "error", "message": "Internal server error"}
+            )
             await websocket.close()
         except Exception:
             pass

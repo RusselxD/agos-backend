@@ -33,6 +33,20 @@ def _log_monitor(process: subprocess.Popen, log_path: Path) -> None:
         logger.error(f"Log monitor thread failed: {e}")
 
 
+def _tail_log(log_path: Path, lines: int = 8) -> str:
+    """Return the last N lines from the FFmpeg log file for quick crash context."""
+    try:
+        if not log_path.exists():
+            return "(ffmpeg log file not found)"
+
+        with open(log_path, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.readlines()
+
+        return "".join(content[-lines:]).strip() or "(ffmpeg log is empty)"
+    except Exception as e:
+        return f"(failed to read ffmpeg log: {e})"
+
+
 class StreamProcessor:
     """FFmpeg wrapper: starts, stops, and auto-restarts the video pipeline."""
 
@@ -104,7 +118,9 @@ class StreamProcessor:
             try:
                 cmd = self._build_ffmpeg_command()
                 logger.info(f"FFmpeg command: {' '.join(cmd)}")
-                logger.info(f"Starting FFmpeg process (attempt {self.restart_count + 1})")
+                logger.info(
+                    f"Starting FFmpeg process (attempt {self.restart_count + 1})"
+                )
 
                 self.process = subprocess.Popen(
                     cmd,
@@ -112,7 +128,9 @@ class StreamProcessor:
                     stderr=subprocess.STDOUT,
                     universal_newlines=True,
                     shell=False,
-                    creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                    if hasattr(subprocess, "CREATE_NO_WINDOW")
+                    else 0,
                 )
 
                 log_thread = threading.Thread(
@@ -124,13 +142,20 @@ class StreamProcessor:
 
                 while self.is_running:
                     if self.process.poll() is not None:
-                        logger.error("FFmpeg process died. Check console logs.")
+                        crash_context = _tail_log(self.log_file_path)
+                        logger.error(
+                            "FFmpeg process died (attempt %s). Recent log lines:\n%s",
+                            self.restart_count + 1,
+                            crash_context,
+                        )
                         break
                     await asyncio.sleep(1)
 
                 self.restart_count += 1
                 if self.restart_count < self.max_restarts:
-                    logger.info(f"Restarting in 5 seconds... ({self.restart_count}/{self.max_restarts})")
+                    logger.info(
+                        f"Restarting in 5 seconds... ({self.restart_count}/{self.max_restarts})"
+                    )
                     await asyncio.sleep(5)
                 else:
                     logger.error("Max restart attempts reached. Giving up.")
@@ -145,13 +170,17 @@ class StreamProcessor:
         self.is_running = False
         print("✅ Stream processor stopping...")
         if self.process and self.process.poll() is None:
+            loop = asyncio.get_running_loop()
             try:
                 self.process.terminate()
-                self.process.wait(timeout=5)
+                await loop.run_in_executor(
+                    None,
+                    lambda: self.process.wait(timeout=5),
+                )
             except subprocess.TimeoutExpired:
                 logger.warning("FFmpeg not responding, forcing kill")
                 self.process.kill()
-                self.process.wait()
+                await loop.run_in_executor(None, self.process.wait)
             except Exception as e:
                 logger.error(f"Error stopping process: {e}")
 
