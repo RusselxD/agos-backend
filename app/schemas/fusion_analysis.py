@@ -24,6 +24,6 @@ class WeatherStatus(StatusBase):
 
 class FusionAnalysisData(BaseModel):
     fusion_data: FusionData
-    blockage_status: BlockageStatus
-    water_level_status: WaterLevelStatus
-    weather_status: WeatherStatus
+    blockage_status: BlockageStatus | None
+    water_level_status: WaterLevelStatus | None
+    weather_status: WeatherStatus | None

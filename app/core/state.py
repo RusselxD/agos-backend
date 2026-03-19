@@ -146,13 +146,12 @@ class FusionAnalysisState:
             alert_thresholds=alert_thresholds,
         )
 
-        if self.blockage_status and self.water_level_status and self.weather_status:
-            self.fusion_analysis = FusionAnalysisData(
-                fusion_data=self.fusion_data,
-                blockage_status=self.blockage_status,
-                water_level_status=self.water_level_status,
-                weather_status=self.weather_status,
-            )
+        self.fusion_analysis = FusionAnalysisData(
+            fusion_data=self.fusion_data,
+            blockage_status=self.blockage_status,
+            water_level_status=self.water_level_status,
+            weather_status=self.weather_status,
+        )
 
         await self.broadcast_fusion_analysis()
 
