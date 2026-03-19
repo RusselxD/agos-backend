@@ -32,9 +32,7 @@ class ResponderAppService:
         if not responder:
             raise HTTPException(status_code=404, detail="Phone number not registered.")
         
-        # send otp if already exists
-        if responder.status == ResponderStatus.PENDING:
-            await self.send_otp(responder=responder, db=db)
+        await self.send_otp(responder=responder, db=db)
 
         return ResponderForApproval(
             responder_id=responder.id,
@@ -199,9 +197,11 @@ class ResponderAppService:
                 requires_resend=False  # Can still retry
             )
         
-        # Success - activate responder, add to active group, and cleanup OTP record
-        await responder_crud.activate(db=db, responder_id=verify_request.responder_id, commit=False)
-        await responder_group_crud.add_member(db=db, group_id=active_group.id, responder_id=verify_request.responder_id, commit=False)
+        # Success - activate and add to group only if still pending (active responders re-logging in skip this)
+        responder = await responder_crud.get(db=db, id=verify_request.responder_id)
+        if responder.status == ResponderStatus.PENDING:
+            await responder_crud.activate(db=db, responder_id=verify_request.responder_id, commit=False)
+            await responder_group_crud.add_member(db=db, group_id=active_group.id, responder_id=verify_request.responder_id, commit=False)
         await responder_otp_verification_crud.delete_by_responder_id(db=db, responder_id=verify_request.responder_id)
         
         return ResponderOTPVerifyResponse(
