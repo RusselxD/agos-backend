@@ -1,6 +1,6 @@
 # AGOS Backend
 
-FastAPI backend for AGOS (Advanced Governance and Operations System) — a real-time water management and flood monitoring platform.
+FastAPI backend for AGOS — a real-time water management and flood monitoring platform.
 
 ## Stack
 
