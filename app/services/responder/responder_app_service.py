@@ -129,6 +129,7 @@ class ResponderAppService:
 
         # Generate OTP
         otp = "".join(random.choices("0123456789", k=settings.OTP_LENGTH))
+        print(f"[OTP] {responder.phone_number}: {otp}")
         otp_hash = get_otp_hash(otp=otp)
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
         
