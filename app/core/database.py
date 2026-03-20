@@ -7,6 +7,8 @@ engine = create_async_engine(
     settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
     echo=False,
     future=True,
+    pool_pre_ping=True,
+    pool_recycle=300,
     connect_args={
         "server_settings": {"timezone": "UTC"},
         "statement_cache_size": 0
