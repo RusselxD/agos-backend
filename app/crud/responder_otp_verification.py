@@ -1,3 +1,4 @@
+from datetime import datetime
 from app.crud.base import CRUDBase
 from app.schemas import ResponderOTPVerificationCreate
 from app.models import RespondersOTPVerification as OTPModel
@@ -38,5 +39,12 @@ class CRUDResponderOTPVerification(CRUDBase[ResponderOTPVerificationCreate, None
         db_obj = self.model(**obj_data)
         db.add(db_obj)
         await db.commit()
+
+    async def delete_expired(self, db: AsyncSession, now: datetime) -> int:
+        result = await db.execute(
+            delete(self.model).where(self.model.expires_at < now)
+        )
+        await db.commit()
+        return result.rowcount
 
 responder_otp_verification_crud = CRUDResponderOTPVerification(OTPModel)

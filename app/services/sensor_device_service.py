@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from app.core.config import settings
 from app.services import sensor_reading_service
+from app.services.cache_service import cache_service
 
 
 class SensorDeviceService:
@@ -76,6 +77,15 @@ class SensorDeviceService:
             raise HTTPException(status_code=404, detail="Sensor device config not found for this location")
         return sensor_config
 
+
+    async def update_device_config(self, db: AsyncSession, sensor_device_id: int, config: SensorConfig) -> SensorConfig:
+
+        updated_config = await sensor_device_crud.update_config(db=db, sensor_device_id=sensor_device_id, config=config)
+        if not updated_config:
+            raise HTTPException(status_code=404, detail="Sensor device not found")
+
+        await cache_service.update_sensor_config_cache(db=db, sensor_device_id=sensor_device_id)
+        return updated_config
 
 
 sensor_device_service = SensorDeviceService()

@@ -76,4 +76,20 @@ class CRUDSensorDevice(CRUDBase[SensorDevice, None, None]):
         return result.scalars().first()
 
 
+    async def update_config(self, db: AsyncSession, sensor_device_id: int, config: SensorConfig) -> SensorConfig:
+
+        result = await db.execute(
+            select(self.model).filter(self.model.id == sensor_device_id)
+        )
+        device = result.scalars().first()
+
+        if device is None:
+            return None
+
+        device.sensor_config = config
+        await db.commit()
+        await db.refresh(device)
+        return device.sensor_config
+
+
 sensor_device_crud = CRUDSensorDevice(SensorDevice)

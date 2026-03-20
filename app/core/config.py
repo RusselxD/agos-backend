@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     WEATHER_CONDITION_GRACE_PERIOD_MINUTES: int = 90  # 1.5 hours
     WEATHER_CONDITION_WARNING_PERIOD_MINUTES: int = 120  # 2 hours
 
+    # SMS Gateway (Android phone running SMS Gateway API app)
+    SMS_GATEWAY_URL: str = ""
+    SMS_GATEWAY_API_KEY: str = ""
+    SMS_GATEWAY_TIMEOUT_SECONDS: int = 30
+    SMS_BULK_DELAY_SECONDS: float = 1.5
+
     FRONTEND_URLS: Union[list[str], str]
 
     # runs implicitly before model initialization

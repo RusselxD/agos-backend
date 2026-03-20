@@ -4,7 +4,7 @@ from app.models import SensorReading
 from app.schemas import SensorReadingCreate
 from app.crud.base import CRUDBase
 from app.models import SensorDevice
-from sqlalchemy import func, select, Row
+from sqlalchemy import delete, func, select, Row
 from typing import List, Sequence
 
 
@@ -117,6 +117,13 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
         )
         return result.all()
 
+
+    async def delete_older_than(self, db: AsyncSession, cutoff: datetime.datetime) -> int:
+        result = await db.execute(
+            delete(self.model).where(self.model.timestamp < cutoff)
+        )
+        await db.commit()
+        return result.rowcount
 
     # For sensor's periodic reading insertion
     async def create_record(self, db: AsyncSession, db_obj: SensorReading) -> SensorReading:

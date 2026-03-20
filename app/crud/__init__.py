@@ -17,3 +17,4 @@ from .notification_delivery import notification_delivery_crud
 from .notification_dispatch import notification_dispatch_crud
 from .notification_template import notification_template_crud
 from .acknowledgement import acknowledgement_crud
+from .password_reset_otp import password_reset_otp_crud

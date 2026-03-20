@@ -1,7 +1,8 @@
+from datetime import datetime
 from app.models import Weather
 from app.schemas import WeatherCreate
 from app.crud.base import CRUDBase
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -27,6 +28,14 @@ class CRUDWeather(CRUDBase[Weather, WeatherCreate, None]):
             .limit(1)
         )
         return result.scalars().first()
+
+
+    async def delete_older_than(self, db: AsyncSession, cutoff: datetime) -> int:
+        result = await db.execute(
+            delete(self.model).where(self.model.created_at < cutoff)
+        )
+        await db.commit()
+        return result.rowcount
 
 
 weather_crud = CRUDWeather(Weather)

@@ -1,8 +1,9 @@
+from datetime import datetime
 from app.models.data_sources.model_readings import ModelReadings
 from app.schemas import ModelReadingCreate
 from app.crud.base import CRUDBase
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 
 class CRUDModelReadings(CRUDBase[ModelReadings, ModelReadingCreate, None]):
@@ -53,6 +54,14 @@ class CRUDModelReadings(CRUDBase[ModelReadings, ModelReadingCreate, None]):
             select(self.model).filter(self.model.id == reading_id)
         )
         return result.scalars().first()
+
+
+    async def delete_older_than(self, db: AsyncSession, cutoff: datetime) -> int:
+        result = await db.execute(
+            delete(self.model).where(self.model.timestamp < cutoff)
+        )
+        await db.commit()
+        return result.rowcount
 
 
 model_readings_crud = CRUDModelReadings(ModelReadings)
