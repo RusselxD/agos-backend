@@ -32,6 +32,8 @@ Auth legend: `JWT` = admin token required, `SU` = superuser required, `IOT` = Io
 |--------|----------|------|-------------|
 | GET | `/` | JWT | List all admin users. |
 | POST | `/` | SU | Create new admin user. |
+| PUT | `/{user_id}/deactivate` | SU | Deactivate admin user. Invalidates sessions. |
+| PUT | `/{user_id}/reactivate` | SU | Reactivate admin user. |
 
 **POST /**
 ```json
@@ -87,17 +89,20 @@ Auth legend: `JWT` = admin token required, `SU` = superuser required, `IOT` = Io
 
 ## Responder App — Self-Service (`/responder`)
 
+Auth legend: `RESP` = responder JWT token required (issued after OTP verification, 90-day expiry).
+
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/{responder_id}` | — | Get responder profile for app. |
-| GET | `/unread-alerts-count/{responder_id}` | — | Count of unread alerts. |
-| GET | `/alerts/{responder_id}` | — | List responder's alerts. |
-| POST | `/acknowledge-alert` | — | Acknowledge an alert. |
-| GET | `/notif-preferences/{responder_id}` | — | Get notification preferences. |
-| PUT | `/notif-preferences/{responder_id}` | — | Update notification preference (key + value). |
+| GET | `/{responder_id}` | RESP | Get responder profile for app. |
+| GET | `/unread-alerts-count/{responder_id}` | RESP | Count of unread alerts. |
+| GET | `/alerts/{responder_id}` | RESP | Paginated alerts. Params: `page`, `page_size`, `type` (optional filter). |
+| POST | `/acknowledge-alert` | RESP | Acknowledge an alert. |
+| GET | `/notif-preferences/{responder_id}` | RESP | Get notification preferences. |
+| PUT | `/notif-preferences/{responder_id}` | RESP | Update notification preference (key + value). |
+| GET | `/water-level-trend/{location_id}` | RESP | Last 24h water level trend (~50 data points). |
 | POST | `/for-approval` | — | Phone lookup → sends OTP. |
 | POST | `/resend-otp/{responder_id}` | — | Resend OTP (204). |
-| POST | `/verify-otp` | — | Verify OTP → activate responder. |
+| POST | `/verify-otp` | — | Verify OTP → activate responder. Returns `responder_token` on success. |
 | POST | `/send-sms` | — | Send SMS to multiple responders (204). |
 
 **POST /for-approval**
@@ -115,7 +120,12 @@ Auth legend: `JWT` = admin token required, `SU` = superuser required, `IOT` = Io
 { "responder_id": "uuid", "otp": "123456" }
 
 // Response 200
-{ "success": true, "message": "OTP verified successfully.", "requires_resend": false }
+{ "success": true, "message": "OTP verified successfully.", "requires_resend": false, "responder_token": "eyJ..." }
+```
+
+**GET /alerts/{responder_id} Response**
+```json
+{ "items": [{ "id": "uuid", "type": "critical", "title": "...", "message": "...", "timestamp": "...", "is_acknowledged": false, "acknowledged_at": null, "acknowledge_message": null }], "has_more": true }
 ```
 
 ---
@@ -204,6 +214,8 @@ Auth legend: `JWT` = admin token required, `SU` = superuser required, `IOT` = Io
 |--------|----------|------|-------------|
 | GET | `/responders-summary` | JWT | Per-responder delivery stats (total, sent, failed, pending, acknowledged). |
 | GET | `/responder/{responder_id}/deliveries` | JWT | Paginated delivery history. Optional `type` filter. |
+| GET | `/analytics` | JWT | Response time analytics: avg/ack rate, per-type breakdown, top responders. Optional `date_from`, `date_to`. |
+| GET | `/export` | JWT | Flat delivery data for Excel export. Optional `date_from`, `date_to`. |
 
 ---
 
@@ -212,7 +224,7 @@ Auth legend: `JWT` = admin token required, `SU` = superuser required, `IOT` = Io
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/vapid-public-key` | — | Returns VAPID public key for client subscription. |
-| POST | `/subscribe` | — | Save push subscription (endpoint + keys + responder_id). |
+| POST | `/subscribe` | RESP | Save push subscription. Validates responder owns the subscription. |
 | POST | `/send-notification` | JWT | Send push to selected responders. |
 
 **POST /send-notification**
@@ -258,6 +270,27 @@ Auth legend: `JWT` = admin token required, `SU` = superuser required, `IOT` = Io
 | GET | `/{key}` | JWT | Get setting object. |
 | GET | `/{key}/value` | JWT | Get setting value only. |
 | PUT | `/{key}` | JWT | Update setting (audit logged). |
+
+**Known Settings Keys:**
+| Key | Default | Description |
+|-----|---------|-------------|
+| `data_retention_days` | varies | Days to keep sensor/model/weather readings |
+| `alert_thresholds` | JSON | Fusion analysis tier thresholds |
+| `escalation_timeout_minutes` | 15 | Minutes before unacknowledged critical alert is escalated |
+| `max_escalation_count` | 3 | Maximum re-notification attempts per delivery |
+
+---
+
+## Health (`/health`)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/health` | — | System health check. Returns DB, scheduler, WebSocket status. 200 if healthy, 503 if degraded. |
+
+**Response**
+```json
+{ "status": "healthy", "components": { "database": "healthy", "scheduler": "running", "websocket_connections": 3 } }
+```
 
 ---
 

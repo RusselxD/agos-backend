@@ -15,10 +15,10 @@ from app.services.sms_service import sms_service
 from app.core.exceptions import SMSError
 from app.crud import acknowledgement_crud
 from app.models import Acknowledgement
-from app.core.security import get_otp_hash, verify_otp as verify_otp_hash
+from app.core.security import get_otp_hash, verify_otp as verify_otp_hash, create_responder_token
 from app.models import Responder
 from app.crud.responder import responder_crud
-from app.schemas import ResponderOTPVerifyResponse, AlertListItem
+from app.schemas import ResponderOTPVerifyResponse, AlertListItem, AlertPaginatedResponse
 from app.models.responder_related.group import DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME
 from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
 from app.models.responder_related.responders import ResponderStatus
@@ -70,24 +70,37 @@ class ResponderAppService:
         )
 
 
-    async def get_responder_alerts(self, responder_id: UUID, db: AsyncSession) -> list[AlertListItem]:
-        deliveries: list[NotificationDelivery] = await notification_delivery_crud.get_alerts_per_responder(
+    async def get_responder_alerts(
+        self,
+        responder_id: UUID,
+        db: AsyncSession,
+        page: int = 1,
+        page_size: int = 20,
+        notification_type: str | None = None,
+    ) -> AlertPaginatedResponse:
+        deliveries, has_more = await notification_delivery_crud.get_alerts_per_responder(
             responder_id=responder_id,
             db=db,
+            page=page,
+            page_size=page_size,
+            notification_type=notification_type,
         )
 
-        return [
-            AlertListItem(
-                id=delivery.id,
-                type=delivery.dispatch.type,
-                title=delivery.dispatch.title,
-                message=delivery.dispatch.message,
-                timestamp=delivery.sent_at,
-                is_acknowledged=delivery.acknowledgement is not None,
-                acknowledged_at=delivery.acknowledgement.acknowledged_at if delivery.acknowledgement else None,
-                acknowledge_message=delivery.acknowledgement.message if delivery.acknowledgement else None
-            ) for delivery in deliveries
-        ]
+        return AlertPaginatedResponse(
+            items=[
+                AlertListItem(
+                    id=delivery.id,
+                    type=delivery.dispatch.type,
+                    title=delivery.dispatch.title,
+                    message=delivery.dispatch.message,
+                    timestamp=delivery.sent_at,
+                    is_acknowledged=delivery.acknowledgement is not None,
+                    acknowledged_at=delivery.acknowledgement.acknowledged_at if delivery.acknowledgement else None,
+                    acknowledge_message=delivery.acknowledgement.message if delivery.acknowledgement else None
+                ) for delivery in deliveries
+            ],
+            has_more=has_more,
+        )
 
 
     async def acknowledge_alert(self, payload: AcknowledgeNotifRequest, db: AsyncSession) -> AcknowledgeNotifResponse:
@@ -208,11 +221,14 @@ class ResponderAppService:
             await responder_crud.activate(db=db, responder_id=verify_request.responder_id, commit=False)
             await responder_group_crud.add_member(db=db, group_id=active_group.id, responder_id=verify_request.responder_id, commit=False)
         await responder_otp_verification_crud.delete_by_responder_id(db=db, responder_id=verify_request.responder_id)
-        
+
+        token = create_responder_token(str(verify_request.responder_id))
+
         return ResponderOTPVerifyResponse(
             success=True,
             message="OTP verified successfully.",
-            requires_resend=False
+            requires_resend=False,
+            responder_token=token,
         )
 
 

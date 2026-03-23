@@ -14,6 +14,9 @@ from app.services.cache_service import cache_service
 from app.schemas import DevicePerLocation
 
 
+CRITICAL_NOTIFY_COOLDOWN_SECONDS = 30 * 60  # 30 minutes
+
+
 class FusionAnalysisState:
 
     def __init__(self, location_id: int = None, camera_device_id: int = None, sensor_device_id: int = None):
@@ -30,6 +33,7 @@ class FusionAnalysisState:
         self.blockage_status: BlockageStatus | None = None
         self.water_level_status: WaterLevelStatus | None = None
         self.weather_status: WeatherStatus | None = None
+        self._last_critical_notify_time: float = 0
 
 
     async def broadcast_fusion_analysis(self):
@@ -136,6 +140,8 @@ class FusionAnalysisState:
 
 
     async def _recalculate_fusion_data(self) -> None:
+        prev_alert_name = self.fusion_data.alert_name
+
         async with AsyncSessionLocal() as db:
             alert_thresholds = await cache_service.get_alert_thresholds(db)
 
@@ -154,6 +160,44 @@ class FusionAnalysisState:
         )
 
         await self.broadcast_fusion_analysis()
+
+        # Auto-notify responders when fusion transitions to Critical
+        if prev_alert_name != "Critical" and self.fusion_data.alert_name == "Critical":
+            await self._auto_notify_critical()
+
+    async def _auto_notify_critical(self) -> None:
+        import time
+        now = time.monotonic()
+        if now - self._last_critical_notify_time < CRITICAL_NOTIFY_COOLDOWN_SECONDS:
+            return
+        self._last_critical_notify_time = now
+
+        try:
+            from app.services import notification_service
+            from app.crud import responder_crud
+            from app.schemas.subscription import SendNotificationSchema, CustomNotificationPayload
+            from app.models.notification_template import NotificationType
+
+            async with AsyncSessionLocal() as db:
+                responder_ids = await responder_crud.get_responder_ids_with_push_subscription(db=db)
+                if not responder_ids:
+                    return
+
+                payload = SendNotificationSchema(
+                    responder_ids=responder_ids,
+                    template_id=None,
+                    custom_notification=CustomNotificationPayload(
+                        type=NotificationType.CRITICAL,
+                        title="Critical Alert",
+                        message=f"Critical risk level detected. Combined risk score: {self.fusion_data.combined_risk_score}. Conditions: {', '.join(self.fusion_data.triggered_conditions)}",
+                    ),
+                    system_initiated=True,
+                )
+                await notification_service.send_notification_to_subscribers(payload=payload, db=db)
+                print(f"🚨 Auto-notified {len(responder_ids)} responders of Critical fusion alert (location {self.location_id})")
+
+        except Exception as e:
+            print(f"⚠️ Auto-notify critical failed: {e}")
 
 
 class StateManager:

@@ -6,6 +6,7 @@ from app.api.v1.dependencies import require_auth
 from app.core.database import get_db
 from app.models.notification_template import NotificationType
 from app.schemas.notification_log import DeliveryLogPaginatedResponse, ResponderNotificationSummary
+from app.schemas.notification_analytics import NotificationAnalyticsResponse
 from app.services.notification_log_service import notification_log_service
 
 router = APIRouter(prefix="/notification-logs", tags=["notification-logs"])
@@ -31,3 +32,21 @@ async def get_responder_deliveries(
         page_size=page_size,
         notification_type=type,
     )
+
+
+@router.get("/analytics", dependencies=[Depends(require_auth)], response_model=NotificationAnalyticsResponse)
+async def get_analytics(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> NotificationAnalyticsResponse:
+    return await notification_log_service.get_analytics(db=db, date_from=date_from, date_to=date_to)
+
+
+@router.get("/export", dependencies=[Depends(require_auth)])
+async def export_deliveries(
+    date_from: str | None = None,
+    date_to: str | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    return await notification_log_service.get_deliveries_for_export(db=db, date_from=date_from, date_to=date_to)

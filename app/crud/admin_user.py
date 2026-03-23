@@ -80,6 +80,38 @@ class CRUDAdminUser(CRUDBase[AdminUser, AdminUserCreate, None]):
         return user
 
 
+    async def deactivate(self, db: AsyncSession, user_id: str, deactivated_by: str, reason: str) -> AdminUser:
+        result = await db.execute(
+            select(AdminUser).filter(AdminUser.id == user_id)
+        )
+        user = result.scalars().first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        user.is_enabled = False
+        user.deactivated_at = datetime.now()
+        user.deactivated_by = deactivated_by
+        user.deactivation_reason = reason
+        await db.commit()
+        await db.refresh(user)
+        return user
+
+    async def reactivate(self, db: AsyncSession, user_id: str) -> AdminUser:
+        result = await db.execute(
+            select(AdminUser).filter(AdminUser.id == user_id)
+        )
+        user = result.scalars().first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        user.is_enabled = True
+        user.deactivated_at = None
+        user.deactivated_by = None
+        user.deactivation_reason = None
+        await db.commit()
+        await db.refresh(user)
+        return user
+
     async def update_last_login(self, db: AsyncSession, user: AdminUser, last_login: datetime) -> None:
         
         user.last_login = last_login

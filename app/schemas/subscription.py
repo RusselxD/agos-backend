@@ -24,3 +24,4 @@ class SendNotificationSchema(BaseModel):
     responder_ids: list[UUID]
     template_id: int | None = None
     custom_notification: CustomNotificationPayload | None = None
+    system_initiated: bool = False  # True for auto-dispatched notifications (bypasses announcement-only check)

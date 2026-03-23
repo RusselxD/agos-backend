@@ -26,7 +26,14 @@ def get_otp_hash(otp: str) -> str:
 def create_access_token(data: dict, expires_delta: timedelta) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + expires_delta
-        
+
     to_encode.update({"exp": int(expire.timestamp())})
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
+
+
+def create_responder_token(responder_id: str) -> str:
+    return create_access_token(
+        data={"sub": responder_id, "type": "responder"},
+        expires_delta=timedelta(days=settings.RESPONDER_TOKEN_EXPIRE_DAYS),
+    )

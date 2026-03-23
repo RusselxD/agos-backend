@@ -83,6 +83,66 @@ async def require_superuser(
     return current_user
 
 
+class CurrentResponder:
+    """Holds the authenticated responder's data from the token"""
+    def __init__(self, id: str):
+        self.id = id
+
+
+responder_security = HTTPBearer(auto_error=False)
+
+
+async def require_responder_auth(
+    credentials: HTTPAuthorizationCredentials | None = Depends(responder_security),
+    db: AsyncSession = Depends(get_db)) -> CurrentResponder:
+
+    """Check if responder has a valid token"""
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authentication token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    token = credentials.credentials
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        responder_id: str | None = payload.get("sub")
+        token_type: str | None = payload.get("type")
+
+        if responder_id is None or token_type != "responder":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    from app.crud import responder_crud
+    responder = await responder_crud.get(db, id=responder_id)
+    if responder is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Responder not found",
+        )
+
+    from app.models.responder_related.responders import ResponderStatus
+    if responder.status != ResponderStatus.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Responder account is not active",
+        )
+
+    return CurrentResponder(id=responder_id)
+
+
 async def require_iot_api_key(x_api_key: str | None = Depends(iot_api_key_header)) -> None:
     """Validate static API key used by trusted IoT devices."""
     expected = settings.IOT_API_KEY

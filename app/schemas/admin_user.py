@@ -32,4 +32,8 @@ class AdminUserResponse(AdminUserBase):
     
     # Configuration to handle data from the SQLAlchemy ORM model
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+
+class AdminDeactivateRequest(BaseModel):
+    reason: str

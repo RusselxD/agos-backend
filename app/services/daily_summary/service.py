@@ -116,6 +116,28 @@ class DailySummaryService:
 
         return created_count
 
+    async def backfill_missing_summaries(self, db: AsyncSession, days: int = 7) -> int:
+        """Check past N days for missing summaries and generate them."""
+        location_ids = await cache_service.get_all_location_ids(db)
+        today = datetime.now(settings.APP_TIMEZONE).date()
+        backfilled = 0
+
+        for day_offset in range(1, days + 1):
+            target_date = today - timedelta(days=day_offset)
+            for loc_id in location_ids:
+                existing = await daily_summary_crud.get_by_location_and_date(db, loc_id, target_date)
+                if existing:
+                    continue
+                try:
+                    summary_data = await self.generate_summary_for_location(db, loc_id, target_date)
+                    await daily_summary_crud.create_daily_summary(db, loc_id, target_date, summary_data)
+                    backfilled += 1
+                    print(f"📋 Backfilled summary for location {loc_id} on {target_date}")
+                except Exception as e:
+                    print(f"⚠️ Failed to backfill summary for location {loc_id} on {target_date}: {e}")
+
+        return backfilled
+
     async def get_daily_summaries(
         self,
         db: AsyncSession,

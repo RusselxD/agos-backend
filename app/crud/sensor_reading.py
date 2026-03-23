@@ -134,4 +134,28 @@ class CRUDSensorReading(CRUDBase[SensorReading, SensorReadingCreate, None]):
         return db_obj
 
 
+    async def get_recent_trend(
+        self, db: AsyncSession, sensor_device_id: int, hours: int = 24, max_points: int = 50
+    ) -> list[dict]:
+        from datetime import timezone, timedelta
+        cutoff = datetime.datetime.now(timezone.utc) - timedelta(hours=hours)
+
+        result = await db.execute(
+            select(self.model.timestamp, self.model.water_level_cm)
+            .filter(
+                self.model.sensor_device_id == sensor_device_id,
+                self.model.timestamp >= cutoff,
+            )
+            .order_by(self.model.timestamp.asc())
+        )
+        rows = result.all()
+
+        # Downsample if too many points
+        if len(rows) > max_points:
+            step = len(rows) / max_points
+            rows = [rows[int(i * step)] for i in range(max_points)]
+
+        return [{"timestamp": r.timestamp, "water_level_cm": float(r.water_level_cm)} for r in rows]
+
+
 sensor_reading_crud = CRUDSensorReading(SensorReading)

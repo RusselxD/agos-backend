@@ -5,6 +5,7 @@ from app.api.v1.endpoints import stream, core
 from app.api.v1.endpoints import daily_summary, analysis
 from app.api.v1.endpoints import notification_logs
 from app.api.v1.endpoints import model_reading_logs
+from app.api.v1.endpoints import health
 from fastapi import APIRouter
 
 api_router = APIRouter(prefix="/api/v1")
@@ -27,3 +28,4 @@ api_router.include_router(stream.router)
 api_router.include_router(system_settings.router)
 api_router.include_router(model_reading_logs.router)
 api_router.include_router(weather.router)
+api_router.include_router(health.router)

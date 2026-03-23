@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends
-from app.api.v1.dependencies import require_auth
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException
+from app.api.v1.dependencies import require_auth, require_responder_auth, CurrentResponder
 from app.core.config import settings
 from app.core.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +19,13 @@ def get_vapid_public_key():
 
 
 @router.post("/subscribe", status_code=204)
-async def save_subscription(data: SubscriptionSchema, db: AsyncSession = Depends(get_db)) -> None:
+async def save_subscription(
+    data: SubscriptionSchema,
+    current_responder: CurrentResponder = Depends(require_responder_auth),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    if current_responder.id != str(data.responder_id):
+        raise HTTPException(status_code=403, detail="Cannot subscribe for another responder")
     await push_subscription_service.subscribe(data=data, db=db)
 
 

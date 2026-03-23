@@ -28,6 +28,7 @@ class ResponderOTPVerifyResponse(BaseModel):
     success: bool
     message: str
     requires_resend: bool  # True = need to request new OTP, False = can retry current OTP
+    responder_token: str | None = None
 
 class ResponderBase(BaseModel):
     first_name: str
@@ -89,6 +90,11 @@ class AlertListItem(BaseModel):
     is_acknowledged: bool
     acknowledged_at: datetime | None
     acknowledge_message: str | None
+
+
+class AlertPaginatedResponse(BaseModel):
+    items: list[AlertListItem]
+    has_more: bool
 
 
 class AcknowledgeNotifRequest(BaseModel):

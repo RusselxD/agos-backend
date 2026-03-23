@@ -143,7 +143,7 @@ class NotificationService:
             return template.title, template.message, template.type
 
         custom_notification = payload.custom_notification
-        if custom_notification.type != NotificationType.ANNOUNCEMENT:
+        if not payload.system_initiated and custom_notification.type != NotificationType.ANNOUNCEMENT:
             raise HTTPException(
                 status_code=400,
                 detail="Custom notifications must be announcement type",

@@ -10,7 +10,7 @@ from .auth import LoginRequest, ChangePasswordRequest
 from .stream import CameraStatus
 from .weather import WeatherCreate, WeatherConditionResponse, WeatherComprehensiveResponse
 
-from .responder import ResponderCreate, ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderDetails, NotifPreferenceUpdateRequest, AlertListItem
+from .responder import ResponderCreate, ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderDetails, NotifPreferenceUpdateRequest, AlertListItem, AlertPaginatedResponse
 from .responder import ResponderListItem, ResponderDetailsResponse, ResponderSendSMSRequest, ResponderOTPVerificationCreate, ResponderRegistrationRequest
 from .responder import AcknowledgeNotifRequest, AcknowledgeNotifResponse
 

@@ -69,4 +69,36 @@ class AdminUserService:
         )
 
 
+    async def deactivate_admin(
+        self, db: AsyncSession, user_id: str, current_user: CurrentUser, reason: str
+    ) -> None:
+        if current_user.id == user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot deactivate your own account."
+            )
+
+        user = await admin_user_crud.deactivate(db=db, user_id=user_id, deactivated_by=current_user.id, reason=reason)
+
+        # Invalidate all sessions
+        from app.crud import refresh_token_crud
+        await refresh_token_crud.delete_by_user_id(db=db, user_id=user_id)
+
+        # Audit log
+        await admin_audit_log_crud.create_only(db=db, obj_in=AdminAuditLogCreate(
+            admin_user_id=current_user.id,
+            action=f"Deactivated admin {user.first_name} {user.last_name}. Reason: {reason}"
+        ))
+
+    async def reactivate_admin(
+        self, db: AsyncSession, user_id: str, current_user: CurrentUser
+    ) -> None:
+        user = await admin_user_crud.reactivate(db=db, user_id=user_id)
+
+        await admin_audit_log_crud.create_only(db=db, obj_in=AdminAuditLogCreate(
+            admin_user_id=current_user.id,
+            action=f"Reactivated admin {user.first_name} {user.last_name}."
+        ))
+
+
 admin_user_service = AdminUserService()

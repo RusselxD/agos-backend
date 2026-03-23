@@ -38,18 +38,41 @@ class CRUDNotificationDelivery(CRUDBase):
         await db.commit()
 
 
-    async def get_alerts_per_responder(self, responder_id: UUID, db: AsyncSession) -> list[NotificationDelivery]:
+    async def get_alerts_per_responder(
+        self,
+        responder_id: UUID,
+        db: AsyncSession,
+        page: int = 1,
+        page_size: int = 20,
+        notification_type: str | None = None,
+    ) -> tuple[list[NotificationDelivery], bool]:
+        from app.models.notification_dispatch import NotificationDispatch
 
-        result = await db.execute(
+        stmt = (
             select(self.model)
             .options(
                 joinedload(NotificationDelivery.dispatch),
                 joinedload(NotificationDelivery.acknowledgement),
             )
             .where(NotificationDelivery.responder_id == responder_id)
-            .order_by(NotificationDelivery.sent_at.desc())
         )
-        return list(result.scalars().unique().all())
+
+        if notification_type is not None:
+            stmt = stmt.join(NotificationDispatch).where(NotificationDispatch.type == notification_type)
+
+        stmt = stmt.order_by(NotificationDelivery.sent_at.desc())
+
+        offset = (page - 1) * page_size
+        stmt = stmt.offset(offset).limit(page_size + 1)
+
+        result = await db.execute(stmt)
+        items = list(result.scalars().unique().all())
+
+        has_more = len(items) > page_size
+        if has_more:
+            items = items[:page_size]
+
+        return items, has_more
 
 
     async def get_unread_alerts_count(self, responder_id: UUID, db: AsyncSession) -> int:
@@ -67,6 +90,48 @@ class CRUDNotificationDelivery(CRUDBase):
             )
         )
         return int(result.scalar_one())
+
+
+    async def get_unacknowledged_critical_past_threshold(
+        self,
+        db: AsyncSession,
+        timeout_minutes: int,
+        max_escalation: int,
+    ) -> list[NotificationDelivery]:
+        from datetime import datetime, timezone, timedelta
+        from app.models.notification_dispatch import NotificationDispatch
+        from app.models.notification_template import NotificationType
+
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=timeout_minutes)
+
+        stmt = (
+            select(self.model)
+            .options(
+                joinedload(NotificationDelivery.dispatch),
+            )
+            .outerjoin(Acknowledgement, Acknowledgement.delivery_id == NotificationDelivery.id)
+            .join(NotificationDispatch)
+            .where(
+                NotificationDelivery.status == DeliveryStatus.SENT,
+                Acknowledgement.id.is_(None),
+                NotificationDispatch.type == NotificationType.CRITICAL,
+                NotificationDelivery.sent_at < cutoff,
+                NotificationDelivery.escalation_count < max_escalation,
+            )
+        )
+
+        result = await db.execute(stmt)
+        return list(result.scalars().unique().all())
+
+    async def increment_escalation_count(self, db: AsyncSession, delivery_id: UUID) -> None:
+        from sqlalchemy import update
+        stmt = (
+            update(self.model)
+            .where(self.model.id == delivery_id)
+            .values(escalation_count=self.model.escalation_count + 1)
+        )
+        await db.execute(stmt)
+        await db.commit()
 
 
 notification_delivery_crud = CRUDNotificationDelivery(NotificationDelivery)

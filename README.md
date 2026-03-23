@@ -85,11 +85,15 @@ If `SMS_GATEWAY_URL` is empty, OTPs are logged to the console instead of being s
 ```
 app/
 ├── api/v1/
-│   ├── endpoints/       # Route handlers (19 files)
+│   ├── endpoints/       # Route handlers (20 files)
 │   └── router.py        # Route registration
 ├── core/
 │   ├── config.py        # Settings (pydantic-settings)
-│   ├── security.py      # JWT + Argon2 hashing
+│   ├── security.py      # JWT + Argon2 hashing (admin + responder tokens)
+│   ├── state.py         # Fusion analysis state manager (auto-notify on critical)
+│   ├── scheduler.py     # APScheduler (daily summary, cleanup, escalation)
+│   ├── escalation.py    # Automated escalation for unacknowledged alerts
+│   ├── fusion_scoring.py # Combined risk score calculation
 │   └── exceptions.py    # Custom exceptions
 ├── crud/                # Data access layer (21 CRUD classes)
 ├── models/              # SQLAlchemy models
@@ -110,20 +114,21 @@ app/
 | Prefix | Description |
 |--------|-------------|
 | `/auth` | Admin login, logout, token refresh |
-| `/admin-users` | Admin user management |
+| `/admin-users` | Admin user management (create, deactivate, reactivate) |
 | `/admin-audit-logs` | Admin activity logs |
 | `/responders` | Admin responder management (bulk create, list, details) |
-| `/responder` | Responder self-service (OTP verify, alerts, preferences) |
+| `/responder` | Responder self-service (OTP verify + JWT token, paginated alerts, preferences, water level trend) |
 | `/responder-groups` | Responder group CRUD |
 | `/sensor-devices` | Sensor device config and status |
 | `/sensor-readings` | Sensor data (paginated, trends, export) |
 | `/weather` | Weather data (OpenMeteo) |
 | `/model-reading-logs` | AI blockage detection history |
-| `/notification-logs` | Notification delivery history |
+| `/notification-logs` | Notification delivery history, analytics, export |
 | `/notification-templates` | Notification template CRUD |
 | `/push` | VAPID key + push subscription |
 | `/daily-summaries` | AI-generated daily reading summaries |
 | `/analysis` | AI streaming analysis (SSE) |
 | `/stream` | HLS video stream management |
 | `/system-settings` | System configuration |
+| `/health` | System health check (DB, scheduler, WebSocket) |
 | `/ws` | WebSocket (real-time sensor, weather, blockage, fusion data) |

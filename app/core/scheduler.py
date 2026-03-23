@@ -1,5 +1,6 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime, timedelta
 from app.core.database import AsyncSessionLocal
 from app.core.config import settings
@@ -59,6 +60,12 @@ async def data_cleanup_job():
         print(f"❌ Error during data cleanup: {e}")
 
 
+async def _escalation_check_job():
+    """Check for unacknowledged critical alerts and re-notify."""
+    from app.core.escalation import escalation_check_job
+    await escalation_check_job()
+
+
 def start_scheduler():
     """Start the APScheduler with configured jobs."""
     scheduler.add_job(
@@ -75,8 +82,15 @@ def start_scheduler():
         replace_existing=True,
         misfire_grace_time=3600
     )
+    scheduler.add_job(
+        _escalation_check_job,
+        IntervalTrigger(minutes=5),
+        id="escalation_check_job",
+        replace_existing=True,
+        misfire_grace_time=300,
+    )
     scheduler.start()
-    print(f"📅 Scheduler started - Daily summary job at midnight, data cleanup job at 1:00 AM (UTC{settings.UTC_OFFSET_HOURS:+g})")
+    print(f"📅 Scheduler started - Daily summary at midnight, data cleanup at 1:00 AM, escalation every 5 min (UTC{settings.UTC_OFFSET_HOURS:+g})")
 
 
 def shutdown_scheduler():
