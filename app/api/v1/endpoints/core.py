@@ -13,6 +13,11 @@ async def get_location_details(db: AsyncSession = Depends(get_db)) -> LocationDe
     return await core_service.get_default_location(db=db)
 
 
+@router.get("/public/location-details", response_model=LocationDetails)
+async def get_public_location_details(db: AsyncSession = Depends(get_db)) -> LocationDetails:
+    return await core_service.get_default_location(db=db)
+
+
 @router.get("/device-details", response_model=DeviceDetails, dependencies=[Depends(require_auth)])
 async def get_device_details(db: AsyncSession = Depends(get_db), location_id: int = 1) -> DeviceDetails:
     return await core_service.get_device_details(db=db, location_id=location_id)

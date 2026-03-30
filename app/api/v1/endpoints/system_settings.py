@@ -9,6 +9,11 @@ from app.core.database import get_db
 router = APIRouter(prefix="/system-settings", tags=["system-settings"])
 
 
+@router.get("/public/alert-thresholds", response_model=None)
+async def get_public_alert_thresholds(db: AsyncSession = Depends(get_db)) -> any:
+    return await system_settings_crud.get_value(db=db, key="alert_thresholds")
+
+
 @router.get("/{key}", response_model=SystemSettingsResponse, dependencies=[Depends(require_auth)])
 async def get_system_setting(key: str, db: AsyncSession = Depends(get_db)) -> SystemSettingsResponse:
     return await system_settings_crud.get(db=db, key=key)
