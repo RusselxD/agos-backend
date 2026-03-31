@@ -18,6 +18,23 @@ def calculate_fusion_data(
     """Compute combined risk score and conditions from component statuses."""
     score = 0
     conditions: list[str] = []
+    unavailable: list[str] = []
+
+    # Track unavailable data sources
+    if not blockage_status:
+        unavailable.append("Blockage detection")
+    if not water_level_status:
+        unavailable.append("Water level sensor")
+    if not weather_status:
+        unavailable.append("Weather data")
+
+    # If all sources are unavailable, report degraded state
+    if len(unavailable) == 3:
+        return FusionData(
+            alert_name="Unavailable",
+            combined_risk_score=0,
+            triggered_conditions=["All data sources are currently unavailable"],
+        )
 
     # Blockage Score (0-30)
     if blockage_status:
@@ -85,14 +102,18 @@ def calculate_fusion_data(
     elif alert_thresholds.tier_3_min <= score:
         alert_name = "Critical"
 
+    # Append unavailable sources so operators know the score is incomplete
+    if unavailable:
+        conditions.append(f"Data unavailable: {', '.join(unavailable)}")
+
     if alert_name == "Normal":
-        if not conditions:
+        if not unavailable and not conditions:
             conditions = [
                 "All systems operating within normal parameters",
                 "Drainage system clear and functioning",
                 "Water levels within safe range",
             ]
-        else:
+        elif not unavailable:
             conditions = ["Conditions normal - Continue routine monitoring"] + conditions
 
     return FusionData(

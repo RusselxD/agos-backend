@@ -140,8 +140,6 @@ class FusionAnalysisState:
 
 
     async def _recalculate_fusion_data(self) -> None:
-        prev_alert_name = self.fusion_data.alert_name
-
         async with AsyncSessionLocal() as db:
             alert_thresholds = await cache_service.get_alert_thresholds(db)
 
@@ -161,8 +159,8 @@ class FusionAnalysisState:
 
         await self.broadcast_fusion_analysis()
 
-        # Auto-notify responders when fusion transitions to Critical
-        if prev_alert_name != "Critical" and self.fusion_data.alert_name == "Critical":
+        # Auto-notify responders when fusion is Critical (cooldown-gated)
+        if self.fusion_data.alert_name == "Critical":
             await self._auto_notify_critical()
 
     async def _auto_notify_critical(self) -> None:

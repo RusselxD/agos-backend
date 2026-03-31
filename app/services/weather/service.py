@@ -1,8 +1,11 @@
+import asyncio
 import logging
+import time
 from datetime import datetime, timezone, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,11 +27,18 @@ from app.crud import weather_crud
 
 logger = logging.getLogger(__name__)
 
+RETRY_DELAY_MINUTES = 5
+MAX_RETRIES = 3
+REFETCH_COOLDOWN_SECONDS = 120
+
 
 class WeatherService:
 
     def __init__(self):
         self.scheduler = AsyncIOScheduler(timezone=settings.APP_TIMEZONE)
+        self._retry_count: int = 0
+        self._last_refetch_time: float = 0
+        self._fetch_lock = asyncio.Lock()
 
 
     async def start(self) -> None:
@@ -38,6 +48,7 @@ class WeatherService:
                 await self._fetch_initial_weather(db=db, location_id=1)
             except Exception:
                 logger.exception("Initial weather fetch failed during startup")
+                self._schedule_retry()
 
         self.scheduler.add_job(
             self._fetch_and_update_weather,
@@ -51,6 +62,57 @@ class WeatherService:
     async def stop(self) -> None:
         self.scheduler.shutdown()
         print("✅ Weather service scheduler stopped.")
+
+
+    def _schedule_retry(self) -> None:
+        """Schedule a one-off retry after a failed fetch, up to MAX_RETRIES."""
+        if self._retry_count >= MAX_RETRIES:
+            logger.error(
+                "Weather fetch failed %d times; waiting for next hourly run",
+                self._retry_count,
+            )
+            return
+
+        self._retry_count += 1
+        run_time = datetime.now(timezone.utc) + timedelta(minutes=RETRY_DELAY_MINUTES)
+        job_id = f"weather_retry_{self._retry_count}"
+
+        if self.scheduler.get_job(job_id):
+            self.scheduler.remove_job(job_id)
+
+        self.scheduler.add_job(
+            self._fetch_and_update_weather,
+            DateTrigger(run_date=run_time),
+            id=job_id,
+        )
+        logger.info(
+            "Scheduled weather retry %d/%d in %d minutes",
+            self._retry_count,
+            MAX_RETRIES,
+            RETRY_DELAY_MINUTES,
+        )
+
+
+    async def request_refetch(self) -> None:
+        """
+        Trigger a weather refetch when stale data is detected on client connect.
+        Cooldown prevents thundering herd from multiple simultaneous connections.
+        """
+        now = time.monotonic()
+        if now - self._last_refetch_time < REFETCH_COOLDOWN_SECONDS:
+            return
+
+        self._last_refetch_time = now
+        job_id = "weather_stale_refetch"
+        if self.scheduler.get_job(job_id):
+            return
+
+        logger.info("Stale weather detected on client connect; triggering refetch")
+        self.scheduler.add_job(
+            self._fetch_and_update_weather,
+            DateTrigger(run_date=datetime.now(timezone.utc) + timedelta(seconds=2)),
+            id=job_id,
+        )
 
 
     async def _fetch_initial_weather(self, db: AsyncSession, location_id: int) -> None:
@@ -75,6 +137,14 @@ class WeatherService:
 
     async def _fetch_and_update_weather(self) -> None:
         """Scheduled job: fetch weather, save, broadcast via WebSocket, update fusion state."""
+        if self._fetch_lock.locked():
+            logger.debug("Weather fetch already in progress; skipping")
+            return
+
+        async with self._fetch_lock:
+            await self._do_fetch_and_update()
+
+    async def _do_fetch_and_update(self) -> None:
         from app.services.websocket_service import websocket_service
 
         async with AsyncSessionLocal() as db:
@@ -87,11 +157,15 @@ class WeatherService:
                 weather_conditions = await fetch_weather_for_coordinates(coordinates)
             except Exception:
                 logger.exception("Scheduled weather fetch/update failed")
+                self._schedule_retry()
                 return
 
             if not weather_conditions:
                 logger.warning("Scheduled weather fetch returned no data; skipping update cycle")
+                self._schedule_retry()
                 return
+
+            self._retry_count = 0
 
             for condition in weather_conditions:
                 db_obj = await save_weather_and_return(db=db, weather_data=condition)

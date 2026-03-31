@@ -110,8 +110,9 @@ class WebSocketService:
 
         latest_weather_condition = await weather_crud.get_latest_weather(db=db, location_id=location_id)
 
-        # If no reading found or beyond the warning period, send error message
+        # If no reading found or beyond the warning period, send error message and trigger refetch
         if not latest_weather_condition or (latest_weather_condition["created_at"] < datetime.now(timezone.utc) - timedelta(minutes=settings.WEATHER_CONDITION_WARNING_PERIOD_MINUTES)):
+            await weather_service.request_refetch()
             return WeatherWebSocketResponse(
                 status="error",
                 message="No recent weather data available.",
