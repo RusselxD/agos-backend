@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.dependencies import require_auth
@@ -11,8 +11,8 @@ router = APIRouter(prefix="/model-reading-logs", tags=["model-reading-logs"])
 
 @router.get("/paginated", dependencies=[Depends(require_auth)], response_model=ModelReadingPaginatedResponse)
 async def get_model_readings_paginated(
-    page: int = 1,
-    page_size: int = 10,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     camera_device_id: int = 1,
     blockage_status: str | None = None,
     db: AsyncSession = Depends(get_db),

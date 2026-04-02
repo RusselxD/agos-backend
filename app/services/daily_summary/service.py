@@ -3,6 +3,7 @@
 from datetime import date, datetime, timezone, timedelta
 
 from sqlalchemy import select, and_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -110,9 +111,12 @@ class DailySummaryService:
                 continue
 
             summary_data = await self.generate_summary_for_location(db, loc_id, target_date)
-            await daily_summary_crud.create_daily_summary(db, loc_id, target_date, summary_data)
-            created_count += 1
-            print(f"✅ Created daily summary for location {loc_id} on {target_date}")
+            try:
+                await daily_summary_crud.create_daily_summary(db, loc_id, target_date, summary_data)
+                created_count += 1
+                print(f"✅ Created daily summary for location {loc_id} on {target_date}")
+            except IntegrityError:
+                await db.rollback()  # Summary was created by concurrent job, skip
 
         return created_count
 
@@ -133,6 +137,8 @@ class DailySummaryService:
                     await daily_summary_crud.create_daily_summary(db, loc_id, target_date, summary_data)
                     backfilled += 1
                     print(f"📋 Backfilled summary for location {loc_id} on {target_date}")
+                except IntegrityError:
+                    await db.rollback()  # Summary was created by concurrent job, skip
                 except Exception as e:
                     print(f"⚠️ Failed to backfill summary for location {loc_id} on {target_date}: {e}")
 

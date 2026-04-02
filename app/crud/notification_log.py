@@ -177,6 +177,7 @@ class CRUDNotificationLog:
         db: AsyncSession,
         date_from: str | None = None,
         date_to: str | None = None,
+        limit: int = 10000,
     ) -> list[NotificationDelivery]:
         from datetime import datetime, timezone
 
@@ -195,7 +196,7 @@ class CRUDNotificationLog:
         if date_to:
             stmt = stmt.where(NotificationDelivery.sent_at <= datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc))
 
-        stmt = stmt.order_by(NotificationDelivery.sent_at.desc())
+        stmt = stmt.order_by(NotificationDelivery.sent_at.desc()).limit(limit)
 
         result = await db.execute(stmt)
         return list(result.scalars().unique().all())

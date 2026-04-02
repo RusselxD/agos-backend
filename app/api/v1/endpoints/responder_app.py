@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from fastapi import Depends
@@ -9,6 +9,7 @@ from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
 from app.models.responder_related.responders import NotificationPreference
 from app.services import responder_app_service
 from app.api.v1.dependencies import require_responder_auth, CurrentResponder
+from app.core.rate_limiter import limiter
 
 router = APIRouter(prefix="/responder", tags=["responder app"])
 
@@ -42,8 +43,8 @@ async def get_unread_alerts_count(
 @router.get("/alerts/{responder_id}", response_model=AlertPaginatedResponse)
 async def get_responder_alerts(
     responder_id: UUID,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     type: str | None = None,
     current_responder: CurrentResponder = Depends(require_responder_auth),
     db: AsyncSession = Depends(get_db)):
@@ -90,20 +91,25 @@ async def update_responder_notif_preferences(
 # --- Pre-auth endpoints (no token required) ---
 
 @router.post("/for-approval", response_model=ResponderForApproval)
+@limiter.limit("5/minute")
 async def get_responder_for_approval(
-    request: ResponderRegistrationRequest,
+    request: Request,
+    payload: ResponderRegistrationRequest,
     db: AsyncSession = Depends(get_db)) -> ResponderForApproval:
 
-    return await responder_app_service.get_responder_for_approval(phone_number=request.phone_number, db=db)
+    return await responder_app_service.get_responder_for_approval(phone_number=payload.phone_number, db=db)
 
 
 @router.post("/resend-otp/{responder_id}", status_code=204)
-async def resend_otp(responder_id: UUID, db: AsyncSession = Depends(get_db)) -> None:
+@limiter.limit("3/minute")
+async def resend_otp(request: Request, responder_id: UUID, db: AsyncSession = Depends(get_db)) -> None:
     await responder_app_service.resend_otp(responder_id=responder_id, db=db)
 
 
 @router.post("/verify-otp", response_model=ResponderOTPVerifyResponse)
+@limiter.limit("5/minute")
 async def verify_otp(
+    request: Request,
     verify_request: ResponderOTPVerifyRequest,
     db: AsyncSession = Depends(get_db)) -> ResponderOTPVerifyResponse:
 

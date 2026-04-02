@@ -118,6 +118,7 @@ class CRUDNotificationDelivery(CRUDBase):
                 NotificationDelivery.sent_at < cutoff,
                 NotificationDelivery.escalation_count < max_escalation,
             )
+            .with_for_update(of=NotificationDelivery)
         )
 
         result = await db.execute(stmt)

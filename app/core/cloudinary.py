@@ -79,13 +79,19 @@ async def upload_image(file: Any, filename: str, folder: str = None) -> dict | N
             resource_type="image"
         )
         
-        response = await loop.run_in_executor(None, upload_func)
-        
+        response = await asyncio.wait_for(
+            loop.run_in_executor(None, upload_func),
+            timeout=30.0,
+        )
+
         return {
             "secure_url": response.get("secure_url"),
             "public_id": response.get("public_id")
         }
-        
+
+    except asyncio.TimeoutError:
+        print(f"❌ Cloudinary upload timed out after 30s for '{filename}'")
+        return None
     except Exception as e:
         print(f"❌ Cloudinary Upload Error: {e}")
         return None

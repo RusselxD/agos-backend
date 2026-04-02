@@ -1,4 +1,7 @@
+import logging
+
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -63,6 +66,16 @@ app = FastAPI(
 # Attach rate limiter to app state
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+logger = logging.getLogger(__name__)
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
 
 register_middleware(app)
 

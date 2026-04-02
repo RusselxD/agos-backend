@@ -1,8 +1,9 @@
+import re
 from typing import Literal
 
 from app.models.notification_template import NotificationType
 from app.models.responder_related.responders import ResponderStatus
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 NotifPreferenceKey = Literal["warning", "critical", "blockage", "announcement"]
 from datetime import datetime
@@ -14,6 +15,14 @@ class ResponderSendSMSRequest(BaseModel):
 
 class ResponderRegistrationRequest(BaseModel):
     phone_number: str
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, v: str) -> str:
+        cleaned = re.sub(r'[\s\-()]', '', v)
+        if not re.match(r'^(\+?63|0)9\d{9}$', cleaned):
+            raise ValueError("Invalid Philippine phone number format. Use 09XXXXXXXXX or +639XXXXXXXXX.")
+        return cleaned
 
 class ResponderOTPVerificationCreate(BaseModel):
     responder_id: UUID
@@ -34,6 +43,14 @@ class ResponderBase(BaseModel):
     first_name: str
     last_name: str
     phone_number: str
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone_number(cls, v: str) -> str:
+        cleaned = re.sub(r'[\s\-()]', '', v)
+        if not re.match(r'^(\+?63|0)9\d{9}$', cleaned):
+            raise ValueError("Invalid Philippine phone number format. Use 09XXXXXXXXX or +639XXXXXXXXX.")
+        return cleaned
 
 class ResponderCreate(ResponderBase):
     pass

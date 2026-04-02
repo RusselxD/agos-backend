@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.dependencies import require_auth
@@ -20,8 +20,8 @@ async def get_responders_summary(db: AsyncSession = Depends(get_db)) -> list[Res
 @router.get("/responder/{responder_id}/deliveries", dependencies=[Depends(require_auth)], response_model=DeliveryLogPaginatedResponse)
 async def get_responder_deliveries(
     responder_id: UUID,
-    page: int = 1,
-    page_size: int = 10,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     type: NotificationType | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> DeliveryLogPaginatedResponse:
@@ -47,6 +47,7 @@ async def get_analytics(
 async def export_deliveries(
     date_from: str | None = None,
     date_to: str | None = None,
+    limit: int = Query(10000, ge=1, le=50000),
     db: AsyncSession = Depends(get_db),
 ) -> list[dict]:
-    return await notification_log_service.get_deliveries_for_export(db=db, date_from=date_from, date_to=date_to)
+    return await notification_log_service.get_deliveries_for_export(db=db, date_from=date_from, date_to=date_to, limit=limit)

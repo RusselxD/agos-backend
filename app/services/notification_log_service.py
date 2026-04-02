@@ -120,9 +120,10 @@ class NotificationLogService:
         db: AsyncSession,
         date_from: str | None = None,
         date_to: str | None = None,
+        limit: int = 10000,
     ) -> list[dict]:
         deliveries = await notification_log_crud.get_deliveries_for_export(
-            db=db, date_from=date_from, date_to=date_to
+            db=db, date_from=date_from, date_to=date_to, limit=limit
         )
 
         return [

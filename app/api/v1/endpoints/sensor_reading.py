@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas import (
     SensorReadingPaginatedResponse,
@@ -23,8 +23,8 @@ router = APIRouter(prefix="/sensor-readings", tags=["sensor-readings"])
     dependencies=[Depends(require_auth)],
 )
 async def get_sensor_readings_paginated(
-    page: int = 1,
-    page_size: int = 10,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
     sensor_device_id: int = 1,
     db: AsyncSession = Depends(get_db),
 ) -> SensorReadingPaginatedResponse:

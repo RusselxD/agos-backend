@@ -1,3 +1,5 @@
+import asyncio
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import AsyncSessionLocal
@@ -34,6 +36,7 @@ class FusionAnalysisState:
         self.water_level_status: WaterLevelStatus | None = None
         self.weather_status: WeatherStatus | None = None
         self._last_critical_notify_time: float = 0
+        self._lock = asyncio.Lock()
 
 
     async def broadcast_fusion_analysis(self):
@@ -122,21 +125,24 @@ class FusionAnalysisState:
 
 
     async def calculate_visual_status_score(self, blockage_status: BlockageStatus = None):
-        if blockage_status:
-            self.blockage_status = blockage_status
-        await self._recalculate_fusion_data()
+        async with self._lock:
+            if blockage_status:
+                self.blockage_status = blockage_status
+            await self._recalculate_fusion_data()
 
 
     async def calculate_water_level_score(self, water_level_status: WaterLevelStatus = None):
-        if water_level_status:
-            self.water_level_status = water_level_status
-        await self._recalculate_fusion_data()
+        async with self._lock:
+            if water_level_status:
+                self.water_level_status = water_level_status
+            await self._recalculate_fusion_data()
 
 
     async def calculate_weather_score(self, weather_status: WeatherStatus = None):
-        if weather_status:
-            self.weather_status = weather_status
-        await self._recalculate_fusion_data()
+        async with self._lock:
+            if weather_status:
+                self.weather_status = weather_status
+            await self._recalculate_fusion_data()
 
 
     async def _recalculate_fusion_data(self) -> None:

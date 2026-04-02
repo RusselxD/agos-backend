@@ -68,6 +68,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             db_objs.append(db_obj)
         db.add_all(db_objs)
         await db.commit()
+        return db_objs
 
 
     async def update(self, db: AsyncSession, db_obj: ModelType, obj_in: UpdateSchemaType) -> ModelType:
