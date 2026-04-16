@@ -2,13 +2,12 @@ import json
 import base64
 import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from app.core.ws_manager import ws_manager
 from app.services.websocket_service import websocket_service
 from app.services.ml_service import ml_service
 from app.services.camera_status_service import camera_status_service
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.database import get_db
+from app.core.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +15,7 @@ router = APIRouter()
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, db: AsyncSession = Depends(get_db)):
+async def websocket_endpoint(websocket: WebSocket):
 
     location_id = websocket.query_params.get("location_id")
 
@@ -40,10 +39,13 @@ async def websocket_endpoint(websocket: WebSocket, db: AsyncSession = Depends(ge
     # Add the WebSocket connection to the manager
     await ws_manager.connect(websocket=websocket, location_id=location_id)
 
-    # Send initial data to the connected client
-    await websocket_service.send_initial_data(
-        websocket=websocket, db=db, location_id=location_id
-    )
+    # Scope DB session tightly to the initial-data call so we don't hold a
+    # connection for the entire WS lifetime (causes ConnectionDoesNotExist
+    # when idle poolers/networks drop the underlying TCP connection).
+    async with AsyncSessionLocal() as db:
+        await websocket_service.send_initial_data(
+            websocket=websocket, db=db, location_id=location_id
+        )
 
     try:
         while True:

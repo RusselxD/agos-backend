@@ -1,6 +1,7 @@
 import logging
 
 import sentry_sdk
+from sentry_sdk.integrations.logging import ignore_logger
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -67,6 +68,10 @@ sentry_sdk.init(
     traces_sample_rate=0.2,
     send_default_pii=False,
 )
+
+# Suppress noisy, non-actionable SQLAlchemy pool cleanup warnings that happen
+# when Render hibernates or Supabase's pooler drops idle connections.
+ignore_logger("sqlalchemy.pool.impl.AsyncAdaptedQueuePool")
 
 # Create FastAPI app with lifespan
 app = FastAPI(
