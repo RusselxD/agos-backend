@@ -1,5 +1,7 @@
 import logging
 
+import sentry_sdk
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
@@ -7,8 +9,9 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from contextlib import asynccontextmanager
+from app.core.config import settings
 from app.core.cloudinary import init_cloudinary
-from app.core.database import AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, engine
 
 from app.core.rate_limiter import limiter
 from app.middleware.registry import register_middleware
@@ -55,6 +58,15 @@ async def lifespan(app: FastAPI):
     shutdown_scheduler()
     await weather_service.stop()
     # await database_cleanup_service.stop()
+    await engine.dispose()
+    print("✅ Database engine disposed.")
+
+sentry_sdk.init(
+    dsn=settings.SENTRY_DSN,
+    environment=settings.ENVIRONMENT,
+    traces_sample_rate=0.2,
+    send_default_pii=False,
+)
 
 # Create FastAPI app with lifespan
 app = FastAPI(

@@ -46,6 +46,9 @@ class Settings(BaseSettings):
 
     FRONTEND_URLS: Union[list[str], str]
 
+    SENTRY_DSN: str = ""
+    ENVIRONMENT: str = "development"
+
     # runs implicitly before model initialization
     @field_validator("FRONTEND_URLS", mode="before")
     @classmethod

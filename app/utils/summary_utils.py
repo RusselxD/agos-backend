@@ -12,7 +12,7 @@ def calc_water_score(water_level_cm: float, critical_level: float) -> int:
     return 45
 
 
-def calc_blockage_score(self, status: str) -> int:
+def calc_blockage_score(status: str) -> int:
     """Calculate blockage contribution to risk score."""
     if status == "blocked":
         return 30

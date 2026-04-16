@@ -32,7 +32,9 @@ async def logout(
 
 
 @router.post("/refresh", response_model=Token)
+@limiter.limit("10/minute")
 async def refresh_token(
+    request: Request,
     body: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db)) -> Token:
 
