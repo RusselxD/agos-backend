@@ -46,8 +46,11 @@ class WeatherService:
         async with AsyncSessionLocal() as db:
             try:
                 await self._fetch_initial_weather(db=db, location_id=1)
-            except Exception:
-                logger.exception("Initial weather fetch failed during startup")
+            except Exception as e:
+                logger.warning(
+                    "Initial weather fetch failed during startup: %s; scheduling retry",
+                    type(e).__name__,
+                )
                 self._schedule_retry()
 
         self.scheduler.add_job(
@@ -67,7 +70,7 @@ class WeatherService:
     def _schedule_retry(self) -> None:
         """Schedule a one-off retry after a failed fetch, up to MAX_RETRIES."""
         if self._retry_count >= MAX_RETRIES:
-            logger.error(
+            logger.warning(
                 "Weather fetch failed %d times; waiting for next hourly run",
                 self._retry_count,
             )
@@ -155,8 +158,11 @@ class WeatherService:
                     return
 
                 weather_conditions = await fetch_weather_for_coordinates(coordinates)
-            except Exception:
-                logger.exception("Scheduled weather fetch/update failed")
+            except Exception as e:
+                logger.warning(
+                    "Scheduled weather fetch/update failed: %s; scheduling retry",
+                    type(e).__name__,
+                )
                 self._schedule_retry()
                 return
 

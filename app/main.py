@@ -72,6 +72,8 @@ sentry_sdk.init(
 # Suppress noisy, non-actionable SQLAlchemy pool cleanup warnings that happen
 # when Render hibernates or Supabase's pooler drops idle connections.
 ignore_logger("sqlalchemy.pool.impl.AsyncAdaptedQueuePool")
+# Suppress APScheduler job-cancellation noise from host hibernation mid-execution.
+ignore_logger("apscheduler.executors.default")
 
 # Create FastAPI app with lifespan
 app = FastAPI(

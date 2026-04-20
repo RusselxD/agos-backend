@@ -82,7 +82,7 @@ async def fetch_weather_for_coordinates(coordinates: list[LocationCoordinate]) -
                     break
 
             if last_error is not None:
-                logger.error(
+                logger.warning(
                     "Skipping weather fetch for location_id=%s after failure: %s",
                     coord.id,
                     type(last_error).__name__,
