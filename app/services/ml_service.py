@@ -251,19 +251,30 @@ class MLService:
 
     @staticmethod
     def _compute_coverage_pct(detections, orig_shape) -> float:
-        """Union of detection boxes over the full frame, as a percentage."""
-        import numpy as np
-
-        h, w = orig_shape
+        """Union of detection-box widths over the full frame width, as a percentage."""
+        _, w = orig_shape
         if not detections:
             return 0.0
-        mask = np.zeros((h, w), dtype=np.uint8)
+
+        spans: list[tuple[int, int]] = []
         for x1, y1, x2, y2, _ in detections:
-            x1i, y1i = max(0, int(x1)), max(0, int(y1))
-            x2i, y2i = min(w, int(x2)), min(h, int(y2))
-            if x2i > x1i and y2i > y1i:
-                mask[y1i:y2i, x1i:x2i] = 1
-        return round(100.0 * float(mask.sum()) / float(h * w), 2)
+            x1i, x2i = max(0, int(x1)), min(w, int(x2))
+            if x2i > x1i and y2 > y1:
+                spans.append((x1i, x2i))
+
+        if not spans:
+            return 0.0
+
+        spans.sort()
+        merged: list[list[int]] = []
+        for start, end in spans:
+            if not merged or start > merged[-1][1]:
+                merged.append([start, end])
+            else:
+                merged[-1][1] = max(merged[-1][1], end)
+
+        blocked_width = sum(end - start for start, end in merged)
+        return round(100.0 * float(blocked_width) / float(w), 2)
 
     @staticmethod
     def _status_from_pct(pct: float) -> str:
