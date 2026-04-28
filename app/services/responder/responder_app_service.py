@@ -19,6 +19,7 @@ from app.core.security import get_otp_hash, verify_otp as verify_otp_hash, creat
 from app.models import Responder
 from app.crud.responder import responder_crud
 from app.schemas import ResponderOTPVerifyResponse, AlertListItem, AlertPaginatedResponse
+from app.models.notification_template import NotificationType
 from app.models.responder_related.group import DEFAULT_ACTIVE_RESPONDERS_GROUP_NAME
 from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
 from app.models.responder_related.responders import ResponderStatus
@@ -76,7 +77,7 @@ class ResponderAppService:
         db: AsyncSession,
         page: int = 1,
         page_size: int = 20,
-        notification_type: str | None = None,
+        notification_type: NotificationType | None = None,
     ) -> AlertPaginatedResponse:
         deliveries, has_more = await notification_delivery_crud.get_alerts_per_responder(
             responder_id=responder_id,

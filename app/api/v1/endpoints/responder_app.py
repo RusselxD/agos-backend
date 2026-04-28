@@ -7,6 +7,7 @@ from app.schemas import ResponderDetails, NotifPreferenceUpdateRequest, AlertLis
 from app.schemas import ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderSendSMSRequest, ResponderRegistrationRequest
 from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
 from app.models.responder_related.responders import NotificationPreference
+from app.models.notification_template import NotificationType
 from app.services import responder_app_service
 from app.api.v1.dependencies import require_responder_auth, CurrentResponder
 from app.core.rate_limiter import limiter
@@ -45,7 +46,7 @@ async def get_responder_alerts(
     responder_id: UUID,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    type: str | None = None,
+    type: NotificationType | None = None,
     current_responder: CurrentResponder = Depends(require_responder_auth),
     db: AsyncSession = Depends(get_db)):
 

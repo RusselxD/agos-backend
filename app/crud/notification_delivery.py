@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from app.models.responder_related.acknowledgement import Acknowledgement
 from app.models.responder_related.notification_delivery import DeliveryStatus, NotificationDelivery
+from app.models.notification_template import NotificationType
 from .base import CRUDBase
 
 
@@ -44,7 +45,7 @@ class CRUDNotificationDelivery(CRUDBase):
         db: AsyncSession,
         page: int = 1,
         page_size: int = 20,
-        notification_type: str | None = None,
+        notification_type: NotificationType | None = None,
     ) -> tuple[list[NotificationDelivery], bool]:
         from app.models.notification_dispatch import NotificationDispatch
 
