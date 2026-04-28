@@ -38,16 +38,16 @@ New features must be registered in multiple `__init__.py` files:
 
 ## Authentication
 
-Three auth levels:
+Four auth levels:
 
 | Level | Mechanism | Dependency | Used by |
 |-------|-----------|------------|---------|
 | Admin (read) | JWT Bearer | `Depends(require_auth)` | Most admin endpoints |
-| Admin (write) | JWT Bearer + superuser | `Depends(require_superuser)` | User creation, settings |
+| Admin (superuser write) | JWT Bearer + superuser | `Depends(require_superuser)` | Admin user creation, deactivation, reactivation |
 | IoT device | API key header | `Depends(require_iot_api_key)` | Sensor readings, frame upload |
-| Responder | None (responderId in request) | — | Responder app endpoints |
+| Responder | JWT Bearer with `type=responder` claim | `Depends(require_responder_auth)` | Responder app endpoints, push subscription |
 
-JWT tokens: 15-minute access tokens, 7-day refresh tokens. Passwords hashed with Argon2.
+Admin JWT tokens use 15-minute access tokens plus 7-day refresh tokens. Responder JWT tokens are issued after OTP verification and expire after 90 days. Passwords and OTPs are hashed with Argon2.
 
 ## Real-Time Data Flow
 
@@ -66,6 +66,7 @@ Two WebSocket endpoints:
 | `blockage_detection_update` | ML inference on camera frame | Blockage status + percentage |
 | `weather_update` | Scheduled weather fetch (APScheduler) | Weather conditions from OpenMeteo |
 | `fusion_analysis_update` | Any of the above triggers recalculation | Combined risk score |
+| `camera_update` | `POST /stream/upload-image` or `WS /ws/rpi` binary frame | Base64 JPEG frame for the admin live camera panel |
 
 ### Data Ingestion → Broadcast Flow
 
@@ -77,9 +78,10 @@ IoT Sensor ──POST /sensor-readings/record──► SensorReadingService
                                                 ├──► Update fusion state
                                                 └──► WebSocket broadcast (sensor_update + fusion_analysis_update)
 
-Camera ──WS /ws/rpi (binary frame)──► MLService
+Camera ──WS /ws/rpi or POST /stream/upload-image──► MLService
                                         │
                                         ├──► Throttle (2-min interval per camera)
+                                        ├──► Broadcast raw frame as camera_update
                                         ├──► Run inference (blockage detection)
                                         ├──► Upload image to Cloudinary
                                         ├──► Store ModelReading in DB
@@ -113,7 +115,7 @@ APScheduler ──every N minutes──► WeatherService
 3. Sends plaintext OTP via `SMSService` → Android SMS Gateway (SMSGate app)
 4. Responder enters OTP → `POST /responder/verify-otp`
 5. Service verifies hash, checks expiry and attempt count (max 5)
-6. On success: activate responder, add to default group, delete OTP record
+6. On success: activate responder, add to default group, delete OTP record, return a 90-day responder JWT
 
 ## Scheduled Jobs
 
@@ -122,6 +124,7 @@ APScheduler ──every N minutes──► WeatherService
 | Weather fetch | Configurable interval | Fetches from OpenMeteo, stores, broadcasts |
 | Daily summary | Midnight (UTC+8) | Aggregates sensor, model, weather data per location |
 | Data cleanup | 1:00 AM (UTC+8) | Purges old data based on retention settings |
+| Alert escalation | Every 5 minutes | Re-notifies unacknowledged critical alert deliveries |
 
 ## Caching
 
@@ -152,20 +155,23 @@ Cache is populated on first access and invalidated on config updates.
 | `POST /auth/change-password` | 3/minute | Brute force prevention |
 | `POST /sensor-readings/record` | 60/minute | IoT device throttle |
 | `POST /stream/upload-image` | 35/minute | Camera frame throttle |
+| `POST /responder/for-approval` | 5/minute | OTP abuse prevention |
+| `POST /responder/resend-otp/{id}` | 3/minute | OTP resend abuse prevention |
+| `POST /responder/verify-otp` | 5/minute | OTP brute force prevention |
 
 ## File Structure
 
 ```
 app/
 ├── api/v1/
-│   ├── endpoints/          # 19 route handler files
+│   ├── endpoints/          # 21 route handler files
 │   └── router.py           # Central route registration
 ├── core/
 │   ├── config.py           # Pydantic settings (env vars)
 │   ├── database.py         # Async engine + session factory
 │   ├── security.py         # JWT + Argon2
 │   └── exceptions.py       # Custom SMS exceptions
-├── crud/                   # 21 CRUD classes + CRUDBase
+├── crud/                   # 22 CRUD classes + CRUDBase
 ├── models/
 │   ├── data_sources/       # Location, SensorDevice, SensorReading, Weather, etc.
 │   └── responder_related/  # Responder, Group, NotificationDelivery, etc.
@@ -176,6 +182,6 @@ app/
     ├── responder/          # Admin management + responder self-service
     ├── responder_group/    # Group CRUD + validation
     ├── sensor_reading/     # Recording, trends, export
-    ├── stream/             # HLS video processing
+    ├── stream/             # Camera frame ingestion helpers
     └── weather/            # OpenMeteo fetch, persistence, scheduling
 ```

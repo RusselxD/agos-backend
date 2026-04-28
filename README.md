@@ -11,7 +11,7 @@ FastAPI backend for AGOS — a real-time water management and flood monitoring p
 - **AI**: Groq API for daily summary analysis (SSE streaming)
 - **Push Notifications**: Web Push (pywebpush + VAPID)
 - **SMS OTP**: Android SMS Gateway (SMSGate) via HTTP
-- **Video**: FFmpeg-based HLS stream processing
+- **Camera Feed**: WebSocket-delivered JPEG frames with ML blockage inference
 - **Weather**: OpenMeteo API integration
 - **Image Storage**: Cloudinary
 - **Monitoring**: Prometheus metrics
@@ -20,7 +20,6 @@ FastAPI backend for AGOS — a real-time water management and flood monitoring p
 
 - Python 3.12+
 - PostgreSQL 15+
-- FFmpeg (for video stream processing)
 
 ## Setup
 
@@ -95,7 +94,7 @@ app/
 │   ├── escalation.py    # Automated escalation for unacknowledged alerts
 │   ├── fusion_scoring.py # Combined risk score calculation
 │   └── exceptions.py    # Custom exceptions
-├── crud/                # Data access layer (21 CRUD classes)
+├── crud/                # Data access layer (22 CRUD classes)
 ├── models/              # SQLAlchemy models
 │   ├── data_sources/    # Location, SensorDevice, SensorReading, Weather, etc.
 │   └── responder_related/  # Responder, Group, NotificationDelivery, etc.
@@ -126,9 +125,10 @@ app/
 | `/notification-logs` | Notification delivery history, analytics, export |
 | `/notification-templates` | Notification template CRUD |
 | `/push` | VAPID key + push subscription |
-| `/daily-summaries` | AI-generated daily reading summaries |
+| `/daily-summaries` | Aggregated daily sensor, weather, blockage, and risk summaries |
 | `/analysis` | AI streaming analysis (SSE) |
-| `/stream` | HLS video stream management |
+| `/stream` | Camera frame upload/status; broadcasts live frames and runs ML inference |
 | `/system-settings` | System configuration |
 | `/health` | System health check (DB, scheduler, WebSocket) |
 | `/ws` | WebSocket (real-time sensor, weather, blockage, fusion data) |
+| `/iot` | IoT-facing current risk score |

@@ -2,7 +2,7 @@
 
 Base URL: `/api/v1`
 
-Auth legend: `JWT` = admin token required, `SU` = superuser required, `IOT` = IoT API key required, `—` = no auth.
+Auth legend: `JWT` = admin token required, `SU` = superuser admin token required, `RESP` = responder token required, `IOT` = IoT API key required, `—` = no auth.
 
 ---
 
@@ -64,6 +64,7 @@ Auth legend: `JWT` = admin token required, `SU` = superuser required, `IOT` = Io
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/location-details` | JWT | Returns default location (id, name). |
+| GET | `/public/location-details` | — | Returns default location for public/unauthenticated views. |
 | GET | `/device-details` | JWT | Returns sensor + camera device IDs for location. Param: `location_id`. |
 
 ---
@@ -74,6 +75,7 @@ Auth legend: `JWT` = admin token required, `SU` = superuser required, `IOT` = Io
 |--------|----------|------|-------------|
 | GET | `/all` | JWT | List all responders. |
 | GET | `/additional-details/{responder_id}` | JWT | Detailed responder info (groups, push status, delivery stats). |
+| GET | `/template` | JWT | Download Excel template for responder bulk import. |
 | POST | `/bulk` | JWT | Bulk create responders. |
 
 **POST /bulk**
@@ -159,7 +161,7 @@ Auth legend: `RESP` = responder JWT token required (issued after OTP verificatio
 | GET | `/paginated` | JWT | Paginated readings. Params: `page`, `page_size`, `sensor_device_id`. |
 | GET | `/trend` | JWT | Trend data (bucketed averages). Params: `sensor_device_id`, `duration` (1h/6h/12h/24h/7d). |
 | GET | `/available-days` | JWT | Days with recorded data. Params: `sensor_device_id`. |
-| GET | `/for-export` | JWT | Readings for date range export. Params: `sensor_device_id`, `start_date`, `end_date`. |
+| GET | `/for-export` | JWT | Readings for date range export. Params: `sensor_device_id`, `start_datetime`, `end_datetime`. |
 | POST | `/record` | IOT | Record reading from IoT device. Rate limited: 60/min. |
 
 **POST /record**
@@ -259,7 +261,15 @@ Auth legend: `RESP` = responder JWT token required (issued after OTP verificatio
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/status` | — | Camera online status. |
-| POST | `/upload-image` | IOT | Upload frame, run ML inference, broadcast. Rate limited: 35/min. |
+| POST | `/upload-image` | IOT | Upload camera image for a `location_id`, broadcast `camera_update`, run ML inference, and broadcast blockage/fusion updates. Rate limited: 35/min. |
+
+---
+
+## IoT (`/iot`)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/risk-score` | IOT | Current fusion risk score for a location. Param: `location_id`. |
 
 ---
 
@@ -267,6 +277,7 @@ Auth legend: `RESP` = responder JWT token required (issued after OTP verificatio
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
+| GET | `/public/alert-thresholds` | — | Public alert threshold values for client display. |
 | GET | `/{key}` | JWT | Get setting object. |
 | GET | `/{key}/value` | JWT | Get setting value only. |
 | PUT | `/{key}` | JWT | Update setting (audit logged). |
@@ -298,14 +309,14 @@ Auth legend: `RESP` = responder JWT token required (issued after OTP verificatio
 
 | Endpoint | Auth | Description |
 |----------|------|-------------|
-| `WS /ws?location_id={id}` | — | Client connection. Receives sensor, blockage, weather, fusion updates. |
-| `WS /ws/rpi?camera_device_id={id}&location_id={id}` | — | RPi camera. Sends binary frames for ML inference. |
+| `WS /ws?location_id={id}` | — | Admin/responder client connection. Receives initial state, live sensor, blockage, weather, fusion, and camera-frame updates. |
+| `WS /ws/rpi?camera_device_id={id}&location_id={id}` | — | RPi camera connection. Sends binary frames for live camera broadcast and ML inference. |
 
 ### WebSocket Message Format
 
-All messages follow:
+Client messages are JSON objects with a top-level `type` and `data`:
 ```json
-{ "status": "success", "message": "description", "<data_field>": { ... } }
+{ "type": "sensor_update", "data": { "status": "success", "message": "description", "sensor_reading": { } } }
 ```
 
 | Message type | Data field | Trigger |
@@ -314,3 +325,4 @@ All messages follow:
 | `blockage_detection_update` | `blockage_status` | ML inference on camera frame |
 | `weather_update` | `weather_condition` | Scheduled weather fetch |
 | `fusion_analysis_update` | `fusion_analysis` | Any data source update |
+| `camera_update` | `image`, `timestamp` | Camera frame received through `/stream/upload-image` or `/ws/rpi` |
