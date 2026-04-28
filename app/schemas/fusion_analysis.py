@@ -27,3 +27,7 @@ class FusionAnalysisData(BaseModel):
     blockage_status: BlockageStatus | None
     water_level_status: WaterLevelStatus | None
     weather_status: WeatherStatus | None
+
+
+class IoTRiskScoreResponse(BaseModel):
+    risk_score: int
