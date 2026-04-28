@@ -57,6 +57,8 @@ class WeatherService:
             self._fetch_and_update_weather,
             CronTrigger(minute=0, timezone=settings.APP_TIMEZONE),
             id="fetch_weather_condition_job",
+            replace_existing=True,
+            misfire_grace_time=3600,
         )
         self.scheduler.start()
         print("✅ Weather service scheduler started.")
