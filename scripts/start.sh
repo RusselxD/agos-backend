@@ -4,5 +4,8 @@ set -e
 # Auto migrate db on startup
 alembic upgrade head
 
+# Idempotent seed (no-ops if records already exist)
+python scripts/seed_db.py
+
 # Start app
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000
