@@ -94,10 +94,6 @@ def upgrade() -> None:
     sa.Column('max_risk_score', sa.Integer(), nullable=True),
     sa.Column('min_risk_timestamp', sa.DateTime(timezone=True), nullable=True),
     sa.Column('max_risk_timestamp', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('min_debris_count', sa.Integer(), nullable=True),
-    sa.Column('max_debris_count', sa.Integer(), nullable=True),
-    sa.Column('min_debris_timestamp', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('max_debris_timestamp', sa.DateTime(timezone=True), nullable=True),
     sa.Column('least_severe_blockage', sa.String(), nullable=True),
     sa.Column('most_severe_blockage', sa.String(), nullable=True),
     sa.Column('min_water_level_cm', sa.Numeric(precision=5, scale=2), nullable=True),
@@ -191,7 +187,6 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text("timezone('UTC', now())"), nullable=False),
     sa.Column('blockage_percentage', sa.Float(), nullable=False),
     sa.Column('blockage_status', sa.String(), nullable=False),
-    sa.Column('total_debris_count', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['camera_device_id'], ['camera_devices.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )

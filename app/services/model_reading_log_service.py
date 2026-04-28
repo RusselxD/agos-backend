@@ -33,7 +33,6 @@ class ModelReadingLogService:
                     id=r.id,
                     blockage_status=r.blockage_status,
                     blockage_percentage=r.blockage_percentage,
-                    total_debris_count=r.total_debris_count,
                     timestamp=r.timestamp,
                 )
                 for r in items
@@ -57,7 +56,6 @@ class ModelReadingLogService:
             image_path=reading.image_path,
             blockage_status=reading.blockage_status,
             blockage_percentage=reading.blockage_percentage,
-            total_debris_count=reading.total_debris_count,
             timestamp=reading.timestamp,
             created_at=reading.created_at,
         )

@@ -101,7 +101,6 @@ class AnalysisService:
                 f"  Water Level  : {s.min_water_level_cm} → {s.max_water_level_cm} cm\n"
                 f"  Precipitation: {s.min_precipitation_mm} → {s.max_precipitation_mm} mm\n"
                 f"  Blockage     : {s.least_severe_blockage} → {s.most_severe_blockage}\n"
-                f"  Debris Count : {s.min_debris_count} → {s.max_debris_count}\n"
                 f"  Weather Code : {s.most_severe_weather_code}\n"
             )
         return "\n".join(lines)

@@ -6,7 +6,6 @@ class ModelReadingListItem(BaseModel):
     id: int
     blockage_status: str
     blockage_percentage: float
-    total_debris_count: int
     timestamp: datetime
 
     class Config:
@@ -24,7 +23,6 @@ class ModelReadingDetailResponse(BaseModel):
     image_path: str
     blockage_status: str
     blockage_percentage: float
-    total_debris_count: int
     timestamp: datetime
     created_at: datetime
 

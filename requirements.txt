@@ -25,6 +25,7 @@ ecdsa==0.19.1
 et_xmlfile==2.0.0
 fastapi==0.124.4
 ffmpeg-python==0.2.0
+flatbuffers==25.12.19
 frozenlist==1.8.0
 future==1.0.0
 greenlet==3.3.0
@@ -42,6 +43,8 @@ markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
 multidict==6.7.1
+numpy==2.4.4
+onnxruntime==1.25.0
 openpyxl==3.1.5
 packaging==26.0
 passlib==1.7.4
@@ -50,6 +53,7 @@ pluggy==1.6.0
 prometheus-fastapi-instrumentator==7.1.0
 prometheus_client==0.23.1
 propcache==0.4.1
+protobuf==7.34.1
 psycopg2-binary==2.9.11
 py-vapid==1.9.4
 pyasn1==0.6.1

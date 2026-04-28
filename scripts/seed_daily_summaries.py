@@ -18,7 +18,6 @@ DAYS_TO_SEED = 100  # Number of days to seed (going backwards from today)
 
 # Dummy data ranges
 WATER_LEVEL_RANGE = (5.0, 200.0)  # cm
-DEBRIS_COUNT_RANGE = (0, 25)
 PRECIPITATION_RANGE = (0.0, 15.0)  # mm
 RISK_SCORE_RANGE = (10, 100)
 BLOCKAGE_STATUSES = ["clear", "partial", "blocked"]
@@ -41,11 +40,7 @@ def generate_dummy_summary(target_date: date) -> dict:
     # Water level - ensure min < max
     water_min = round(random.uniform(*WATER_LEVEL_RANGE), 2)
     water_max = round(random.uniform(water_min, WATER_LEVEL_RANGE[1]), 2)
-    
-    # Debris count - ensure min <= max
-    debris_min = random.randint(*DEBRIS_COUNT_RANGE)
-    debris_max = random.randint(debris_min, DEBRIS_COUNT_RANGE[1])
-    
+
     # Precipitation - ensure min < max
     precip_min = round(random.uniform(*PRECIPITATION_RANGE), 2)
     precip_max = round(random.uniform(precip_min, PRECIPITATION_RANGE[1]), 2)
@@ -66,11 +61,7 @@ def generate_dummy_summary(target_date: date) -> dict:
         "min_risk_timestamp": generate_random_time(target_date),
         "max_risk_timestamp": generate_random_time(target_date),
         
-        # Debris/Blockage
-        "min_debris_count": debris_min,
-        "max_debris_count": debris_max,
-        "min_debris_timestamp": generate_random_time(target_date),
-        "max_debris_timestamp": generate_random_time(target_date),
+        # Blockage
         "least_severe_blockage": least_blockage,
         "most_severe_blockage": most_blockage,
         

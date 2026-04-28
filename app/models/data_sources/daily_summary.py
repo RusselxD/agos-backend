@@ -20,11 +20,7 @@ class DailySummary(Base):
     min_risk_timestamp = Column(DateTime(timezone=True), nullable=True)
     max_risk_timestamp = Column(DateTime(timezone=True), nullable=True)
 
-    # Model Readings (Debris/Blockage)
-    min_debris_count = Column(Integer, nullable=True)
-    max_debris_count = Column(Integer, nullable=True)
-    min_debris_timestamp = Column(DateTime(timezone=True), nullable=True)
-    max_debris_timestamp = Column(DateTime(timezone=True), nullable=True)
+    # Model Readings (Blockage)
     least_severe_blockage = Column(String, nullable=True)  # clear/partial/blocked
     most_severe_blockage = Column(String, nullable=True)
 

@@ -7,7 +7,6 @@ class ModelReadingBase(BaseModel):
     timestamp: datetime
     blockage_percentage: float
     blockage_status: str
-    total_debris_count: int
 
 class ModelReadingCreate(ModelReadingBase):
     pass

@@ -18,8 +18,5 @@ class ModelReadings(Base):
     # Blockage measurement
     blockage_percentage = Column(Float, nullable=False)  # 0-100
     blockage_status = Column(String, nullable=False)  # 'clear', 'partial', 'blocked'
-    
-    # Detection summary
-    total_debris_count = Column(Integer, default=0)
-    
+
     camera_device = relationship("CameraDevice", back_populates="model_readings")

@@ -12,11 +12,7 @@ class DailySummaryResponse(BaseModel):
     min_risk_timestamp: datetime | None
     max_risk_timestamp: datetime | None
 
-    # Model Readings (Debris/Blockage)
-    min_debris_count: int | None
-    max_debris_count: int | None
-    min_debris_timestamp: datetime | None
-    max_debris_timestamp: datetime | None
+    # Model Readings (Blockage)
     least_severe_blockage: str | None
     most_severe_blockage: str | None
 

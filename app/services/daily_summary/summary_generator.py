@@ -23,16 +23,10 @@ def extract_water_level_summary(readings: list) -> dict:
 
 
 def extract_model_readings_summary(readings: list) -> dict:
-    """Extract debris and blockage stats from pre-fetched readings."""
-    min_debris = min(readings, key=lambda r: r.total_debris_count)
-    max_debris = max(readings, key=lambda r: r.total_debris_count)
+    """Extract blockage stats from pre-fetched readings."""
     least_severe = min(readings, key=lambda r: BLOCKAGE_SEVERITY.get(r.blockage_status, 0))
     most_severe = max(readings, key=lambda r: BLOCKAGE_SEVERITY.get(r.blockage_status, 0))
     return {
-        "min_debris_count": min_debris.total_debris_count,
-        "min_debris_timestamp": min_debris.timestamp,
-        "max_debris_count": max_debris.total_debris_count,
-        "max_debris_timestamp": max_debris.timestamp,
         "least_severe_blockage": least_severe.blockage_status,
         "most_severe_blockage": most_severe.blockage_status,
     }
