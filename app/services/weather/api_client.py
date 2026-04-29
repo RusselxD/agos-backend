@@ -16,6 +16,14 @@ TIMEOUT = httpx.Timeout(20.0, connect=10.0)
 MAX_ATTEMPTS = 2
 
 
+class WeatherFetchError(RuntimeError):
+    """Raised when the weather API cannot provide data for any location."""
+
+
+class WeatherRateLimitedError(WeatherFetchError):
+    """Raised when Open-Meteo rate-limits every requested location."""
+
+
 async def fetch_weather_for_coordinates(coordinates: list[LocationCoordinate]) -> list[WeatherCreate]:
     """
     Fetch current weather from Open-Meteo API for each location coordinate.
@@ -25,6 +33,7 @@ async def fetch_weather_for_coordinates(coordinates: list[LocationCoordinate]) -
         raise RuntimeError("No location coordinates provided")
 
     weather_conditions: list[WeatherCreate] = []
+    rate_limited_location_ids: set[int] = set()
 
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         for coord in coordinates:
@@ -70,6 +79,9 @@ async def fetch_weather_for_coordinates(coordinates: list[LocationCoordinate]) -
                         attempt,
                         MAX_ATTEMPTS,
                     )
+                    if e.response.status_code == 429:
+                        rate_limited_location_ids.add(coord.id)
+                        break
                     if e.response.status_code < 500:
                         break
                 except httpx.HTTPError as e:
@@ -90,7 +102,9 @@ async def fetch_weather_for_coordinates(coordinates: list[LocationCoordinate]) -
 
 
     if not weather_conditions:
-        raise RuntimeError("Weather fetch failed for all locations")
+        if len(rate_limited_location_ids) == len(coordinates):
+            raise WeatherRateLimitedError("Weather API rate limited all locations")
+        raise WeatherFetchError("Weather fetch failed for all locations")
 
 
     return weather_conditions

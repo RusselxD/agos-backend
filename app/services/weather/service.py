@@ -19,7 +19,7 @@ from app.schemas import (
 from app.schemas.weather import WeatherComprehensiveResponse, WeatherConditionResponse
 from app.utils.weather_mappers import *
 
-from .api_client import fetch_weather_for_coordinates
+from .api_client import WeatherRateLimitedError, fetch_weather_for_coordinates
 from .persistence import save_weather, save_weather_and_return
 from app.services.cache_service import cache_service
 from app.crud import weather_crud
@@ -46,6 +46,10 @@ class WeatherService:
         async with AsyncSessionLocal() as db:
             try:
                 await self._fetch_initial_weather(db=db, location_id=1)
+            except WeatherRateLimitedError:
+                logger.warning(
+                    "Initial weather fetch rate-limited; using cached weather until next hourly run"
+                )
             except Exception as e:
                 logger.warning(
                     "Initial weather fetch failed during startup: %s; scheduling retry",
@@ -160,6 +164,11 @@ class WeatherService:
                     return
 
                 weather_conditions = await fetch_weather_for_coordinates(coordinates)
+            except WeatherRateLimitedError:
+                logger.warning(
+                    "Scheduled weather fetch rate-limited; using cached weather until next hourly run"
+                )
+                return
             except Exception as e:
                 logger.warning(
                     "Scheduled weather fetch/update failed: %s; scheduling retry",

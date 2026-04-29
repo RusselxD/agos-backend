@@ -112,7 +112,7 @@ class MLService:
                 image_path=image_url,
                 timestamp=now,
                 blockage_percentage=raw_percentage,
-                blockage_status=confirmed_status,
+                blockage_status=raw_status,
             )
             db_obj: ModelReadings = await model_readings_crud.create_and_return(
                 db=db, obj_in=obj_in

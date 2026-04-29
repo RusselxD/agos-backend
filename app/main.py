@@ -27,6 +27,32 @@ from app.services import weather_service
 from app.core.state import fusion_state_manager
 from app.core.scheduler import start_scheduler, shutdown_scheduler
 
+
+def _before_sentry_send(event, hint):
+    """Drop known shutdown/hibernation noise while keeping real app errors."""
+    logger_name = event.get("logger")
+    exception_values = event.get("exception", {}).get("values", [])
+
+    has_cancelled_error = any(
+        value.get("type") == "CancelledError" for value in exception_values
+    )
+    if has_cancelled_error and logger_name in {
+        "sqlalchemy.pool.impl.AsyncAdaptedQueuePool",
+        "apscheduler.executors.default",
+    }:
+        return None
+
+    if logger_name == "asyncio":
+        for value in exception_values:
+            if (
+                value.get("type") == "ConnectionError"
+                and "unexpected connection_lost() call" in value.get("value", "")
+            ):
+                return None
+
+    return event
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -67,6 +93,7 @@ sentry_sdk.init(
     environment=settings.ENVIRONMENT,
     traces_sample_rate=0.2,
     send_default_pii=False,
+    before_send=_before_sentry_send,
 )
 
 # Suppress noisy, non-actionable SQLAlchemy pool cleanup warnings that happen
