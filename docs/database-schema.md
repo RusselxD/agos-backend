@@ -76,6 +76,7 @@ PostgreSQL with async SQLAlchemy (asyncpg). All timestamps default to UTC.
 | deactivated_at | TIMESTAMP | NULLABLE |
 | created_by | UUID | FK → admin_users.id, NULLABLE |
 | deactivated_by | UUID | FK → admin_users.id, NULLABLE |
+| deactivation_reason | TEXT | NULLABLE |
 
 ### admin_audit_logs
 
@@ -142,7 +143,6 @@ PostgreSQL with async SQLAlchemy (asyncpg). All timestamps default to UTC.
 | image_path | VARCHAR | NOT NULL |
 | blockage_percentage | FLOAT | 0-100 |
 | blockage_status | VARCHAR | "clear" / "partial" / "blocked" |
-| total_debris_count | INTEGER | DEFAULT 0 |
 | timestamp | TIMESTAMP | DEFAULT UTC now |
 | created_at | TIMESTAMP | DEFAULT UTC now |
 
@@ -168,13 +168,14 @@ PostgreSQL with async SQLAlchemy (asyncpg). All timestamps default to UTC.
 | id | INTEGER | PK, AUTO |
 | location_id | INTEGER | FK → locations.id, CASCADE |
 | summary_date | DATE | INDEXED |
-| min/max_risk_score | FLOAT | |
-| min/max_risk_timestamp | TIMESTAMP | |
-| min/max_debris_count | INTEGER | |
-| least/most_severe_blockage | VARCHAR | |
-| min/max_water_level_cm | NUMERIC(5,2) | |
-| min/max_precipitation_mm | FLOAT | |
-| most_severe_weather_code | INTEGER | |
+| min/max_risk_score | INTEGER | NULLABLE |
+| min/max_risk_timestamp | TIMESTAMP | NULLABLE |
+| least/most_severe_blockage | VARCHAR | NULLABLE ("clear"/"partial"/"blocked") |
+| min/max_water_level_cm | NUMERIC(5,2) | NULLABLE |
+| min/max_water_timestamp | TIMESTAMP | NULLABLE |
+| min/max_precipitation_mm | FLOAT | NULLABLE |
+| min/max_precip_timestamp | TIMESTAMP | NULLABLE |
+| most_severe_weather_code | INTEGER | NULLABLE |
 | created_at | TIMESTAMP | DEFAULT UTC now |
 
 **Unique constraint:** `(location_id, summary_date)`
@@ -190,7 +191,7 @@ PostgreSQL with async SQLAlchemy (asyncpg). All timestamps default to UTC.
 | status | ENUM | "pending" / "active" |
 | location_id | INTEGER | FK → locations.id, DEFAULT 1 |
 | notif_preferences | JSON | NotificationPreference (warning, critical, blockage, announcement booleans) |
-| created_by | UUID | FK → admin_users.id, NULLABLE |
+| created_by | UUID | FK → admin_users.id, NOT NULL |
 | activated_at | TIMESTAMP | NULLABLE |
 | created_at | TIMESTAMP | DEFAULT UTC now |
 
@@ -228,7 +229,8 @@ Default group: "All Active Responders" (auto-created, cannot be deleted).
 | type | ENUM | "warning" / "critical" / "blockage" / "announcement" |
 | title | VARCHAR | NOT NULL |
 | message | VARCHAR | NOT NULL |
-| created_by_id | UUID | FK → admin_users.id |
+| created_by_id | UUID | FK → admin_users.id, RESTRICT |
+| created_at | TIMESTAMP | DEFAULT UTC now |
 
 **Partial unique index:** Only one template per type for warning, critical, blockage. Announcement allows multiple.
 
@@ -254,6 +256,7 @@ Default group: "All Active Responders" (auto-created, cannot be deleted).
 | sent_at | TIMESTAMP | NULLABLE |
 | error_message | TEXT | NULLABLE |
 | created_at | TIMESTAMP | DEFAULT UTC now |
+| escalation_count | INTEGER | NOT NULL, DEFAULT 0 |
 
 **Unique constraints:** `(dispatch_id, responder_id)`, `(id, responder_id)`
 **Index:** `(responder_id, status)`
@@ -296,6 +299,6 @@ Default group: "All Active Responders" (auto-created, cannot be deleted).
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | INTEGER | PK, AUTO |
-| admin_user_id | UUID | FK → admin_users.id |
+| admin_id | UUID | FK → admin_users.id, NOT NULL |
 | otp_code | VARCHAR(6) | NOT NULL |
 | expires_at | TIMESTAMP | NOT NULL |
