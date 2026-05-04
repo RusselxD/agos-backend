@@ -12,7 +12,6 @@ from app.schemas import ResponderDetails, ResponderOTPVerificationCreate, Respon
 from app.models.responder_related.responders import NotificationPreference
 from app.schemas.responder import ResponderForApproval
 from app.services.sms_service import sms_service
-from app.core.exceptions import SMSError
 from app.crud import acknowledgement_crud
 from app.models import Acknowledgement
 from app.core.security import get_otp_hash, verify_otp as verify_otp_hash, create_responder_token
@@ -155,14 +154,10 @@ class ResponderAppService:
         )
         await responder_otp_verification_crud.upsert_otp(db=db, obj_in=obj_in)
         
-        # Send SMS
-        try:
-            await sms_service.send_one_sms(
-                phone_number=responder.phone_number,
-                message=f"Your AGOS OTP code is: {otp}"
-            )
-        except SMSError as e:
-            raise HTTPException(status_code=503, detail=str(e))
+        await sms_service.send_one_sms(
+            phone_number=responder.phone_number,
+            message=f"Your AGOS OTP code is: {otp}"
+        )
 
 
     async def resend_otp(self, responder_id: UUID, db: AsyncSession) -> None:
@@ -245,21 +240,10 @@ class ResponderAppService:
         
         phone_numbers = [responder.phone_number for responder in responders]
 
-        try:
-            result = await sms_service.send_bulk_sms(
-                phone_numbers=phone_numbers,
-                message=send_request.message
-            )
-        except SMSError as e:
-            raise HTTPException(status_code=503, detail=str(e))
-
-        if result["failed"]:
-            failed_count = len(result["failed"])
-            total_count = len(phone_numbers)
-            raise HTTPException(
-                status_code=207,
-                detail=f"SMS partially delivered: {total_count - failed_count}/{total_count} succeeded."
-            )
+        await sms_service.send_bulk_sms(
+            phone_numbers=phone_numbers,
+            message=send_request.message
+        )
 
 
 responder_app_service = ResponderAppService()
