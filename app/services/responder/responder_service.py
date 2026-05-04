@@ -37,6 +37,27 @@ class ResponderService:
 
 
     async def bulk_create_responders(self, responders: list[ResponderCreate], db: AsyncSession, user_id: str) -> list[ResponderListItem]:
+        phone_numbers = [r.phone_number for r in responders]
+
+        seen: set[str] = set()
+        intra_duplicates: list[str] = []
+        for phone in phone_numbers:
+            if phone in seen and phone not in intra_duplicates:
+                intra_duplicates.append(phone)
+            seen.add(phone)
+        if intra_duplicates:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Duplicate phone numbers in upload: {', '.join(intra_duplicates)}",
+            )
+
+        existing = await responder_crud.get_existing_phone_numbers(db=db, phone_numbers=phone_numbers)
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Phone numbers already registered: {', '.join(sorted(existing))}",
+            )
+
         created_responders = await responder_crud.bulk_create_and_return(db=db, objs_in=responders, created_by_id=user_id)
         return [
             ResponderListItem(

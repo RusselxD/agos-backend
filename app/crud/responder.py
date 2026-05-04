@@ -80,6 +80,16 @@ class CRUDResponder(CRUDBase[None, None, None]):
         return result.scalar()
 
 
+    async def get_existing_phone_numbers(self, db: AsyncSession, phone_numbers: list[str]) -> set[str]:
+
+        if not phone_numbers:
+            return set()
+        result = await db.execute(
+            select(Responder.phone_number).where(Responder.phone_number.in_(phone_numbers))
+        )
+        return {row[0] for row in result.all()}
+
+
     async def get_by_ids(self, db: AsyncSession, ids: list) -> list[Responder]:
 
         if not ids:
