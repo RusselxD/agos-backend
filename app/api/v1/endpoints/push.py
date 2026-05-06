@@ -1,4 +1,3 @@
-from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from app.api.v1.dependencies import require_auth, require_responder_auth, CurrentResponder
 from app.core.config import settings

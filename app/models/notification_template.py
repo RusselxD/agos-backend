@@ -12,6 +12,7 @@ class NotificationType(enum.Enum):
     CRITICAL = "critical"
     BLOCKAGE = "blockage"
     ANNOUNCEMENT = "announcement"
+    MAINTENANCE = "maintenance"
 
 
 class NotificationTemplate(Base):

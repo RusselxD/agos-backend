@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from app.api.v1.dependencies import CurrentUser, require_auth
 from app.schemas import SystemSettingsResponse, SystemSettingsUpdate
 from app.crud import system_settings_crud

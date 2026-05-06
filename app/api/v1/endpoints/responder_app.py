@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from fastapi import Depends
 from uuid import UUID
-from app.schemas import ResponderDetails, NotifPreferenceUpdateRequest, AlertListItem, AlertPaginatedResponse
+from app.schemas import ResponderDetails, NotifPreferenceUpdateRequest, AlertPaginatedResponse
 from app.schemas import ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderSendSMSRequest, ResponderRegistrationRequest
 from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
 from app.models.responder_related.responders import NotificationPreference

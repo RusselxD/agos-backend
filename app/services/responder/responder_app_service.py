@@ -5,7 +5,6 @@ from app.crud.responder_group import responder_group_crud
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 from app.core.config import settings
-from app.models import NotificationDelivery
 from uuid import UUID
 import random
 from app.schemas import ResponderDetails, ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderSendSMSRequest

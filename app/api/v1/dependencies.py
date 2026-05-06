@@ -1,6 +1,6 @@
 import secrets
 
-from fastapi import Depends,Header, HTTPException, status
+from fastapi import Depends,HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, APIKeyHeader
 from jose import jwt, JWTError
 from sqlalchemy.ext.asyncio import AsyncSession

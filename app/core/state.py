@@ -168,6 +168,10 @@ class FusionAnalysisState:
         # Auto-notify responders when fusion is Critical (cooldown-gated)
         if self.fusion_data.alert_name == "Critical":
             await self._auto_notify_critical()
+        
+        # Auto-notify when serious anomalies are detected
+        if self.fusion_data.anomalies:
+            await self._auto_notify_anomaly()
 
     async def _auto_notify_critical(self) -> None:
         import time
@@ -202,6 +206,47 @@ class FusionAnalysisState:
 
         except Exception as e:
             print(f"⚠️ Auto-notify critical failed: {e}")
+
+    async def _auto_notify_anomaly(self) -> None:
+        import time
+        # Use a longer cooldown for anomalies to avoid spamming maintenance crews
+        ANOMALY_NOTIFY_COOLDOWN = 60 * 60 * 4  # 4 hours
+        
+        if not hasattr(self, "_last_anomaly_notify_time"):
+            self._last_anomaly_notify_time = 0
+            
+        now = time.monotonic()
+        if now - self._last_anomaly_notify_time < ANOMALY_NOTIFY_COOLDOWN:
+            return
+        self._last_anomaly_notify_time = now
+
+        try:
+            from app.services import notification_service
+            from app.crud import responder_crud
+            from app.schemas.subscription import SendNotificationSchema, CustomNotificationPayload
+            from app.models.notification_template import NotificationType
+
+            async with AsyncSessionLocal() as db:
+                responder_ids = await responder_crud.get_responder_ids_with_push_subscription(db=db)
+                if not responder_ids:
+                    return
+
+                anomaly_text = ", ".join([a.replace("_", " ") for a in self.fusion_data.anomalies])
+                payload = SendNotificationSchema(
+                    responder_ids=responder_ids,
+                    template_id=None,
+                    custom_notification=CustomNotificationPayload(
+                        type=NotificationType.MAINTENANCE,
+                        title="Maintenance Required",
+                        message=f"System detected data anomalies: {anomaly_text}. Please perform a visual inspection of the hardware at location {self.location_id}.",
+                    ),
+                    system_initiated=True,
+                )
+                await notification_service.send_notification_to_subscribers(payload=payload, db=db)
+                print(f"🔧 Auto-notified {len(responder_ids)} responders of Maintenance/Anomaly alert (location {self.location_id})")
+
+        except Exception as e:
+            print(f"⚠️ Auto-notify anomaly failed: {e}")
 
 
 class StateManager:

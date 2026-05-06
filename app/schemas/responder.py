@@ -5,7 +5,7 @@ from app.models.notification_template import NotificationType
 from app.models.responder_related.responders import ResponderStatus
 from pydantic import BaseModel, field_validator
 
-NotifPreferenceKey = Literal["warning", "critical", "blockage", "announcement"]
+NotifPreferenceKey = Literal["warning", "critical", "blockage", "announcement", "maintenance"]
 from datetime import datetime
 from uuid import UUID
 

@@ -129,7 +129,7 @@ async def seed_daily_summaries():
                 await db.commit()
                 print(f"    ✅ Processed {DAYS_TO_SEED} days")
             
-            print(f"\n🎉 Daily summaries seeding completed!")
+            print("\n🎉 Daily summaries seeding completed!")
             print(f"   Created: {total_created}")
             print(f"   Skipped (already exist): {total_skipped}")
             

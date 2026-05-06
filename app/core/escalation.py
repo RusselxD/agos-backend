@@ -1,7 +1,6 @@
 """Automated escalation for unacknowledged critical notifications."""
 
 from app.core.database import AsyncSessionLocal
-from app.core.config import settings
 
 
 async def escalation_check_job():

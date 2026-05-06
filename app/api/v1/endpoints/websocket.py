@@ -39,15 +39,15 @@ async def websocket_endpoint(websocket: WebSocket):
     # Add the WebSocket connection to the manager
     await ws_manager.connect(websocket=websocket, location_id=location_id)
 
-    # Scope DB session tightly to the initial-data call so we don't hold a
-    # connection for the entire WS lifetime (causes ConnectionDoesNotExist
-    # when idle poolers/networks drop the underlying TCP connection).
-    async with AsyncSessionLocal() as db:
-        await websocket_service.send_initial_data(
-            websocket=websocket, db=db, location_id=location_id
-        )
-
     try:
+        # Scope DB session tightly to the initial-data call so we don't hold a
+        # connection for the entire WS lifetime (causes ConnectionDoesNotExist
+        # when idle poolers/networks drop the underlying TCP connection).
+        async with AsyncSessionLocal() as db:
+            await websocket_service.send_initial_data(
+                websocket=websocket, db=db, location_id=location_id
+            )
+
         while True:
             await websocket.receive_text()  # Keep the connection alive
     except WebSocketDisconnect:

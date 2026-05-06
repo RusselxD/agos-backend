@@ -60,7 +60,7 @@ class ConnectionManager:
                 disconnected.append(ws)
 
         for ws in disconnected:
-            if ws in self.connections[location_id]:
+            if location_id in self.connections and ws in self.connections[location_id]:
                 self.connections[location_id].remove(ws)
 
 

@@ -44,14 +44,14 @@ class SystemSettingsService:
                 changes.append(f"warning threshold from {old_value.get('warning_threshold')}cm to {new_value.get('warning_threshold')}cm")
             if old_value.get("critical_threshold") != new_value.get("critical_threshold"):
                 changes.append(f"critical threshold from {old_value.get('critical_threshold')}cm to {new_value.get('critical_threshold')}cm")
-            return f"Updated sensor config: {', '.join(changes)}" if changes else f"Updated sensor config (no changes)"
+            return f"Updated sensor config: {', '.join(changes)}" if changes else "Updated sensor config (no changes)"
         
         elif key == "alert_thresholds":
             changes = []
             for tier_key in ["tier_1_max", "tier_2_min", "tier_2_max", "tier_3_min"]:
                 if old_value.get(tier_key) != new_value.get(tier_key):
                     changes.append(f"{tier_key} from {old_value.get(tier_key)}% to {new_value.get(tier_key)}%")
-            return f"Updated alert thresholds: {', '.join(changes)}" if changes else f"Updated alert thresholds (no changes)"
+            return f"Updated alert thresholds: {', '.join(changes)}" if changes else "Updated alert thresholds (no changes)"
         
         # Fallback for unknown keys
         return f"Updated system setting '{key}' from {old_value} to {new_value}"
