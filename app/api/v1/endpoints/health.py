@@ -7,6 +7,43 @@ from app.core.database import get_db
 router = APIRouter(tags=["health"])
 
 
+@router.post("/simulate-anomaly")
+async def simulate_anomaly():
+    from app.core.state import fusion_state_manager
+    from app.schemas.fusion_analysis import BlockageStatus, WeatherStatus, WaterLevelStatus
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    
+    # 1. Clear weather (No rain)
+    weather_status = WeatherStatus(
+        timestamp=now,
+        precipitation_mm=0.0,
+        weather_condition="Clear"
+    )
+    
+    # 2. Clear Blockage
+    blockage_status = BlockageStatus(
+        timestamp=now,
+        status="clear"
+    )
+    
+    # 3. Critical Water Level
+    water_level_status = WaterLevelStatus(
+        timestamp=now,
+        water_level_cm=190.0,
+        change_rate=0.5,
+        critical_percentage=95.0,
+        trend="rising"
+    )
+
+    location_id = 1
+    await fusion_state_manager.recalculate_weather_score(weather_status, location_id)
+    await fusion_state_manager.recalculate_visual_status_score(blockage_status, location_id)
+    await fusion_state_manager.recalculate_water_level_score(water_level_status, location_id)
+
+    return {"status": "anomaly triggered"}
+
 @router.get("/health")
 async def health_check(db: AsyncSession = Depends(get_db)):
     components = {}

@@ -63,6 +63,7 @@ Thumbs.db
 # Stream storage (don't commit large files)
 app/storage/hls_output/*
 app/storage/captured_frames/*
+dummy_images/
 
 # Keep the directories
 !app/storage/hls_output/.gitkeep

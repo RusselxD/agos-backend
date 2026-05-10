@@ -68,16 +68,6 @@ async def lifespan(app: FastAPI):
     # Start scheduler for daily summary jobs
     start_scheduler()
 
-    # Backfill missing daily summaries for the past 7 days
-    try:
-        from app.services import daily_summary_service
-        async with AsyncSessionLocal() as db:
-            count = await daily_summary_service.backfill_missing_summaries(db)
-            if count > 0:
-                print(f"📋 Backfilled {count} missing daily summaries")
-    except Exception as e:
-        print(f"⚠️ Daily summary backfill failed (non-blocking): {e}")
-
     yield  # Application runs here
 
     # Shutdown
