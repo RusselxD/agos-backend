@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, select, and_
+from sqlalchemy import select, and_
 from app.models.data_sources.daily_summary import DailySummary
 from app.crud.base import CRUDBase
 
@@ -22,38 +22,6 @@ class CRUDDailySummary(CRUDBase):
             )
         )
         return result.scalar_one_or_none()
-
-
-    async def get_summaries_by_location(self, db: AsyncSession, location_id: int, limit: int = 30) -> list[DailySummary]:
-
-        """Get recent daily summaries for a location, ordered by date descending."""
-        result = await db.execute(
-            select(self.model)
-            .where(DailySummary.location_id == location_id)
-            .order_by(DailySummary.summary_date.desc())
-            .limit(limit)
-        )
-        return result.scalars().all()
-
-
-    async def get_summaries_in_range(
-            self, 
-            db: AsyncSession, 
-            location_id: int, 
-            start_date: date, 
-            end_date: date) -> list[DailySummary]:
-        
-        """Get daily summaries for a location within a date range."""
-        result = await db.execute(
-            select(self.model).where(
-                and_(
-                    DailySummary.location_id == location_id,
-                    DailySummary.summary_date >= start_date,
-                    DailySummary.summary_date <= end_date
-                )
-            ).order_by(DailySummary.summary_date.asc())
-        )
-        return result.scalars().all()
 
 
     async def create_daily_summary(
@@ -95,13 +63,17 @@ class CRUDDailySummary(CRUDBase):
         return result.scalars().all()
 
 
-    async def get_available_summary_days(self, db: AsyncSession, location_id: int) -> list[datetime]:
-        
-        """Get list of dates for which summaries are available for a location."""
+    async def get_available_summary_days(self, db: AsyncSession, location_id: int) -> list[date]:
+
+        """Get list of dates for which summaries are available for a location.
+
+        The uq_location_date constraint already guarantees one row per
+        (location, date), so no DISTINCT is needed.
+        """
         result = await db.execute(
-            select(func.distinct(func.date(DailySummary.summary_date)))
-            .filter(DailySummary.location_id == location_id)
-            .order_by(func.date(DailySummary.summary_date).asc())
+            select(DailySummary.summary_date)
+            .where(DailySummary.location_id == location_id)
+            .order_by(DailySummary.summary_date.asc())
         )
         return result.scalars().all()
 

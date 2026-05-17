@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from app.utils.summary_utils import (
     BLOCKAGE_SEVERITY,
+    wmo_severity,
     calc_water_score,
     calc_blockage_score,
     calc_weather_score,
@@ -36,13 +37,13 @@ def extract_weather_summary(readings: list) -> dict:
     """Extract precipitation stats from pre-fetched readings."""
     min_precip = min(readings, key=lambda r: r.precipitation_mm)
     max_precip = max(readings, key=lambda r: r.precipitation_mm)
-    most_severe_code = max(r.weather_code for r in readings)
+    most_severe = max(readings, key=lambda r: wmo_severity(r.weather_code))
     return {
         "min_precipitation_mm": min_precip.precipitation_mm,
         "min_precip_timestamp": min_precip.created_at,
         "max_precipitation_mm": max_precip.precipitation_mm,
         "max_precip_timestamp": max_precip.created_at,
-        "most_severe_weather_code": most_severe_code,
+        "most_severe_weather_code": most_severe.weather_code,
     }
 
 

@@ -10,10 +10,13 @@ scheduler = AsyncIOScheduler(timezone=settings.APP_TIMEZONE)
 
 
 async def midnight_summary_job():
-    """Generate daily summaries for the current day."""
+    """Generate daily summaries for the day that just ended.
+
+    The cron fires at 00:00 local time, so the completed day is yesterday.
+    """
     from app.services import daily_summary_service
-    
-    target_date = datetime.now(settings.APP_TIMEZONE).date()
+
+    target_date = datetime.now(settings.APP_TIMEZONE).date() - timedelta(days=1)
     print(f"📅 Running daily summary job for {target_date}...")
     
     try:

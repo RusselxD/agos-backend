@@ -8,6 +8,11 @@ from app.schemas import (
     AlertThresholdsResponse,
 )
 from app.schemas.fusion_analysis import AnomalyType
+from app.utils.summary_utils import (
+    calc_water_score_from_pct,
+    calc_blockage_score,
+    calc_weather_score,
+)
 
 
 def calculate_fusion_data(
@@ -76,40 +81,35 @@ def calculate_fusion_data(
 
     # --- Standard Scoring Logic (with Circuit Breakers) ---
 
-    # Blockage Score (0-30)
+    # Blockage Score (0-30) — score from app.utils.summary_utils.calc_blockage_score
     if blockage_status:
-        if blockage_status.status == "blocked":
-            if AnomalyType.BLIND_CAMERA in anomalies:
-                 conditions.append("Ignoring Blockage status due to BLIND_CAMERA anomaly.")
-            else:
-                score += 30
+        if blockage_status.status == "blocked" and AnomalyType.BLIND_CAMERA in anomalies:
+            conditions.append("Ignoring Blockage status due to BLIND_CAMERA anomaly.")
+        else:
+            score += calc_blockage_score(blockage_status.status)
+            if blockage_status.status == "blocked":
                 conditions.append("Waterway is BLOCKED - Immediate action required.")
-        elif blockage_status.status == "partial":
-            score += 20
-            conditions.append("Partial blockage detected in waterway.")
+            elif blockage_status.status == "partial":
+                conditions.append("Partial blockage detected in waterway.")
 
-    # Water Level Score (0-45)
+    # Water Level Score (0-45) — score from summary_utils.calc_water_score_from_pct
     if water_level_status:
         if AnomalyType.OBSTRUCTED_SENSOR in anomalies or AnomalyType.STALE_SENSOR in anomalies:
              conditions.append("Ignoring Water Level status due to sensor anomaly.")
         else:
-            if water_level_status.critical_percentage < 50:
-                score += 10
+            critical_pct = water_level_status.critical_percentage
+            score += calc_water_score_from_pct(critical_pct)
+            if critical_pct < 50:
                 conditions.append("Water level is within normal range.")
-            elif 50 <= water_level_status.critical_percentage < 75:
-                score += 20
+            elif critical_pct < 75:
                 conditions.append("Water level is elevated.")
-            elif 75 <= water_level_status.critical_percentage < 90:
-                score += 30
+            elif critical_pct < 90:
                 conditions.append("Water level is high.")
-            elif 90 <= water_level_status.critical_percentage < 100:
-                score += 45
+            elif critical_pct < 100:
                 conditions.append("Water level nearing critical threshold.")
-            elif water_level_status.critical_percentage == 100:
-                score += 45
+            elif critical_pct == 100:
                 conditions.append("Water level at CRITICAL threshold!")
             else:
-                score += 45
                 conditions.append("Water level above CRITICAL threshold!")
 
             if water_level_status.trend == "rising":
@@ -119,16 +119,15 @@ def calculate_fusion_data(
             elif water_level_status.change_rate >= 1.5:
                 conditions.append("Water level rising.")
 
-    # Weather Score (0-20)
+    # Weather Score (0-20) — score from summary_utils.calc_weather_score
     if weather_status:
-        if 1 <= weather_status.precipitation_mm < 2.55:
-            score += 8
+        precipitation = weather_status.precipitation_mm
+        score += calc_weather_score(precipitation)
+        if 1 <= precipitation < 2.55:
             conditions.append("Light rainfall detected.")
-        elif 2.55 <= weather_status.precipitation_mm < 7.5:
-            score += 15
+        elif 2.55 <= precipitation < 7.5:
             conditions.append("Moderate rainfall detected.")
-        elif weather_status.precipitation_mm >= 7.5:
-            score += 20
+        elif precipitation >= 7.5:
             conditions.append("Heavy rainfall detected.")
 
     # Critical combination
