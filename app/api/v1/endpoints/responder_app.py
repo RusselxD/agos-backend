@@ -9,7 +9,7 @@ from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
 from app.models.responder_related.responders import NotificationPreference
 from app.models.notification_template import NotificationType
 from app.services import responder_app_service
-from app.api.v1.dependencies import require_responder_auth, CurrentResponder
+from app.api.v1.dependencies import require_responder_auth, CurrentResponder, require_auth, CurrentUser
 from app.core.rate_limiter import limiter
 
 router = APIRouter(prefix="/responder", tags=["responder app"])
@@ -135,6 +135,14 @@ async def get_water_level_trend(
     )
 
 
+# --- Admin-only endpoint ---
+
 @router.post("/send-sms", status_code=204)
-async def send_sms(send_request: ResponderSendSMSRequest, db: AsyncSession = Depends(get_db)) -> None:
+@limiter.limit("10/minute")
+async def send_sms(
+    request: Request,
+    send_request: ResponderSendSMSRequest,
+    current_user: CurrentUser = Depends(require_auth),
+    db: AsyncSession = Depends(get_db)) -> None:
+
     await responder_app_service.send_sms(send_request=send_request, db=db)

@@ -21,11 +21,12 @@ class CurrentUser:
         self.force_password_change = force_password_change
 
 
-async def require_auth(
+async def _authenticate_admin(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db)) -> CurrentUser:
 
-    """Check if user is logged in (has valid token)"""
+    """Verify the admin's token and account status. Does NOT enforce a pending
+    forced password change — wrap this with require_auth for that."""
     token = credentials.credentials
     
     try:
@@ -38,11 +39,7 @@ async def require_auth(
                 detail="Invalid token",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-            
-        is_superuser = payload.get("is_superuser", False)
-        is_enabled = payload.get("is_enabled", False)
-        force_password_change = payload.get("force_password_change", False)
-        
+
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -62,13 +59,37 @@ async def require_auth(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"
         )
-    
+
+    # Source account flags from the DB row (not the token claims) so a
+    # demotion / password-change-required takes effect immediately rather
+    # than lingering until the access token expires.
     return CurrentUser(
         id=user_id,
-        is_superuser=is_superuser,
-        is_enabled=is_enabled,
-        force_password_change=force_password_change
+        is_superuser=user_in_db.is_superuser,
+        is_enabled=user_in_db.is_enabled,
+        force_password_change=user_in_db.force_password_change
     )
+
+
+async def require_auth(
+    current_user: CurrentUser = Depends(_authenticate_admin)) -> CurrentUser:
+
+    """Standard admin auth. Blocks users who still have a pending forced
+    password change so they cannot use the API by bypassing the client guard."""
+    if current_user.force_password_change:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Password change required",
+        )
+    return current_user
+
+
+async def require_auth_allow_password_change(
+    current_user: CurrentUser = Depends(_authenticate_admin)) -> CurrentUser:
+
+    """Admin auth that permits a user with a pending forced password change.
+    Use ONLY for the logout and change-password endpoints."""
+    return current_user
 
 
 async def require_superuser(

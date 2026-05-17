@@ -36,6 +36,7 @@ class FusionAnalysisState:
         self.water_level_status: WaterLevelStatus | None = None
         self.weather_status: WeatherStatus | None = None
         self._last_critical_notify_time: float = 0
+        self._last_anomaly_notify_time: float = 0
         self._lock = asyncio.Lock()
 
 
@@ -122,6 +123,7 @@ class FusionAnalysisState:
         
         # --- 4. Recalculate Fusion Data with loaded values ---
         await self._recalculate_fusion_data()
+        await self._broadcast_and_notify()
 
 
     async def calculate_visual_status_score(self, blockage_status: BlockageStatus = None):
@@ -129,6 +131,10 @@ class FusionAnalysisState:
             if blockage_status:
                 self.blockage_status = blockage_status
             await self._recalculate_fusion_data()
+        # Broadcast and notify OUTSIDE the lock — push delivery is slow network
+        # I/O and must not block other sensor/camera/weather updates for this
+        # location while it runs.
+        await self._broadcast_and_notify()
 
 
     async def calculate_water_level_score(self, water_level_status: WaterLevelStatus = None):
@@ -136,6 +142,7 @@ class FusionAnalysisState:
             if water_level_status:
                 self.water_level_status = water_level_status
             await self._recalculate_fusion_data()
+        await self._broadcast_and_notify()
 
 
     async def calculate_weather_score(self, weather_status: WeatherStatus = None):
@@ -143,9 +150,11 @@ class FusionAnalysisState:
             if weather_status:
                 self.weather_status = weather_status
             await self._recalculate_fusion_data()
+        await self._broadcast_and_notify()
 
 
     async def _recalculate_fusion_data(self) -> None:
+        """Compute fusion state from the current inputs. Runs under self._lock."""
         async with AsyncSessionLocal() as db:
             alert_thresholds = await cache_service.get_alert_thresholds(db)
 
@@ -163,12 +172,15 @@ class FusionAnalysisState:
             weather_status=self.weather_status,
         )
 
+    async def _broadcast_and_notify(self) -> None:
+        """Broadcast the latest fusion state and dispatch auto-notifications.
+        Intentionally NOT holding self._lock — this does slow network I/O."""
         await self.broadcast_fusion_analysis()
 
         # Auto-notify responders when fusion is Critical (cooldown-gated)
         if self.fusion_data.alert_name == "Critical":
             await self._auto_notify_critical()
-        
+
         # Auto-notify when serious anomalies are detected
         if self.fusion_data.anomalies:
             await self._auto_notify_anomaly()
@@ -178,7 +190,6 @@ class FusionAnalysisState:
         now = time.monotonic()
         if now - self._last_critical_notify_time < CRITICAL_NOTIFY_COOLDOWN_SECONDS:
             return
-        self._last_critical_notify_time = now
 
         try:
             from app.services import notification_service
@@ -202,6 +213,9 @@ class FusionAnalysisState:
                     system_initiated=True,
                 )
                 await notification_service.send_notification_to_subscribers(payload=payload, db=db)
+                # Arm the cooldown only after a successful send, so a failed
+                # delivery doesn't silence Critical alerts for the cooldown window.
+                self._last_critical_notify_time = now
                 print(f"🚨 Auto-notified {len(responder_ids)} responders of Critical fusion alert (location {self.location_id})")
 
         except Exception as e:
@@ -211,14 +225,10 @@ class FusionAnalysisState:
         import time
         # Use a longer cooldown for anomalies to avoid spamming maintenance crews
         ANOMALY_NOTIFY_COOLDOWN = 60 * 60 * 4  # 4 hours
-        
-        if not hasattr(self, "_last_anomaly_notify_time"):
-            self._last_anomaly_notify_time = 0
-            
+
         now = time.monotonic()
         if now - self._last_anomaly_notify_time < ANOMALY_NOTIFY_COOLDOWN:
             return
-        self._last_anomaly_notify_time = now
 
         try:
             from app.services import notification_service
@@ -243,6 +253,8 @@ class FusionAnalysisState:
                     system_initiated=True,
                 )
                 await notification_service.send_notification_to_subscribers(payload=payload, db=db)
+                # Arm the cooldown only after a successful send.
+                self._last_anomaly_notify_time = now
                 print(f"🔧 Auto-notified {len(responder_ids)} responders of Maintenance/Anomaly alert (location {self.location_id})")
 
         except Exception as e:

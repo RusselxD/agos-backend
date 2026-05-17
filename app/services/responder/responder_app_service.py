@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from app.crud import notification_delivery_crud
 from app.crud import responder_otp_verification_crud
 from app.crud.responder_group import responder_group_crud
@@ -103,12 +104,25 @@ class ResponderAppService:
 
 
     async def acknowledge_alert(self, payload: AcknowledgeNotifRequest, db: AsyncSession) -> AcknowledgeNotifResponse:
-        ack: Acknowledgement = await acknowledgement_crud.create_acknowledgement(
-            responder_id=payload.responder_id,
-            delivery_id=payload.delivery_id,
-            message=payload.message,
-            db=db
-        )
+        # Verify the delivery exists and belongs to this responder so an invalid
+        # or foreign delivery_id returns a clear 404 instead of a raw 500.
+        delivery = await notification_delivery_crud.get(db=db, id=payload.delivery_id)
+        if delivery is None or delivery.responder_id != payload.responder_id:
+            raise HTTPException(status_code=404, detail="Notification delivery not found.")
+
+        try:
+            ack: Acknowledgement = await acknowledgement_crud.create_acknowledgement(
+                responder_id=payload.responder_id,
+                delivery_id=payload.delivery_id,
+                message=payload.message,
+                db=db
+            )
+        except IntegrityError:
+            # Unique constraint on delivery_id — already acknowledged (possibly a
+            # concurrent request that won the race).
+            await db.rollback()
+            raise HTTPException(status_code=409, detail="This alert has already been acknowledged.")
+
         return AcknowledgeNotifResponse(
             acknowledged_at=ack.acknowledged_at,
             acknowledge_message=ack.message

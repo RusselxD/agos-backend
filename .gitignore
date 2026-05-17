@@ -44,6 +44,9 @@ ENV/
 *.sqlite
 *.sqlite3
 
+# DB migration dump (contains real user data - never commit)
+scripts/db_migration/preserved_data.sql
+
 # Alembic
 alembic/versions/__pycache__/
 

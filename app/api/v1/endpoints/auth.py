@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.services import auth_service
 from app.schemas import LoginRequest, ChangePasswordRequest, RefreshTokenRequest
-from app.api.v1.dependencies import require_auth, CurrentUser
+from app.api.v1.dependencies import require_auth_allow_password_change, CurrentUser
 from app.core.rate_limiter import limiter
 
 router = APIRouter( prefix="/auth", tags=["auth"])
@@ -24,7 +24,7 @@ async def login(
 
 @router.post("/logout")
 async def logout(
-    user: CurrentUser = Depends(require_auth), 
+    user: CurrentUser = Depends(require_auth_allow_password_change),
     db: AsyncSession = Depends(get_db)) -> dict:
     
     await auth_service.logout_user(db=db, user_id=user.id)
@@ -47,7 +47,7 @@ async def refresh_token(
 async def change_password(
     request: Request,
     password_data: ChangePasswordRequest, 
-    db: AsyncSession = Depends(get_db), 
-    user: CurrentUser = Depends(require_auth)) -> Token:
-    
+    db: AsyncSession = Depends(get_db),
+    user: CurrentUser = Depends(require_auth_allow_password_change)) -> Token:
+
     return await auth_service.change_user_password(db=db, new_password=password_data.new_password, user=user)
