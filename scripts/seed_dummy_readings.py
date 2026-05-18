@@ -28,7 +28,7 @@ from app.services.ml_service import ml_service
 # CONFIGURATION
 # ============================================
 LOCATION_ID = 1
-DAYS_TO_GENERATE = 20
+DAYS_TO_GENERATE = 30
 
 SENSOR_INTERVAL_MINUTES = 1
 MODEL_INTERVAL_MINUTES = 3
