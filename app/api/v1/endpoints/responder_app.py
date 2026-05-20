@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from fastapi import Depends
 from uuid import UUID
-from app.schemas import ResponderDetails, NotifPreferenceUpdateRequest, AlertPaginatedResponse
+from app.schemas import ResponderDetails, NotifPreferenceUpdateRequest, AlertPaginatedResponse, ResponderSelfUpdate
 from app.schemas import ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderSendSMSRequest, ResponderRegistrationRequest
 from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
 from app.models.responder_related.responders import NotificationPreference
@@ -29,6 +29,18 @@ async def get_responder_details_for_app(
 
     _validate_responder_id(current_responder, responder_id)
     return await responder_app_service.get_responder_details_for_app(responder_id=responder_id, db=db)
+
+
+@router.patch("/{responder_id}/profile", response_model=ResponderDetails)
+async def update_responder_profile(
+    responder_id: UUID,
+    payload: ResponderSelfUpdate,
+    current_responder: CurrentResponder = Depends(require_responder_auth),
+    db: AsyncSession = Depends(get_db),
+) -> ResponderDetails:
+
+    _validate_responder_id(current_responder, responder_id)
+    return await responder_app_service.update_responder_profile(responder_id=responder_id, payload=payload, db=db)
 
 
 @router.get("/unread-alerts-count/{responder_id}", response_model=int)

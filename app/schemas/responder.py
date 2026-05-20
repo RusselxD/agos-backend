@@ -55,6 +55,52 @@ class ResponderBase(BaseModel):
 class ResponderCreate(ResponderBase):
     pass
 
+
+def _validate_name(v: str | None) -> str | None:
+    if v is None:
+        return None
+    cleaned = v.strip()
+    if not cleaned:
+        raise ValueError("Name cannot be empty.")
+    if len(cleaned) > 100:
+        raise ValueError("Name must be 100 characters or fewer.")
+    return cleaned
+
+
+def _validate_optional_phone_number(v: str | None) -> str | None:
+    if v is None:
+        return None
+    cleaned = re.sub(r'[\s\-()]', '', v)
+    if not re.match(r'^(\+?63|0)9\d{9}$', cleaned):
+        raise ValueError("Invalid Philippine phone number format. Use 09XXXXXXXXX or +639XXXXXXXXX.")
+    return cleaned
+
+
+class ResponderAdminUpdate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+    phone_number: str | None = None
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def _names(cls, v: str | None) -> str | None:
+        return _validate_name(v)
+
+    @field_validator("phone_number")
+    @classmethod
+    def _phone(cls, v: str | None) -> str | None:
+        return _validate_optional_phone_number(v)
+
+
+class ResponderSelfUpdate(BaseModel):
+    first_name: str | None = None
+    last_name: str | None = None
+
+    @field_validator("first_name", "last_name")
+    @classmethod
+    def _names(cls, v: str | None) -> str | None:
+        return _validate_name(v)
+
 class ResponderForApproval(ResponderBase):
     responder_id: UUID
     status: ResponderStatus

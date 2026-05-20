@@ -4,9 +4,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from uuid import UUID
 from app.api.v1.dependencies import CurrentUser, require_auth
 from app.core.database import get_db
-from app.schemas import ResponderCreate, ResponderDetailsResponse, ResponderListItem
+from app.schemas import ResponderCreate, ResponderDetailsResponse, ResponderListItem, ResponderAdminUpdate
 from app.services import responder_service
 
 router = APIRouter(prefix="/responders", tags=["responders"])
@@ -64,8 +65,18 @@ async def download_responder_template():
 
 @router.post("/bulk", response_model=list[ResponderListItem])
 async def bulk_create_responders(
-    responders: list[ResponderCreate], 
+    responders: list[ResponderCreate],
     db: AsyncSession = Depends(get_db),
     user: CurrentUser = Depends(require_auth)) -> list[ResponderListItem]:
-    
+
     return await responder_service.bulk_create_responders(responders=responders, db=db, user_id=user.id)
+
+
+# Phone changes do not invalidate the responder JWT or push subscriptions; both key off responder_id.
+@router.patch("/{responder_id}", dependencies=[Depends(require_auth)], response_model=ResponderListItem)
+async def update_responder(
+    responder_id: UUID,
+    payload: ResponderAdminUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> ResponderListItem:
+    return await responder_service.update_responder_details(responder_id=responder_id, payload=payload, db=db)

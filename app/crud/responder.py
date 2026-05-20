@@ -1,5 +1,7 @@
 from app.crud.base import CRUDBase
+from fastapi import HTTPException
 from sqlalchemy import exists, select, update
+from sqlalchemy.exc import IntegrityError
 from app.models import Responder
 from app.models.responder_related.push_subscription import PushSubscription
 from app.models.responder_related.responders import ResponderStatus
@@ -120,6 +122,38 @@ class CRUDResponder(CRUDBase[None, None, None]):
         )
         await db.commit()
         return list(result.scalars().unique().all())
+
+
+    async def update_details(
+        self,
+        db: AsyncSession,
+        responder_id: UUID,
+        *,
+        first_name: str | None,
+        last_name: str | None,
+        phone_number: str | None,
+    ) -> Responder:
+        result = await db.execute(
+            select(self.model).filter(self.model.id == responder_id)
+        )
+        responder = result.scalars().first()
+        if not responder:
+            raise HTTPException(status_code=404, detail="Responder not found.")
+
+        if first_name is not None:
+            responder.first_name = first_name
+        if last_name is not None:
+            responder.last_name = last_name
+        if phone_number is not None:
+            responder.phone_number = phone_number
+
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            raise HTTPException(status_code=409, detail="Phone number already in use.")
+        await db.refresh(responder)
+        return responder
 
 
     async def activate(self, db: AsyncSession, responder_id: UUID, *, commit: bool = True) -> None:

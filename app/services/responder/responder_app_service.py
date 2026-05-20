@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from app.core.config import settings
 from uuid import UUID
 import random
-from app.schemas import ResponderDetails, ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderSendSMSRequest
+from app.schemas import ResponderDetails, ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderSendSMSRequest, ResponderSelfUpdate
 from app.models.responder_related.responders import NotificationPreference
 from app.schemas.responder import ResponderForApproval
 from app.services.sms_service import sms_service
@@ -61,6 +61,22 @@ class ResponderAppService:
             created_at=responder.created_at,
             activated_at=responder.activated_at
         )
+
+
+    async def update_responder_profile(
+        self,
+        responder_id: UUID,
+        payload: ResponderSelfUpdate,
+        db: AsyncSession,
+    ) -> ResponderDetails:
+        await responder_crud.update_details(
+            db=db,
+            responder_id=responder_id,
+            first_name=payload.first_name,
+            last_name=payload.last_name,
+            phone_number=None,
+        )
+        return await self.get_responder_details_for_app(responder_id=responder_id, db=db)
 
 
     async def get_unread_alerts_count(self, responder_id: UUID, db: AsyncSession) -> int:

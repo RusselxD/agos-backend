@@ -1,7 +1,10 @@
 from app.models import Responder
-from app.schemas import ResponderCreate, ResponderListItem, ResponderDetailsResponse
+from app.schemas import ResponderCreate, ResponderListItem, ResponderDetailsResponse, ResponderAdminUpdate
 from fastapi import HTTPException
+from uuid import UUID
 from app.crud.responder import responder_crud
+from app.models.responder_related.push_subscription import PushSubscription
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -70,5 +73,33 @@ class ResponderService:
             ) for responder in created_responders
         ]
     
+
+    async def update_responder_details(
+        self,
+        responder_id: UUID,
+        payload: ResponderAdminUpdate,
+        db: AsyncSession,
+    ) -> ResponderListItem:
+        # Phone change does not invalidate the responder JWT or push subscriptions:
+        # both key off responder_id, not phone_number.
+        updated = await responder_crud.update_details(
+            db=db,
+            responder_id=responder_id,
+            first_name=payload.first_name,
+            last_name=payload.last_name,
+            phone_number=payload.phone_number,
+        )
+        has_push = await db.execute(
+            select(PushSubscription.id).where(PushSubscription.responder_id == updated.id).limit(1)
+        )
+        return ResponderListItem(
+            id=updated.id,
+            first_name=updated.first_name,
+            last_name=updated.last_name,
+            phone_number=updated.phone_number,
+            status=updated.status,
+            has_push_subscription=has_push.scalar() is not None,
+        )
+
 
 responder_service = ResponderService()
