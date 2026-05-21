@@ -16,7 +16,9 @@ from app.services.cache_service import cache_service
 from app.schemas import DevicePerLocation
 
 
+WARNING_NOTIFY_COOLDOWN_SECONDS = 30 * 60   # 30 minutes
 CRITICAL_NOTIFY_COOLDOWN_SECONDS = 30 * 60  # 30 minutes
+BLOCKAGE_NOTIFY_COOLDOWN_SECONDS = 4 * 60 * 60  # 4 hours — blockages persist
 
 
 class FusionAnalysisState:
@@ -35,8 +37,9 @@ class FusionAnalysisState:
         self.blockage_status: BlockageStatus | None = None
         self.water_level_status: WaterLevelStatus | None = None
         self.weather_status: WeatherStatus | None = None
+        self._last_warning_notify_time: float = 0
         self._last_critical_notify_time: float = 0
-        self._last_anomaly_notify_time: float = 0
+        self._last_blockage_notify_time: float = 0
         self._lock = asyncio.Lock()
 
 
@@ -177,13 +180,15 @@ class FusionAnalysisState:
         Intentionally NOT holding self._lock — this does slow network I/O."""
         await self.broadcast_fusion_analysis()
 
-        # Auto-notify responders when fusion is Critical (cooldown-gated)
+        # Auto-notify responders on fusion alert level (cooldown-gated)
         if self.fusion_data.alert_name == "Critical":
             await self._auto_notify_critical()
+        elif self.fusion_data.alert_name == "Warning":
+            await self._auto_notify_warning()
 
-        # Auto-notify when serious anomalies are detected
-        if self.fusion_data.anomalies:
-            await self._auto_notify_anomaly()
+        # Auto-notify when the vision model flags a blocked intake
+        if self.blockage_status and self.blockage_status.status == "blocked":
+            await self._auto_notify_blockage()
 
     async def _auto_notify_critical(self) -> None:
         import time
@@ -221,13 +226,10 @@ class FusionAnalysisState:
         except Exception as e:
             print(f"⚠️ Auto-notify critical failed: {e}")
 
-    async def _auto_notify_anomaly(self) -> None:
+    async def _auto_notify_warning(self) -> None:
         import time
-        # Use a longer cooldown for anomalies to avoid spamming maintenance crews
-        ANOMALY_NOTIFY_COOLDOWN = 60 * 60 * 4  # 4 hours
-
         now = time.monotonic()
-        if now - self._last_anomaly_notify_time < ANOMALY_NOTIFY_COOLDOWN:
+        if now - self._last_warning_notify_time < WARNING_NOTIFY_COOLDOWN_SECONDS:
             return
 
         try:
@@ -241,24 +243,59 @@ class FusionAnalysisState:
                 if not responder_ids:
                     return
 
-                anomaly_text = ", ".join([a.replace("_", " ") for a in self.fusion_data.anomalies])
                 payload = SendNotificationSchema(
                     responder_ids=responder_ids,
                     template_id=None,
                     custom_notification=CustomNotificationPayload(
-                        type=NotificationType.MAINTENANCE,
-                        title="Maintenance Required",
-                        message=f"System detected data anomalies: {anomaly_text}. Please perform a visual inspection of the hardware at location {self.location_id}.",
+                        type=NotificationType.WARNING,
+                        title="Warning Alert",
+                        message=f"Warning risk level detected. Combined risk score: {self.fusion_data.combined_risk_score}. Conditions: {', '.join(self.fusion_data.triggered_conditions)}",
                     ),
                     system_initiated=True,
                 )
                 await notification_service.send_notification_to_subscribers(payload=payload, db=db)
                 # Arm the cooldown only after a successful send.
-                self._last_anomaly_notify_time = now
-                print(f"🔧 Auto-notified {len(responder_ids)} responders of Maintenance/Anomaly alert (location {self.location_id})")
+                self._last_warning_notify_time = now
+                print(f"⚠️ Auto-notified {len(responder_ids)} responders of Warning fusion alert (location {self.location_id})")
 
         except Exception as e:
-            print(f"⚠️ Auto-notify anomaly failed: {e}")
+            print(f"⚠️ Auto-notify warning failed: {e}")
+
+
+    async def _auto_notify_blockage(self) -> None:
+        import time
+        now = time.monotonic()
+        if now - self._last_blockage_notify_time < BLOCKAGE_NOTIFY_COOLDOWN_SECONDS:
+            return
+
+        try:
+            from app.services import notification_service
+            from app.crud import responder_crud
+            from app.schemas.subscription import SendNotificationSchema, CustomNotificationPayload
+            from app.models.notification_template import NotificationType
+
+            async with AsyncSessionLocal() as db:
+                responder_ids = await responder_crud.get_responder_ids_with_push_subscription(db=db)
+                if not responder_ids:
+                    return
+
+                payload = SendNotificationSchema(
+                    responder_ids=responder_ids,
+                    template_id=None,
+                    custom_notification=CustomNotificationPayload(
+                        type=NotificationType.BLOCKAGE,
+                        title="Blockage Detected",
+                        message=f"Camera detected a blocked drainage intake at location {self.location_id}. Dispatch a responder to clear the obstruction.",
+                    ),
+                    system_initiated=True,
+                )
+                await notification_service.send_notification_to_subscribers(payload=payload, db=db)
+                # Arm the cooldown only after a successful send.
+                self._last_blockage_notify_time = now
+                print(f"🪵 Auto-notified {len(responder_ids)} responders of Blockage detection (location {self.location_id})")
+
+        except Exception as e:
+            print(f"⚠️ Auto-notify blockage failed: {e}")
 
 
 class StateManager:

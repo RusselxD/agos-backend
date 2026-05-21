@@ -2,7 +2,6 @@ FROM python:3.11-slim
 
 # Install OS Dependencies
 RUN apt-get update && apt-get install -y \
-    ffmpeg \
     libpq-dev \
     gcc \
     && rm -rf /var/lib/apt/lists/*
