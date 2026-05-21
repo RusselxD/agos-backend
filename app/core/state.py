@@ -190,110 +190,75 @@ class FusionAnalysisState:
         if self.blockage_status and self.blockage_status.status == "blocked":
             await self._auto_notify_blockage()
 
+    async def _send_system_template(self, notification_type, log_label: str) -> bool:
+        """Look up the system template for this notification type and dispatch it
+        to all responders with push subscriptions. Returns True on successful send,
+        False if no template is configured or no subscribers exist."""
+        from app.services import notification_service
+        from app.crud import responder_crud
+        from app.crud import notification_template_crud
+        from app.schemas.subscription import SendNotificationSchema
+
+        async with AsyncSessionLocal() as db:
+            template = await notification_template_crud.get_by_type(
+                db=db, notification_type=notification_type
+            )
+            if not template:
+                print(f"⚠️ No system template configured for {notification_type.value} — skipping auto-notify")
+                return False
+
+            responder_ids = await responder_crud.get_responder_ids_with_push_subscription(db=db)
+            if not responder_ids:
+                return False
+
+            payload = SendNotificationSchema(
+                responder_ids=responder_ids,
+                template_id=template.id,
+                custom_notification=None,
+                system_initiated=True,
+            )
+            await notification_service.send_notification_to_subscribers(payload=payload, db=db)
+            print(f"{log_label} Auto-notified {len(responder_ids)} responders (location {self.location_id})")
+            return True
+
+
     async def _auto_notify_critical(self) -> None:
         import time
+        from app.models.notification_template import NotificationType
         now = time.monotonic()
         if now - self._last_critical_notify_time < CRITICAL_NOTIFY_COOLDOWN_SECONDS:
             return
-
         try:
-            from app.services import notification_service
-            from app.crud import responder_crud
-            from app.schemas.subscription import SendNotificationSchema, CustomNotificationPayload
-            from app.models.notification_template import NotificationType
-
-            async with AsyncSessionLocal() as db:
-                responder_ids = await responder_crud.get_responder_ids_with_push_subscription(db=db)
-                if not responder_ids:
-                    return
-
-                payload = SendNotificationSchema(
-                    responder_ids=responder_ids,
-                    template_id=None,
-                    custom_notification=CustomNotificationPayload(
-                        type=NotificationType.CRITICAL,
-                        title="Critical Alert",
-                        message=f"Critical risk level detected. Combined risk score: {self.fusion_data.combined_risk_score}. Conditions: {', '.join(self.fusion_data.triggered_conditions)}",
-                    ),
-                    system_initiated=True,
-                )
-                await notification_service.send_notification_to_subscribers(payload=payload, db=db)
-                # Arm the cooldown only after a successful send, so a failed
-                # delivery doesn't silence Critical alerts for the cooldown window.
+            # Arm cooldown only on successful send so a missing template doesn't
+            # silence Critical alerts for the cooldown window.
+            if await self._send_system_template(NotificationType.CRITICAL, "🚨 [CRITICAL]"):
                 self._last_critical_notify_time = now
-                print(f"🚨 Auto-notified {len(responder_ids)} responders of Critical fusion alert (location {self.location_id})")
-
         except Exception as e:
             print(f"⚠️ Auto-notify critical failed: {e}")
 
+
     async def _auto_notify_warning(self) -> None:
         import time
+        from app.models.notification_template import NotificationType
         now = time.monotonic()
         if now - self._last_warning_notify_time < WARNING_NOTIFY_COOLDOWN_SECONDS:
             return
-
         try:
-            from app.services import notification_service
-            from app.crud import responder_crud
-            from app.schemas.subscription import SendNotificationSchema, CustomNotificationPayload
-            from app.models.notification_template import NotificationType
-
-            async with AsyncSessionLocal() as db:
-                responder_ids = await responder_crud.get_responder_ids_with_push_subscription(db=db)
-                if not responder_ids:
-                    return
-
-                payload = SendNotificationSchema(
-                    responder_ids=responder_ids,
-                    template_id=None,
-                    custom_notification=CustomNotificationPayload(
-                        type=NotificationType.WARNING,
-                        title="Warning Alert",
-                        message=f"Warning risk level detected. Combined risk score: {self.fusion_data.combined_risk_score}. Conditions: {', '.join(self.fusion_data.triggered_conditions)}",
-                    ),
-                    system_initiated=True,
-                )
-                await notification_service.send_notification_to_subscribers(payload=payload, db=db)
-                # Arm the cooldown only after a successful send.
+            if await self._send_system_template(NotificationType.WARNING, "⚠️ [WARNING]"):
                 self._last_warning_notify_time = now
-                print(f"⚠️ Auto-notified {len(responder_ids)} responders of Warning fusion alert (location {self.location_id})")
-
         except Exception as e:
             print(f"⚠️ Auto-notify warning failed: {e}")
 
 
     async def _auto_notify_blockage(self) -> None:
         import time
+        from app.models.notification_template import NotificationType
         now = time.monotonic()
         if now - self._last_blockage_notify_time < BLOCKAGE_NOTIFY_COOLDOWN_SECONDS:
             return
-
         try:
-            from app.services import notification_service
-            from app.crud import responder_crud
-            from app.schemas.subscription import SendNotificationSchema, CustomNotificationPayload
-            from app.models.notification_template import NotificationType
-
-            async with AsyncSessionLocal() as db:
-                responder_ids = await responder_crud.get_responder_ids_with_push_subscription(db=db)
-                if not responder_ids:
-                    return
-
-                payload = SendNotificationSchema(
-                    responder_ids=responder_ids,
-                    template_id=None,
-                    custom_notification=CustomNotificationPayload(
-                        type=NotificationType.BLOCKAGE,
-                        title="Blockage Detected",
-                        message=f"Camera detected a blocked drainage intake at location {self.location_id}. Dispatch a responder to clear the obstruction.",
-                    ),
-                    system_initiated=True,
-                )
-                await notification_service.send_notification_to_subscribers(payload=payload, db=db)
-                # Arm the cooldown only after a successful send.
+            if await self._send_system_template(NotificationType.BLOCKAGE, "🪵 [BLOCKAGE]"):
                 self._last_blockage_notify_time = now
-                print(f"🪵 Auto-notified {len(responder_ids)} responders of Blockage detection (location {self.location_id})")
-
         except Exception as e:
             print(f"⚠️ Auto-notify blockage failed: {e}")
 
