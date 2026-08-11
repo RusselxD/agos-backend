@@ -286,6 +286,8 @@ Auth legend: `RESP` = responder JWT token required (issued after OTP verificatio
 | Key | Default | Description |
 |-----|---------|-------------|
 | `data_retention_days` | varies | Days to keep sensor/model/weather readings |
+| `alert_retention_days` | 60 | Delete public-alert / evacuation-event audit records older than this |
+| `alert_retention_max` | 50 | Also delete records beyond the newest N per location |
 | `alert_thresholds` | JSON | Fusion analysis tier thresholds |
 | `escalation_timeout_minutes` | 15 | Minutes before unacknowledged critical alert is escalated |
 | `max_escalation_count` | 3 | Maximum re-notification attempts per delivery |

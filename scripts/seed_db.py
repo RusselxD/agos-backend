@@ -53,6 +53,8 @@ async def seed_db():
             settings = [
                 {"key": "alert_thresholds", "json_value": {"tier_1_max": 44, "tier_2_min": 45, "tier_2_max": 75, "tier_3_min": 76}},
                 {"key": "data_retention_days", "json_value": 30},
+                {"key": "alert_retention_days", "json_value": 60},
+                {"key": "alert_retention_max", "json_value": 50},
             ]
             for setting in settings:
                 existing_setting = await db.execute(

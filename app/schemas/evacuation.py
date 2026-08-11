@@ -26,7 +26,8 @@ class EvacuationConfirmRequest(BaseModel):
 
 
 class PublicAlertPayload(BaseModel):
-    """backend → citizen (WS + push)."""
+    """backend → citizen (WS + push + history back-fill)."""
+    id: str | None = None  # stable id (== audit event id) for client-side dedupe
     level: Literal["be_alert", "evacuate", "all_clear"]
     title: str
     message: str

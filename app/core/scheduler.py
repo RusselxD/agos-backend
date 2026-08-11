@@ -35,6 +35,7 @@ async def data_cleanup_job():
     from app.crud.weather import weather_crud
     from app.crud.responder_otp_verification import responder_otp_verification_crud
     from app.crud.password_reset_otp import password_reset_otp_crud
+    from app.crud.evacuation_event import evacuation_event_crud
 
     print("🗑️ Running data cleanup job...")
 
@@ -50,13 +51,37 @@ async def data_cleanup_job():
             model_count = await model_readings_crud.delete_older_than(db, cutoff)
             weather_count = await weather_crud.delete_older_than(db, cutoff)
 
+            # Evacuation-event (public alert audit) retention: delete rows older
+            # than the cutoff OR beyond the newest N per location. Falls back to
+            # 60 days / 50 rows if the settings haven't been seeded.
+            try:
+                alert_retention_days = int(
+                    await system_settings_crud.get_value(db, "alert_retention_days")
+                )
+            except Exception:
+                alert_retention_days = 60
+            try:
+                alert_retention_max = int(
+                    await system_settings_crud.get_value(db, "alert_retention_max")
+                )
+            except Exception:
+                alert_retention_max = 50
+            alert_cutoff = now - timedelta(days=alert_retention_days)
+            evac_event_count = await evacuation_event_crud.prune(
+                db,
+                older_than=alert_cutoff,
+                keep_per_location=alert_retention_max,
+            )
+
             # Expired OTP cleanup
             responder_otp_count = await responder_otp_verification_crud.delete_expired(db, now)
             password_otp_count = await password_reset_otp_crud.delete_expired(db, now)
 
             print(
-                f"✅ Data cleanup complete (retention={retention_days}d): "
+                f"✅ Data cleanup complete (retention={retention_days}d, "
+                f"alerts={alert_retention_days}d/{alert_retention_max}max): "
                 f"sensor_readings={sensor_count}, model_readings={model_count}, weather={weather_count}, "
+                f"evacuation_events={evac_event_count}, "
                 f"expired_otps={responder_otp_count + password_otp_count}"
             )
     except Exception as e:

@@ -9,6 +9,7 @@ EvacuationCenterStatusLiteral = Literal["open", "full", "closed"]
 class EvacuationCenterBase(BaseModel):
     location_id: int
     name: str = Field(min_length=1, max_length=120)
+    address: str | None = Field(default=None, max_length=255)
     latitude: float
     longitude: float
     capacity: int | None = None
@@ -44,6 +45,7 @@ class EvacuationCenterCreate(EvacuationCenterBase):
 class EvacuationCenterUpdate(BaseModel):
     """All fields optional so admins can flip status without resending everything."""
     name: str | None = Field(default=None, min_length=1, max_length=120)
+    address: str | None = Field(default=None, max_length=255)
     latitude: float | None = None
     longitude: float | None = None
     capacity: int | None = None

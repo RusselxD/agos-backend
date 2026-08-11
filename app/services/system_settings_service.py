@@ -35,6 +35,12 @@ class SystemSettingsService:
         
         if key == "data_retention_days":
             return f"Changed data retention period from {old_value} to {new_value} days"
+
+        elif key == "alert_retention_days":
+            return f"Changed public alert retention period from {old_value} to {new_value} days"
+
+        elif key == "alert_retention_max":
+            return f"Changed public alert retention cap from {old_value} to {new_value} records per location"
         
         elif key == "sensor_config":
             changes = []

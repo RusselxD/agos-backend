@@ -24,6 +24,9 @@ class EvacuationCenter(Base):
         Integer, ForeignKey("locations.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name = Column(String(120), nullable=False)
+    # Human-readable address (admin-entered / reverse-geocoded). Optional; the
+    # coordinates below remain the source of truth for mapping and routing.
+    address = Column(String(255), nullable=True)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     capacity = Column(Integer, nullable=True)

@@ -112,6 +112,11 @@ class EvacuationService:
 
         basis_risk_score, basis_snapshot = self._fusion_snapshot(payload.location_id)
 
+        # One identity shared by the live WS alert and the audit row, so a client
+        # can dedupe the live alert against the fetched history.
+        event_id = uuid.uuid4()
+        event_ts = datetime.now(timezone.utc)
+
         # 1. Fire-and-forget push to this location's citizen subscribers.
         dispatch_id, sent_count = await notification_service.send_to_citizen_subscribers(
             db=db,
@@ -123,11 +128,12 @@ class EvacuationService:
 
         # 2. Broadcast the public_alert over WS (location-scoped) for connected apps.
         alert_payload = PublicAlertPayload(
+            id=str(event_id),
             level=level,
             title=title,
             message=message,
             location_id=payload.location_id,
-            timestamp=datetime.now(timezone.utc),
+            timestamp=event_ts,
         )
         await websocket_service.broadcast_update(
             update_type="public_alert",
@@ -145,6 +151,8 @@ class EvacuationService:
             dispatch_id=dispatch_id,
             basis_risk_score=basis_risk_score,
             basis_snapshot=basis_snapshot,
+            event_id=event_id,
+            created_at=event_ts,
         )
 
         print(
@@ -158,6 +166,34 @@ class EvacuationService:
     ) -> list[EvacuationEventResponse]:
         events = await evacuation_event_crud.get_by_location(db=db, location_id=location_id)
         return [EvacuationEventResponse.model_validate(e) for e in events]
+
+    async def get_public_alerts(
+        self, db: AsyncSession, location_id: int, limit: int = 50
+    ) -> list[PublicAlertPayload]:
+        """Public, PII-free alert history for the citizen app (back-fill on launch).
+
+        Derived from the audit events; only the citizen-facing fields are exposed
+        (no authorizer, dispatch id, or fusion snapshot)."""
+        events = await evacuation_event_crud.get_by_location(
+            db=db, location_id=location_id, limit=limit
+        )
+        alerts: list[PublicAlertPayload] = []
+        for event in events:
+            if event.kind == EvacuationEventKind.ALL_CLEAR:
+                level, title = "all_clear", "All Clear"
+            else:
+                level, title = "evacuate", "Evacuation Order"
+            alerts.append(
+                PublicAlertPayload(
+                    id=str(event.id),
+                    level=level,
+                    title=title,
+                    message=event.message,
+                    location_id=event.location_id,
+                    timestamp=event.created_at,
+                )
+            )
+        return alerts
 
 
 evacuation_service = EvacuationService()
