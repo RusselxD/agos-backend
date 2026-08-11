@@ -15,7 +15,25 @@ class Settings(BaseSettings):
 
     # Camera / ML Settings
     FRAME_CAPTURE_INTERVAL_SECONDS: int = 60 * 2  # ML inference throttle interval (seconds)
+    # F1 — adaptive sampling: shortened interval while fusion risk is elevated.
+    FRAME_CAPTURE_INTERVAL_ELEVATED_SECONDS: int = 30
     MAX_IMAGE_UPLOAD_BYTES: int = 5 * 1024 * 1024  # 5 MB
+
+    # F1 — surface-obstruction confidence engine (rolling window over inference readings)
+    OBSTRUCTION_WINDOW_K: int = 5              # readings considered per confidence window
+    OBSTRUCTION_TIER_LIKELY: float = 0.6      # >= fraction flagged -> "likely"
+    OBSTRUCTION_TIER_CONFIRMED: float = 0.8   # >= fraction flagged -> "confirmed"
+    OBSTRUCTION_PARTIAL_WEIGHT: float = 0.5   # weight of a "partial" reading vs a full "blocked"
+
+    # F2 — weather provider abstraction + sub-hourly refresh
+    WEATHER_PROVIDER: str = "openmeteo"       # "openweathermap" | "weatherapi" | "openmeteo"
+    OPENWEATHERMAP_API_KEY: str = ""
+    WEATHERAPI_API_KEY: str = ""
+    WEATHER_FETCH_INTERVAL_MINUTES: int = 10
+
+    # F4 — score at/above which an evacuation_recommendation is emitted to admins
+    EVACUATION_RECOMMEND_MIN_SCORE: int = 70
+    EVACUATION_RECOMMEND_COOLDOWN_SECONDS: int = 15 * 60
 
     DATABASE_URL: str
     SECRET_KEY: str

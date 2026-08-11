@@ -40,6 +40,9 @@ class FusionAnalysisState:
         self._last_warning_notify_time: float = 0
         self._last_critical_notify_time: float = 0
         self._last_blockage_notify_time: float = 0
+        # F4 — admin-facing evacuation recommendation (cooldown + auto-clear on relax)
+        self._last_recommendation_time: float = 0
+        self._recommendation_active: bool = False
         self._lock = asyncio.Lock()
 
 
@@ -186,9 +189,67 @@ class FusionAnalysisState:
         elif self.fusion_data.alert_name == "Warning":
             await self._auto_notify_warning()
 
-        # Auto-notify when the vision model flags a blocked intake
-        if self.blockage_status and self.blockage_status.status == "blocked":
+        # F1 — auto-notify only on sustained obstruction evidence (tier likely/confirmed),
+        # and suppress entirely when the BLIND_CAMERA anomaly casts doubt on the camera.
+        self._apply_blind_camera_downgrade()
+        if self._should_notify_obstruction():
             await self._auto_notify_blockage()
+
+        # F4 — emit an admin-facing evacuation RECOMMENDATION (never a public blast).
+        await self._maybe_emit_evacuation_recommendation()
+
+    async def _maybe_emit_evacuation_recommendation(self) -> None:
+        """When fusion risk crosses the evacuation threshold, notify admins with a
+        recommendation. This is advisory only — the public alert requires an admin
+        to POST /evacuation/confirm. Cooldown-gated; auto-clears when risk relaxes."""
+        import time
+        from app.core.config import settings
+
+        score = self.fusion_data.combined_risk_score
+        if score < settings.EVACUATION_RECOMMEND_MIN_SCORE:
+            self._recommendation_active = False
+            return
+
+        now = time.monotonic()
+        if (
+            self._recommendation_active
+            and now - self._last_recommendation_time < settings.EVACUATION_RECOMMEND_COOLDOWN_SECONDS
+        ):
+            return
+
+        try:
+            from app.services import websocket_service
+            from app.services.evacuation_service import build_recommendation
+
+            recommendation = build_recommendation(self.location_id, self.fusion_analysis)
+            await websocket_service.broadcast_update(
+                update_type="evacuation_recommendation",
+                data=recommendation.model_dump(mode="json"),
+                location_id=self.location_id,
+            )
+            self._last_recommendation_time = now
+            self._recommendation_active = True
+            print(f"🟠 [EVAC RECOMMENDATION] location {self.location_id} score={score}")
+        except Exception as e:
+            print(f"⚠️ Evacuation recommendation emit failed: {e}")
+
+    def _apply_blind_camera_downgrade(self) -> None:
+        """When fusion flags BLIND_CAMERA, cap the obstruction confidence so a
+        suspect camera can never *raise* confidence or trigger an alert."""
+        from app.schemas import AnomalyType
+
+        confidence = getattr(self.blockage_status, "confidence", None)
+        if not confidence:
+            return
+        if AnomalyType.BLIND_CAMERA in self.fusion_data.anomalies and confidence.tier in ("likely", "confirmed"):
+            confidence.tier = "possible"
+
+    def _should_notify_obstruction(self) -> bool:
+        confidence = getattr(self.blockage_status, "confidence", None)
+        if confidence is not None:
+            return confidence.tier in ("likely", "confirmed")
+        # Fallback for states hydrated without a confidence object (e.g. initial load).
+        return bool(self.blockage_status and self.blockage_status.status == "blocked")
 
     async def _send_system_template(self, notification_type, log_label: str) -> bool:
         """Look up the system template for this notification type and dispatch it
@@ -275,6 +336,11 @@ class StateManager:
         if location_id not in self._fusion_analysis_states:
             raise ValueError(f"No FusionAnalysisState found for location_id {location_id}")
         return self._fusion_analysis_states[location_id].fusion_analysis
+
+    def get_alert_name(self, location_id: int) -> str | None:
+        """Current fusion alert level for a location (F1 adaptive sampling)."""
+        state = self._fusion_analysis_states.get(location_id)
+        return state.fusion_data.alert_name if state else None
 
 
     async def recalculate_water_level_score(self, water_level_status: WaterLevelStatus, location_id: int) -> None:

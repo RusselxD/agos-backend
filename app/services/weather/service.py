@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timezone, timedelta
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.date import DateTrigger
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,13 +42,13 @@ class WeatherService:
 
 
     async def start(self) -> None:
-        """Fetch initial weather and start the hourly scheduler."""
+        """Fetch initial weather and start the sub-hourly interval scheduler."""
         async with AsyncSessionLocal() as db:
             try:
-                await self._fetch_initial_weather(db=db, location_id=1)
+                await self._fetch_initial_weather(db=db)
             except WeatherRateLimitedError:
                 logger.warning(
-                    "Initial weather fetch rate-limited; using cached weather until next hourly run"
+                    "Initial weather fetch rate-limited; using cached weather until next run"
                 )
             except Exception as e:
                 logger.warning(
@@ -59,13 +59,19 @@ class WeatherService:
 
         self.scheduler.add_job(
             self._fetch_and_update_weather,
-            CronTrigger(minute=0, timezone=settings.APP_TIMEZONE),
+            IntervalTrigger(
+                minutes=settings.WEATHER_FETCH_INTERVAL_MINUTES,
+                timezone=settings.APP_TIMEZONE,
+            ),
             id="fetch_weather_condition_job",
             replace_existing=True,
-            misfire_grace_time=3600,
+            misfire_grace_time=300,
         )
         self.scheduler.start()
-        print("✅ Weather service scheduler started.")
+        print(
+            f"✅ Weather service scheduler started "
+            f"(provider={settings.WEATHER_PROVIDER}, every {settings.WEATHER_FETCH_INTERVAL_MINUTES} min)."
+        )
 
 
     async def stop(self) -> None:
@@ -124,24 +130,35 @@ class WeatherService:
         )
 
 
-    async def _fetch_initial_weather(self, db: AsyncSession, location_id: int) -> None:
-        latest_weather = await weather_crud.get_latest_weather(db=db, location_id=location_id)
+    async def _fetch_initial_weather(self, db: AsyncSession) -> None:
+        """Fetch startup weather for every location whose latest reading is stale.
+
+        Previously only checked location_id=1; now evaluates all locations so a
+        multi-site deployment paints fresh data on startup (debt fix).
+        """
+        coordinates = await cache_service.get_all_location_coordinates(db=db)
+        if not coordinates:
+            raise RuntimeError("No location coordinates found")
+
         stale_threshold = datetime.now(timezone.utc) - timedelta(
             minutes=settings.WEATHER_CONDITION_WARNING_PERIOD_MINUTES
         )
 
-        if not latest_weather or latest_weather["created_at"] < stale_threshold:
-            print("⚠️ Initial weather data missing or stale. Fetching new data...")
-            coordinates = await cache_service.get_all_location_coordinates(db=db)
-            if not coordinates:
-                raise RuntimeError("No location coordinates found")
+        stale_coordinates = []
+        for coord in coordinates:
+            latest_weather = await weather_crud.get_latest_weather(db=db, location_id=coord.id)
+            if not latest_weather or latest_weather["created_at"] < stale_threshold:
+                stale_coordinates.append(coord)
 
-            weather_conditions = await fetch_weather_for_coordinates(coordinates)
-            for condition in weather_conditions:
-                await save_weather(db=db, weather_data=condition)
-            print("✅ Initial weather data fetched and saved.")
-        else:
+        if not stale_coordinates:
             print("✅ Initial weather data is up-to-date. No fetch needed.")
+            return
+
+        print(f"⚠️ Initial weather missing/stale for {len(stale_coordinates)} location(s). Fetching...")
+        weather_conditions = await fetch_weather_for_coordinates(stale_coordinates)
+        for condition in weather_conditions:
+            await save_weather(db=db, weather_data=condition)
+        print("✅ Initial weather data fetched and saved.")
 
 
     async def _fetch_and_update_weather(self) -> None:

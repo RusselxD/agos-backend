@@ -1,110 +1,81 @@
-import logging
-import httpx
+"""Weather fetch orchestration (F2).
 
+Provider selection is delegated to ``providers.get_provider(settings.WEATHER_PROVIDER)``;
+this module only loops over coordinates and normalizes provider readings into
+``WeatherCreate`` rows. Error types are re-exported for backward compatibility.
+"""
+
+import logging
+
+from app.core.config import settings
 from app.schemas import WeatherCreate, LocationCoordinate
 
+from .providers import get_provider
+from .providers.base import (  # re-exported for existing imports
+    WeatherFetchError,
+    WeatherRateLimitedError,
+)
 
 logger = logging.getLogger(__name__)
 
-OPEN_METEO_URL = (
-    "https://api.open-meteo.com/v1/forecast?"
-    "latitude={lat}&longitude={lon}&"
-    "current=precipitation,weather_code,temperature_2m,relative_humidity_2m,"
-    "wind_speed_10m,wind_direction_10m,cloud_cover"
-)
-TIMEOUT = httpx.Timeout(20.0, connect=10.0)
-MAX_ATTEMPTS = 2
+__all__ = [
+    "fetch_weather_for_coordinates",
+    "WeatherFetchError",
+    "WeatherRateLimitedError",
+]
 
 
-class WeatherFetchError(RuntimeError):
-    """Raised when the weather API cannot provide data for any location."""
+async def fetch_weather_for_coordinates(
+    coordinates: list[LocationCoordinate],
+) -> list[WeatherCreate]:
+    """Fetch current weather for each coordinate via the configured provider.
 
-
-class WeatherRateLimitedError(WeatherFetchError):
-    """Raised when Open-Meteo rate-limits every requested location."""
-
-
-async def fetch_weather_for_coordinates(coordinates: list[LocationCoordinate]) -> list[WeatherCreate]:
-    """
-    Fetch current weather from Open-Meteo API for each location coordinate.
-    Skips locations that fail after retries; raises RuntimeError if all fail.
+    Skips locations that fail; raises ``WeatherRateLimitedError`` if every
+    location was rate-limited, or ``WeatherFetchError`` if all failed.
     """
     if not coordinates:
         raise RuntimeError("No location coordinates provided")
 
+    provider = get_provider(settings.WEATHER_PROVIDER)
     weather_conditions: list[WeatherCreate] = []
     rate_limited_location_ids: set[int] = set()
 
-    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-        for coord in coordinates:
-            api_url = OPEN_METEO_URL.format(lat=coord.latitude, lon=coord.longitude)
-            last_error: Exception | None = None
+    for coord in coordinates:
+        try:
+            reading = await provider.fetch(coord.latitude, coord.longitude)
+        except WeatherRateLimitedError:
+            rate_limited_location_ids.add(coord.id)
+            logger.warning(
+                "%s rate-limited weather fetch for location_id=%s",
+                provider.name,
+                coord.id,
+            )
+            continue
+        except WeatherFetchError as e:
+            logger.warning(
+                "Skipping weather fetch for location_id=%s via %s: %s",
+                coord.id,
+                provider.name,
+                e,
+            )
+            continue
 
-            for attempt in range(1, MAX_ATTEMPTS + 1):
-                try:
-                    response = await client.get(api_url)
-                    response.raise_for_status()
-                    data = response.json()
-                    current = data["current"]
-
-                    weather_conditions.append(
-                        WeatherCreate(
-                            location_id=coord.id,
-                            precipitation_mm=current["precipitation"],
-                            weather_code=current["weather_code"],
-                            temperature_2m=current["temperature_2m"],
-                            relative_humidity_2m=current["relative_humidity_2m"],
-                            wind_speed_10m=current["wind_speed_10m"],
-                            wind_direction_10m=current["wind_direction_10m"],
-                            cloud_cover=current["cloud_cover"],
-                        )
-                    )
-                    last_error = None
-                    break
-
-                except httpx.TimeoutException as e:
-                    last_error = e
-                    logger.warning(
-                        "Weather API timeout for location_id=%s (attempt %s/%s)",
-                        coord.id,
-                        attempt,
-                        MAX_ATTEMPTS,
-                    )
-                except httpx.HTTPStatusError as e:
-                    last_error = e
-                    logger.warning(
-                        "Weather API returned %s for location_id=%s (attempt %s/%s)",
-                        e.response.status_code,
-                        coord.id,
-                        attempt,
-                        MAX_ATTEMPTS,
-                    )
-                    if e.response.status_code == 429:
-                        rate_limited_location_ids.add(coord.id)
-                        break
-                    if e.response.status_code < 500:
-                        break
-                except httpx.HTTPError as e:
-                    last_error = e
-                    logger.warning(
-                        "Weather API request failed for location_id=%s: %s",
-                        coord.id,
-                        type(e).__name__,
-                    )
-                    break
-
-            if last_error is not None:
-                logger.warning(
-                    "Skipping weather fetch for location_id=%s after failure: %s",
-                    coord.id,
-                    type(last_error).__name__,
-                )
-
+        weather_conditions.append(
+            WeatherCreate(
+                location_id=coord.id,
+                precipitation_mm=reading.precipitation_mm,
+                weather_code=reading.weather_code,
+                temperature_2m=reading.temperature_2m,
+                relative_humidity_2m=reading.relative_humidity_2m,
+                wind_speed_10m=reading.wind_speed_10m,
+                wind_direction_10m=reading.wind_direction_10m,
+                cloud_cover=reading.cloud_cover,
+            )
+        )
 
     if not weather_conditions:
-        if len(rate_limited_location_ids) == len(coordinates):
+        if rate_limited_location_ids and len(rate_limited_location_ids) == len(coordinates):
             raise WeatherRateLimitedError("Weather API rate limited all locations")
         raise WeatherFetchError("Weather fetch failed for all locations")
-
 
     return weather_conditions

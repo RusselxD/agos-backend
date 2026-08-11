@@ -1,14 +1,14 @@
 import asyncio
 import logging
 import random
-from collections import Counter, deque
+from collections import deque
 from io import BytesIO
 from pathlib import Path
 from datetime import datetime, timezone
 
 from app.core.cloudinary import upload_image
 from app.crud import model_readings_crud
-from app.schemas import ModelReadingCreate, ModelWebSocketResponse, BlockageStatus
+from app.schemas import ModelReadingCreate, ModelWebSocketResponse, BlockageStatus, ObstructionConfidence
 from app.core.database import AsyncSessionLocal
 from app.services.websocket_service import websocket_service
 from app.models.data_sources.model_readings import ModelReadings
@@ -25,9 +25,10 @@ CLEAR_MAX = 20.0      # < 20%      -> clear
 PARTIAL_MAX = 60.0    # 20% - 60%  -> partial
                       # >= 60%     -> blocked
 
-# Temporal smoothing: status flips only when K-of-N recent frames agree.
-SMOOTHING_WINDOW = 3
-SMOOTHING_CONFIRM = 2
+# F1 — adaptive-sampling hysteresis: stay on the elevated (fast) capture interval
+# for this long after fusion risk relaxes, so the cadence doesn't oscillate.
+ELEVATED_RELAX_HYSTERESIS_SECONDS = 5 * 60
+ELEVATED_ALERT_NAMES = ("Warning", "Critical")
 
 # YOLO thresholds
 CONF_THRESHOLD = 0.35
@@ -49,10 +50,29 @@ class MLService:
 
     def __init__(self):
         self._last_processed: dict[int, datetime] = {}
-        self._raw_buffer: dict[int, deque] = {}
-        self._confirmed: dict[int, str] = {}
+        # F1 — rolling window of recent raw statuses per camera (confidence engine).
+        self._windows: dict[int, deque] = {}
+        # F1 — adaptive sampling: monotonic deadline until which the fast interval holds.
+        self._elevated_until: dict[int, float] = {}
         self._session = self._load_session()
         self._input_name, self._input_size = self._inspect_input()
+
+    def _capture_interval_seconds(self, camera_device_id: int, location_id: int) -> int:
+        """F1 adaptive sampling: drop to the elevated interval while fusion risk is
+        elevated (Warning/Critical), with hysteresis so it doesn't flap back."""
+        import time
+
+        alert_name = fusion_state_manager.get_alert_name(location_id)
+        now_ts = time.monotonic()
+
+        if alert_name in ELEVATED_ALERT_NAMES:
+            self._elevated_until[camera_device_id] = now_ts + ELEVATED_RELAX_HYSTERESIS_SECONDS
+            return settings.FRAME_CAPTURE_INTERVAL_ELEVATED_SECONDS
+
+        if now_ts < self._elevated_until.get(camera_device_id, 0.0):
+            return settings.FRAME_CAPTURE_INTERVAL_ELEVATED_SECONDS
+
+        return settings.FRAME_CAPTURE_INTERVAL_SECONDS
 
     def _load_session(self):
         if not WEIGHTS_PATH.exists():
@@ -91,16 +111,19 @@ class MLService:
         location_id: int,
     ) -> dict:
         now = datetime.now(timezone.utc)
+        capture_interval = self._capture_interval_seconds(camera_device_id, location_id)
         last = self._last_processed.get(camera_device_id)
         if last is not None:
             elapsed = (now - last).total_seconds()
-            if elapsed < settings.FRAME_CAPTURE_INTERVAL_SECONDS - 5:
+            if elapsed < capture_interval - 5:
                 return {}
 
         self._last_processed[camera_device_id] = now
 
         raw_percentage, raw_status, upload_bytes = await self._infer_and_annotate(image_bytes)
-        confirmed_status = self._apply_smoothing(camera_device_id, raw_status)
+        confidence = self._compute_confidence(camera_device_id, raw_status, raw_percentage)
+        # Sustained-evidence status drives fusion; a lone flagged frame stays "possible".
+        smoothed_status = self._status_from_tier(confidence.tier)
 
         public_id = f"rpi_{camera_device_id}_{int(now.timestamp())}"
         upload_result = await upload_image(BytesIO(upload_bytes), filename=public_id)
@@ -121,7 +144,8 @@ class MLService:
         blockage_reading = ModelWebSocketResponse(
             status="success",
             message="Retrieved successfully",
-            blockage_status=confirmed_status,
+            blockage_status=smoothed_status,
+            confidence=confidence,
         )
 
         await websocket_service.broadcast_update(
@@ -131,7 +155,11 @@ class MLService:
         )
 
         await fusion_state_manager.recalculate_visual_status_score(
-            blockage_status=BlockageStatus(status=confirmed_status, timestamp=db_obj.timestamp),
+            blockage_status=BlockageStatus(
+                status=smoothed_status,
+                timestamp=db_obj.timestamp,
+                confidence=confidence,
+            ),
             location_id=location_id,
         )
 
@@ -295,19 +323,56 @@ class MLService:
             draw.text((x1 + 2, y1 + 2), f"{conf:.2f}", fill="red")
         return out
 
-    def _apply_smoothing(self, camera_device_id: int, raw_status: str) -> str:
-        buf = self._raw_buffer.setdefault(camera_device_id, deque(maxlen=SMOOTHING_WINDOW))
+    def _compute_confidence(
+        self, camera_device_id: int, raw_status: str, raw_percentage: float
+    ) -> ObstructionConfidence:
+        """F1 confidence engine (generalized from the old 2-of-3 smoother).
+
+        Pushes the raw status into a rolling window of the last K readings and
+        derives a graded tier + score. `blocked` counts fully; `partial` counts
+        as `OBSTRUCTION_PARTIAL_WEIGHT`. The window must be full before escalating
+        past `possible` (cold-start guard)."""
+        k = max(1, settings.OBSTRUCTION_WINDOW_K)
+        buf = self._windows.get(camera_device_id)
+        if buf is None or buf.maxlen != k:
+            buf = deque(buf or [], maxlen=k)
+            self._windows[camera_device_id] = buf
         buf.append(raw_status)
 
-        current = self._confirmed.get(camera_device_id, "clear")
-        if len(buf) < SMOOTHING_WINDOW:
-            return current
+        flagged_in_window = sum(1 for s in buf if s != "clear")
+        weighted = sum(
+            1.0 if s == "blocked"
+            else (settings.OBSTRUCTION_PARTIAL_WEIGHT if s == "partial" else 0.0)
+            for s in buf
+        )
+        fraction = weighted / k
+        window_full = len(buf) >= k
 
-        candidate, count = Counter(buf).most_common(1)[0]
-        if count >= SMOOTHING_CONFIRM and candidate != current:
-            self._confirmed[camera_device_id] = candidate
-            return candidate
-        return current
+        if window_full and fraction >= settings.OBSTRUCTION_TIER_CONFIRMED:
+            tier = "confirmed"
+        elif window_full and fraction >= settings.OBSTRUCTION_TIER_LIKELY:
+            tier = "likely"
+        elif flagged_in_window >= 1:
+            tier = "possible"
+        else:
+            tier = "clear"
+
+        score = round(min(1.0, fraction * (raw_percentage / 100.0)), 4)
+        return ObstructionConfidence(
+            tier=tier,
+            score=score,
+            window_size=k,
+            flagged_in_window=flagged_in_window,
+        )
+
+    @staticmethod
+    def _status_from_tier(tier: str) -> str:
+        """Map a confidence tier to the coarse fusion status enum."""
+        if tier in ("likely", "confirmed"):
+            return "blocked"
+        if tier == "possible":
+            return "partial"
+        return "clear"
 
     def _placeholder_inference(self) -> tuple[float, str]:
         status = random.choices(

@@ -1,5 +1,7 @@
 from .admin_user import AdminUser
 from .admin_audit_log import AdminAuditLog
+from .citizen_subscription import CitizenSubscription
+from .evacuation_event import EvacuationEvent, EvacuationEventKind
 from .notification_dispatch import NotificationDispatch
 from .notification_template import NotificationTemplate, NotificationType
 from .password_reset_otp import PasswordResetOTP

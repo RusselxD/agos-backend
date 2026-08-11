@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from app.api.v1.dependencies import require_auth, require_responder_auth, CurrentResponder
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.rate_limiter import limiter
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas import SubscriptionSchema
+from app.crud import citizen_subscription_crud, location_crud
+from app.schemas import SubscriptionSchema, CitizenSubscriptionCreate, CitizenSubscriptionDelete
 from app.schemas.subscription import SendNotificationSchema
 from app.services import push_subscription_service, notification_service
 
@@ -33,4 +35,31 @@ async def send_notification_to_responders(payload: SendNotificationSchema, db: A
     await notification_service.send_notification_to_subscribers(
         payload=payload,
         db=db,
+    )
+
+
+@router.post("/subscribe-citizen", status_code=204)
+@limiter.limit("20/minute")
+async def subscribe_citizen(
+    request: Request,
+    data: CitizenSubscriptionCreate,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Anonymous, location-scoped citizen push subscription (F4/F6). No auth, no PII."""
+    location = await location_crud.get(db=db, id=data.location_id)
+    if location is None:
+        raise HTTPException(status_code=404, detail="Location not found")
+    await citizen_subscription_crud.upsert(db=db, data=data)
+
+
+@router.delete("/subscribe-citizen", status_code=204)
+@limiter.limit("20/minute")
+async def unsubscribe_citizen(
+    request: Request,
+    data: CitizenSubscriptionDelete,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Citizen turns off alerts — remove the subscription by endpoint."""
+    await citizen_subscription_crud.delete_by_endpoint(
+        db=db, location_id=data.location_id, endpoint=data.endpoint
     )

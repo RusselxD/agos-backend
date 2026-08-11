@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 class AnomalyType(str, Enum):
     OBSTRUCTED_SENSOR = "OBSTRUCTED_SENSOR"
@@ -8,6 +9,15 @@ class AnomalyType(str, Enum):
     STALE_SENSOR = "STALE_SENSOR"
     GHOST_FLOOD = "GHOST_FLOOD"
     CONFIDENCE_THRASHING = "CONFIDENCE_THRASHING"
+
+class ObstructionConfidence(BaseModel):
+    """F1 — graded confidence for a potential surface obstruction, computed over
+    a rolling window of the last K inference readings. Additive; existing
+    consumers ignore it."""
+    tier: Literal["clear", "possible", "likely", "confirmed"]
+    score: float            # 0..1 (fraction flagged × model blockage pct)
+    window_size: int        # K readings considered
+    flagged_in_window: int  # count of non-clear readings in the window
 
 class FusionData(BaseModel):
     alert_name: str
@@ -20,6 +30,7 @@ class StatusBase(BaseModel):
 
 class BlockageStatus(StatusBase):
     status: str
+    confidence: ObstructionConfidence | None = None  # F1 (additive)
 
 class WaterLevelStatus(StatusBase):
     water_level_cm: float

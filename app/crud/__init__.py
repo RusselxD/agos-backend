@@ -18,3 +18,6 @@ from .notification_dispatch import notification_dispatch_crud
 from .notification_template import notification_template_crud
 from .acknowledgement import acknowledgement_crud
 from .password_reset_otp import password_reset_otp_crud
+from .evacuation_center import evacuation_center_crud
+from .citizen_subscription import citizen_subscription_crud
+from .evacuation_event import evacuation_event_crud

@@ -88,9 +88,9 @@ def calculate_fusion_data(
         else:
             score += calc_blockage_score(blockage_status.status)
             if blockage_status.status == "blocked":
-                conditions.append("Waterway is BLOCKED - Immediate action required.")
+                conditions.append("Potential surface obstruction confirmed - immediate inspection advised.")
             elif blockage_status.status == "partial":
-                conditions.append("Partial blockage detected in waterway.")
+                conditions.append("Possible surface obstruction detected in waterway.")
 
     # Water Level Score (0-45) — score from summary_utils.calc_water_score_from_pct
     if water_level_status:

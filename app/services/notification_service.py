@@ -117,6 +117,54 @@ class NotificationService:
         )
 
 
+    async def send_to_citizen_subscribers(
+        self,
+        db: AsyncSession,
+        location_id: int,
+        title: str,
+        message: str,
+        notif_type: NotificationType = NotificationType.CRITICAL,
+    ):
+        """F4 — fire-and-forget public alert to a location's citizen subscribers.
+
+        Reuses ``send_push`` and records a single ``NotificationDispatch`` (no
+        per-device delivery rows, no acknowledgements — citizens are anonymous).
+        Prunes subscriptions that return 410 Gone. Returns (dispatch, sent_count).
+        """
+        from app.crud import citizen_subscription_crud
+
+        dispatch = await notification_dispatch_crud.create_for_send(
+            db=db, notif_type=notif_type, title=title, message=message,
+        )
+        # Capture the PK after flush, before commit expires the ORM instance.
+        dispatch_id = dispatch.id
+
+        subscriptions = await citizen_subscription_crud.get_by_location(
+            db=db, location_id=location_id
+        )
+
+        sent_count = 0
+        ids_to_prune: list = []
+        for subscription in subscriptions:
+            result = await self.send_push(
+                subscription=subscription,
+                notif_title=title,
+                notif_message=message,
+            )
+            if result == PushResult.SENT:
+                sent_count += 1
+            elif result == PushResult.GONE:
+                ids_to_prune.append(subscription.id)
+
+        # Commit the dispatch row regardless of send outcomes (authorization happened).
+        await db.commit()
+
+        if ids_to_prune:
+            await citizen_subscription_crud.delete_by_ids(db=db, ids=ids_to_prune)
+
+        return dispatch_id, sent_count
+
+
     async def _resolve_notification_content(self, payload: SendNotificationSchema, db: AsyncSession) -> tuple[str, str, NotificationType]:
         
         has_template = payload.template_id is not None
