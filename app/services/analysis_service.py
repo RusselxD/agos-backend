@@ -12,14 +12,14 @@ MODELS = [
 ]
 
 SYSTEM_PROMPT = """
-You are an expert waterway monitoring analyst. Analyze daily sensor, blockage, and weather 
+You are an expert waterway monitoring analyst. Analyze daily sensor, visible surface-obstruction, and weather
 summary data from a drainage/waterway monitoring system.
 
 When given data, provide a concise analysis covering:
 1. **Overall Risk Assessment** – What is the general risk level across this period?
 2. **Critical Days** – Which days were most concerning and why?
 3. **Water Level Patterns** – Notable trends or anomalies.
-4. **Blockage Concerns** – Evaluate blockage progression and debris buildup.
+4. **Surface-Obstruction Concerns** – Evaluate visible surface-obstruction evidence without claiming a confirmed subsurface obstruction.
 5. **Recommendations** – Actionable steps for operators/responders.
 
 Formatting rules:
@@ -78,7 +78,7 @@ class AnalysisService:
             1. **Overall Risk Assessment**
             2. **Critical Days** — which days and why
             3. **Water Level Patterns**
-            4. **Blockage Concerns**
+            4. **Surface-Obstruction Concerns**
             5. **Recommendations**
             """.strip()
 
@@ -100,7 +100,7 @@ class AnalysisService:
                 f"  Risk Score   : {s.min_risk_score} → {s.max_risk_score}\n"
                 f"  Water Level  : {s.min_water_level_cm} → {s.max_water_level_cm} cm\n"
                 f"  Precipitation: {s.min_precipitation_mm} → {s.max_precipitation_mm} mm\n"
-                f"  Blockage     : {s.least_severe_blockage} → {s.most_severe_blockage}\n"
+                f"  Surface Obstruction: {s.least_severe_blockage} → {s.most_severe_blockage}\n"
                 f"  Weather Code : {s.most_severe_weather_code}\n"
             )
         return "\n".join(lines)

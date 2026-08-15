@@ -7,14 +7,28 @@ from app.schemas.notification_log import (
     DeliveryLogItem,
     DeliveryLogPaginatedResponse,
     ResponderNotificationSummary,
+    ResponderNotificationSummaryPaginatedResponse,
 )
 
 
 class NotificationLogService:
 
-    async def get_responders_summary(self, db: AsyncSession) -> list[ResponderNotificationSummary]:
-        rows = await notification_log_crud.get_responders_with_notification_summary(db=db)
-        return [
+    async def get_responders_summary(
+        self,
+        db: AsyncSession,
+        page: int = 1,
+        page_size: int = 20,
+        search: str | None = None,
+    ) -> ResponderNotificationSummaryPaginatedResponse:
+        rows, total = (
+            await notification_log_crud.get_responders_with_notification_summary(
+                db=db,
+                page=page,
+                page_size=page_size,
+                search=search,
+            )
+        )
+        items = [
             ResponderNotificationSummary(
                 id=row.Responder.id,
                 first_name=row.Responder.first_name,
@@ -30,6 +44,15 @@ class NotificationLogService:
             )
             for row in rows
         ]
+        total_pages = (total + page_size - 1) // page_size
+        return ResponderNotificationSummaryPaginatedResponse(
+            items=items,
+            page=page,
+            page_size=page_size,
+            total=total,
+            total_pages=total_pages,
+            has_more=page < total_pages,
+        )
 
 
     async def get_responder_deliveries(

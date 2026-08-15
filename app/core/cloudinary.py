@@ -6,6 +6,7 @@ import cloudinary.uploader
 
 
 class CloudinarySettings(BaseSettings):
+    CLOUDINARY_UPLOAD_ENABLED: bool = True
     CLOUDINARY_CLOUD_NAME: str
     CLOUDINARY_API_KEY: str
     CLOUDINARY_API_SECRET: str
@@ -32,6 +33,11 @@ def init_cloudinary():
 
     try:
         cloudinary_settings = get_cloudinary_settings()
+        if not cloudinary_settings.CLOUDINARY_UPLOAD_ENABLED:
+            cloudinary_enabled = False
+            cloudinary_settings = None
+            print("ℹ️ Cloudinary uploads disabled by configuration")
+            return
         cloudinary.config(
             cloud_name=cloudinary_settings.CLOUDINARY_CLOUD_NAME,
             api_key=cloudinary_settings.CLOUDINARY_API_KEY,

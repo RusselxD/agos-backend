@@ -1,5 +1,5 @@
 from uuid import UUID
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -12,7 +12,13 @@ from app.models.notification_template import NotificationType
 
 class CRUDNotificationLog:
 
-    async def get_responders_with_notification_summary(self, db: AsyncSession) -> list:
+    async def get_responders_with_notification_summary(
+        self,
+        db: AsyncSession,
+        page: int = 1,
+        page_size: int = 20,
+        search: str | None = None,
+    ) -> tuple[list, int]:
         delivery_subq = (
             select(
                 NotificationDelivery.responder_id,
@@ -35,6 +41,35 @@ class CRUDNotificationLog:
             .subquery()
         )
 
+        filters = []
+        if search:
+            escaped_search = (
+                search.replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
+            )
+            pattern = f"%{escaped_search}%"
+            filters.append(
+                or_(
+                    Responder.first_name.ilike(pattern, escape="\\"),
+                    Responder.last_name.ilike(pattern, escape="\\"),
+                    Responder.phone_number.ilike(pattern, escape="\\"),
+                    func.concat(
+                        Responder.first_name,
+                        " ",
+                        Responder.last_name,
+                    ).ilike(pattern, escape="\\"),
+                    func.concat(
+                        Responder.last_name,
+                        " ",
+                        Responder.first_name,
+                    ).ilike(pattern, escape="\\"),
+                )
+            )
+
+        total_stmt = select(func.count(Responder.id)).where(*filters)
+        total = int((await db.execute(total_stmt)).scalar_one())
+
         stmt = (
             select(
                 Responder,
@@ -47,11 +82,19 @@ class CRUDNotificationLog:
             )
             .outerjoin(delivery_subq, Responder.id == delivery_subq.c.responder_id)
             .outerjoin(ack_subq, Responder.id == ack_subq.c.responder_id)
-            .order_by(delivery_subq.c.last_notified_at.desc().nullslast())
+            .where(*filters)
+            .order_by(
+                delivery_subq.c.last_notified_at.desc().nullslast(),
+                Responder.last_name,
+                Responder.first_name,
+                Responder.id,
+            )
+            .offset((page - 1) * page_size)
+            .limit(page_size)
         )
 
         result = await db.execute(stmt)
-        return list(result.all())
+        return list(result.all()), total
 
 
     async def get_deliveries_for_responder(

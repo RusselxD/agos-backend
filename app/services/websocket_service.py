@@ -87,7 +87,7 @@ class WebSocketService:
         if not latest_model_reading or (latest_model_reading["timestamp"] < datetime.now(timezone.utc) - timedelta(minutes=settings.SENSOR_WARNING_PERIOD_MINUTES)):
             return ModelWebSocketResponse(
                 status="error", 
-                message="No recent blockage detection data available.",
+                message="No recent surface-obstruction detection data available.",
                 blockage_status=None
             )
 
@@ -95,7 +95,7 @@ class WebSocketService:
         if latest_model_reading["timestamp"] < datetime.now(timezone.utc) - timedelta(minutes=settings.DETECTION_GRACE_PERIOD_MINUTES):
             return ModelWebSocketResponse(
                 status="warning", 
-                message="Latest blockage detection is stale.",
+                message="Latest surface-obstruction detection is stale.",
                 blockage_status=latest_model_reading["blockage_status"]
             )
 

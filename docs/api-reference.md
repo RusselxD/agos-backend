@@ -214,7 +214,7 @@ Auth legend: `RESP` = responder JWT token required (issued after OTP verificatio
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/responders-summary` | JWT | Per-responder delivery stats (total, sent, failed, pending, acknowledged). |
+| GET | `/responders-summary` | JWT | Paginated per-responder delivery stats. Supports `page`, `page_size`, and name/phone `search`. |
 | GET | `/responder/{responder_id}/deliveries` | JWT | Paginated delivery history. Optional `type` filter. |
 | GET | `/analytics` | JWT | Response time analytics: avg/ack rate, per-type breakdown, top responders. Optional `date_from`, `date_to`. |
 | GET | `/export` | JWT | Flat delivery data for Excel export. Optional `date_from`, `date_to`. |

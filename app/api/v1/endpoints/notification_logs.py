@@ -5,16 +5,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.dependencies import require_auth
 from app.core.database import get_db
 from app.models.notification_template import NotificationType
-from app.schemas.notification_log import DeliveryLogPaginatedResponse, ResponderNotificationSummary
+from app.schemas.notification_log import (
+    DeliveryLogPaginatedResponse,
+    ResponderNotificationSummaryPaginatedResponse,
+)
 from app.schemas.notification_analytics import NotificationAnalyticsResponse
 from app.services.notification_log_service import notification_log_service
 
 router = APIRouter(prefix="/notification-logs", tags=["notification-logs"])
 
 
-@router.get("/responders-summary", dependencies=[Depends(require_auth)], response_model=list[ResponderNotificationSummary])
-async def get_responders_summary(db: AsyncSession = Depends(get_db)) -> list[ResponderNotificationSummary]:
-    return await notification_log_service.get_responders_summary(db=db)
+@router.get(
+    "/responders-summary",
+    dependencies=[Depends(require_auth)],
+    response_model=ResponderNotificationSummaryPaginatedResponse,
+)
+async def get_responders_summary(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: str | None = Query(None, max_length=120),
+    db: AsyncSession = Depends(get_db),
+) -> ResponderNotificationSummaryPaginatedResponse:
+    return await notification_log_service.get_responders_summary(
+        db=db,
+        page=page,
+        page_size=page_size,
+        search=search.strip() if search and search.strip() else None,
+    )
 
 
 @router.get("/responder/{responder_id}/deliveries", dependencies=[Depends(require_auth)], response_model=DeliveryLogPaginatedResponse)

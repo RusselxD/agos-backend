@@ -24,6 +24,15 @@ class ResponderNotificationSummary(BaseModel):
         from_attributes = True
 
 
+class ResponderNotificationSummaryPaginatedResponse(BaseModel):
+    items: list[ResponderNotificationSummary]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+    has_more: bool
+
+
 class DeliveryLogItem(BaseModel):
     id: UUID
     status: DeliveryStatus

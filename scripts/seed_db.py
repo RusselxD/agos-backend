@@ -39,7 +39,11 @@ async def seed_db():
             notification_templates = [
                 (NotificationType.WARNING, "Warning Alert", "A warning-level condition has been detected."),
                 (NotificationType.CRITICAL, "Critical Alert", "A critical condition has been detected."),
-                (NotificationType.BLOCKAGE, "Blockage Alert", "A blockage has been detected."),
+                (
+                    NotificationType.BLOCKAGE,
+                    "Surface Obstruction Alert",
+                    "A potential surface obstruction has been detected.",
+                ),
             ]
             for ntype, title, message in notification_templates:
                 existing = await db.execute(select(NotificationTemplate).where(NotificationTemplate.type == ntype))

@@ -29,7 +29,7 @@ def calculate_fusion_data(
 
     # Track unavailable data sources
     if not blockage_status:
-        unavailable.append("Blockage detection")
+        unavailable.append("Surface-obstruction detection")
     if not water_level_status:
         unavailable.append("Water level sensor")
     if not weather_status:
@@ -58,13 +58,13 @@ def calculate_fusion_data(
     # Water is CRITICAL, Blockage is CLEAR, Weather is NO RAIN
     if is_water_critical and is_blockage_clear and is_weather_clear:
         anomalies.append(AnomalyType.OBSTRUCTED_SENSOR)
-        conditions.append("⚠️ ANOMALY: Water reads critical but no rain or blockage detected. Suspect sensor obstruction.")
+        conditions.append("⚠️ ANOMALY: Water reads critical but no rain or visible surface obstruction is detected. Suspect sensor obstruction.")
 
     # 2. BLIND_CAMERA (False Positive Blockage)
     # Blockage is SEVERE, Water is LOW, Weather is HEAVY RAIN
     if is_blockage_severe and is_water_stable_or_low and is_weather_heavy:
         anomalies.append(AnomalyType.BLIND_CAMERA)
-        conditions.append("⚠️ ANOMALY: Severe blockage detected but water is low despite heavy rain. Suspect camera lens issue.")
+        conditions.append("⚠️ ANOMALY: Strong surface-obstruction evidence conflicts with low water during heavy rain. Suspect a camera lens issue.")
 
     # 3. STALE_SENSOR (Frozen Sensor)
     # Water is EXACTLY STATIC, Weather is CHANGING/HEAVY
@@ -77,18 +77,18 @@ def calculate_fusion_data(
     # Water RISING RAPIDLY, Blockage CLEAR, Weather API CLEAR
     if is_water_rising_fast and is_blockage_clear and is_weather_clear:
         anomalies.append(AnomalyType.GHOST_FLOOD)
-        conditions.append("⚠️ ANOMALY: Rapid water rise without rain or blockage. Potential upstream discharge or localized flash flood.")
+        conditions.append("⚠️ ANOMALY: Rapid water rise without rain or visible surface obstruction. Potential upstream discharge or localized flash flood.")
 
     # --- Standard Scoring Logic (with Circuit Breakers) ---
 
     # Blockage Score (0-30) — score from app.utils.summary_utils.calc_blockage_score
     if blockage_status:
         if blockage_status.status == "blocked" and AnomalyType.BLIND_CAMERA in anomalies:
-            conditions.append("Ignoring Blockage status due to BLIND_CAMERA anomaly.")
+            conditions.append("Ignoring surface-obstruction status due to BLIND_CAMERA anomaly.")
         else:
             score += calc_blockage_score(blockage_status.status)
             if blockage_status.status == "blocked":
-                conditions.append("Potential surface obstruction confirmed - immediate inspection advised.")
+                conditions.append("Sustained evidence of a potential surface obstruction - immediate inspection advised.")
             elif blockage_status.status == "partial":
                 conditions.append("Possible surface obstruction detected in waterway.")
 

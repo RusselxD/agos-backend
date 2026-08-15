@@ -318,10 +318,10 @@ class FusionAnalysisState:
         if now - self._last_blockage_notify_time < BLOCKAGE_NOTIFY_COOLDOWN_SECONDS:
             return
         try:
-            if await self._send_system_template(NotificationType.BLOCKAGE, "🪵 [BLOCKAGE]"):
+            if await self._send_system_template(NotificationType.BLOCKAGE, "🪵 [SURFACE OBSTRUCTION]"):
                 self._last_blockage_notify_time = now
         except Exception as e:
-            print(f"⚠️ Auto-notify blockage failed: {e}")
+            print(f"⚠️ Auto-notify surface obstruction failed: {e}")
 
 
 class StateManager:

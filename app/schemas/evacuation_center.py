@@ -66,6 +66,13 @@ class EvacuationCenterUpdate(BaseModel):
             raise ValueError("longitude must be between -180 and 180")
         return v
 
+    @field_validator("capacity")
+    @classmethod
+    def validate_capacity(cls, v: int | None) -> int | None:
+        if v is not None and v < 0:
+            raise ValueError("capacity cannot be negative")
+        return v
+
 
 class EvacuationCenterResponse(EvacuationCenterBase):
     id: int
