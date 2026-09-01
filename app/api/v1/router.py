@@ -1,4 +1,10 @@
-from app.api.v1.endpoints import auth, admin_users, admin_audit_log, notification_templates, system_settings
+from app.api.v1.endpoints import (
+    auth,
+    admin_users,
+    admin_audit_log,
+    notification_templates,
+    system_settings,
+)
 from app.api.v1.endpoints import sensor_reading, sensor_device, weather
 from app.api.v1.endpoints import responder, responder_group, push, responder_app
 from app.api.v1.endpoints import stream, core
@@ -8,6 +14,7 @@ from app.api.v1.endpoints import model_reading_logs
 from app.api.v1.endpoints import health
 from app.api.v1.endpoints import iot
 from app.api.v1.endpoints import evacuation_center, evacuation
+from app.api.v1.endpoints import public
 from fastapi import APIRouter
 
 api_router = APIRouter(prefix="/api/v1")
@@ -34,3 +41,4 @@ api_router.include_router(health.router)
 api_router.include_router(iot.router)
 api_router.include_router(evacuation_center.router)
 api_router.include_router(evacuation.router)
+api_router.include_router(public.router)

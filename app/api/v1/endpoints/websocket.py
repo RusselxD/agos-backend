@@ -106,7 +106,10 @@ async def rpi_websocket_endpoint(websocket: WebSocket):
             if message.get("bytes"):
                 image_bytes: bytes = message["bytes"]
 
-                camera_status_service.record_frame(location_id)
+                encoded_image = base64.b64encode(image_bytes).decode("utf-8")
+                camera_status_service.record_frame(
+                    location_id, encoded_image=encoded_image
+                )
 
                 # Broadcast the raw frame immediately to all frontend clients
                 # so they see a live image feed (rapidly updating picture).
@@ -116,7 +119,7 @@ async def rpi_websocket_endpoint(websocket: WebSocket):
                         {
                             "type": "camera_update",
                             "data": {
-                                "image": base64.b64encode(image_bytes).decode("utf-8"),
+                                "image": encoded_image,
                                 "timestamp": datetime.now(timezone.utc).isoformat(),
                             },
                         },
@@ -173,7 +176,9 @@ async def rpi_websocket_endpoint(websocket: WebSocket):
             location_id,
         )
         try:
-            await websocket.send_json({"type": "error", "message": "Internal server error"})
+            await websocket.send_json(
+                {"type": "error", "message": "Internal server error"}
+            )
             await websocket.close()
         except Exception:
             pass
