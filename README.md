@@ -53,6 +53,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 | `VAPID_PUBLIC_KEY` | Yes | — | VAPID public key for Web Push |
 | `VAPID_CLAIM_EMAIL` | Yes | — | VAPID claim email (mailto:) |
 | `FRONTEND_URLS` | Yes | — | Comma-separated allowed CORS origins |
+| `ORS_API_KEY` | For in-app directions | `""` | Server-side openrouteservice key; create one at https://account.heigit.org/ |
 | `IOT_API_KEY` | No | `""` | API key for IoT sensor authentication |
 | `ALGORITHM` | No | `HS256` | JWT signing algorithm |
 | `SMS_GATEWAY_URL` | No | `""` | SMS Gateway URL (local: `http://<ip>:8080`, cloud: `https://api.sms-gate.app`) |
@@ -132,3 +133,4 @@ app/
 | `/health` | System health check (DB, scheduler, WebSocket) |
 | `/ws` | WebSocket (real-time sensor, weather, blockage, fusion data) |
 | `/iot` | IoT-facing current risk score |
+| `/public` | Anonymous citizen-safe status and server-proxied evacuation routes |

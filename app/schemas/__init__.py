@@ -27,6 +27,11 @@ from .evacuation_center import (
     EvacuationCenterUpdate,
     EvacuationCenterResponse,
 )
+from .evacuation_route import (
+    EvacuationRouteRequest,
+    EvacuationRouteResponse,
+    RouteCoordinate,
+)
 from .citizen_subscription import (
     CitizenSubscriptionCreate,
     CitizenSubscriptionDelete,

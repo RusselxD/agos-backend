@@ -69,6 +69,38 @@ Auth legend: `JWT` = admin token required, `SU` = superuser admin token required
 
 ---
 
+## Public Citizen API (`/public`)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/status` | — | Latest citizen-safe status snapshot. Param: `location_id`. |
+| POST | `/evacuation-route` | — | Walking route to an existing open evacuation center. Rate limited: 20/min. |
+
+`POST /evacuation-route` calls openrouteservice from the backend. Configure
+`ORS_API_KEY` on the backend service; never expose the key in a browser
+`VITE_*` variable.
+
+```json
+// Request
+{
+  "center_id": 7,
+  "origin": { "latitude": 14.71, "longitude": 120.97 }
+}
+
+// Response 200
+{
+  "geometry": [
+    { "latitude": 14.71, "longitude": 120.97 },
+    { "latitude": 14.706, "longitude": 120.965 }
+  ],
+  "distance_meters": 850.0,
+  "duration_seconds": 620.0,
+  "provider": "openrouteservice"
+}
+```
+
+---
+
 ## Responders — Admin (`/responders`)
 
 | Method | Endpoint | Auth | Description |

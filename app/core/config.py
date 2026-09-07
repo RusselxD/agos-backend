@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     WEATHERAPI_API_KEY: str = ""
     WEATHER_FETCH_INTERVAL_MINUTES: int = 10
 
+    # Server-side walking directions for the citizen evacuation map.
+    # Never expose this key through a VITE_* browser environment variable.
+    ORS_API_KEY: str = ""
+
     # F4 — score at/above which an evacuation_recommendation is emitted to admins
     EVACUATION_RECOMMEND_MIN_SCORE: int = 70
     EVACUATION_RECOMMEND_COOLDOWN_SECONDS: int = 15 * 60

@@ -24,3 +24,4 @@ from .notification_log_service import notification_log_service
 from .model_reading_log_service import model_reading_log_service
 from .evacuation_center_service import evacuation_center_service
 from .evacuation_service import evacuation_service
+from .evacuation_route_service import evacuation_route_service
