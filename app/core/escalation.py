@@ -53,9 +53,12 @@ async def escalation_check_job():
                     title="Critical Alert - Escalation",
                     message="You have unacknowledged critical alerts. Please review and respond immediately.",
                 ),
+            )
+            await notification_service.send_notification_to_subscribers(
+                payload=payload,
+                db=db,
                 system_initiated=True,
             )
-            await notification_service.send_notification_to_subscribers(payload=payload, db=db)
 
             # Increment escalation count for all overdue deliveries
             for delivery in overdue:

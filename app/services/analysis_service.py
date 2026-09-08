@@ -1,15 +1,62 @@
-from groq import AsyncGroq
+import json
+import logging
+
+from groq import APIConnectionError, APIStatusError, AsyncGroq
+
 from app.schemas import DailySummaryAnalysisRequest, DailySummaryResponse
 from app.core.config import settings
 
-import json
+logger = logging.getLogger(__name__)
 
 clients = [AsyncGroq(api_key=key) for key in settings.GROQ_API_KEYS]
-MODELS = [
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
-    "mixtral-8x7b-32768",
-]
+MODELS = list(settings.GROQ_MODELS)
+
+FALLBACK_STATUS_CODES = {
+    401,  # an individual key is invalid
+    403,  # an individual key lacks model access
+    404,  # model is unavailable for this account/tier
+    408,
+    429,
+    498,  # Groq flex-tier capacity exceeded
+    500,
+    502,
+    503,
+    504,
+}
+FALLBACK_ERROR_CODES = {
+    "model_decommissioned",
+    "model_not_found",
+    "rate_limit_exceeded",
+}
+
+
+def _get_error_code(error: Exception) -> str | None:
+    body = getattr(error, "body", None)
+    if not isinstance(body, dict):
+        return None
+
+    error_details = body.get("error", body)
+    if not isinstance(error_details, dict):
+        return None
+
+    code = error_details.get("code")
+    return str(code) if code else None
+
+
+def _should_try_fallback(error: Exception) -> bool:
+    if isinstance(error, APIConnectionError):
+        return True
+    if not isinstance(error, APIStatusError):
+        return False
+
+    return (
+        error.status_code in FALLBACK_STATUS_CODES
+        or _get_error_code(error) in FALLBACK_ERROR_CODES
+    )
+
+
+def _sse_error(message: str) -> str:
+    return f"data: {json.dumps({'error': message, 'done': True})}\n\n"
 
 SYSTEM_PROMPT = """
 You are an expert waterway monitoring analyst. Analyze daily sensor, visible surface-obstruction, and weather
@@ -33,11 +80,14 @@ class AnalysisService:
 
     async def _stream_with_fallback(self, messages: list, max_tokens: int):
         """
-        Tries every model first, then when each primary model exhausts its rate limit, it falls back to the next one.
-        Yields SSE chunks.
+        Try each configured model/API-key pair until one starts producing a
+        response. Provider availability errors fall through to the next pair;
+        all failures are converted to SSE error events so the response iterator
+        never leaks an exception into the ASGI server.
         """
         for model in MODELS:
-            for client in clients:
+            for client_index, client in enumerate(clients, start=1):
+                emitted_text = False
                 try:
                     stream = await client.chat.completions.create(
                         model=model,
@@ -50,19 +100,51 @@ class AnalysisService:
                     async for chunk in stream:
                         text = chunk.choices[0].delta.content
                         if text:
+                            emitted_text = True
                             yield f"data: {json.dumps({'text': text})}\n\n"
 
                     yield f"data: {json.dumps({'done': True})}\n\n"
                     return  # success — stop trying
 
-                except Exception as e:
-                    error = str(e)
-                    if any(code in error for code in ["rate_limit_exceeded", "429", "model_decommissioned"]):
-                        continue  # try next model/client
-                    raise  # unexpected error — bubble up
+                except Exception as error:
+                    if emitted_text:
+                        logger.warning(
+                            "Groq stream interrupted after output began "
+                            "(model=%s, key=%d, error=%s)",
+                            model,
+                            client_index,
+                            type(error).__name__,
+                        )
+                        yield _sse_error(
+                            "AI analysis was interrupted. Please try again."
+                        )
+                        return
 
-        # every client + model combination exhausted
-        yield f"data: {json.dumps({'error': 'All models and API keys are rate limited. Try again later.'})}\n\n"
+                    if _should_try_fallback(error):
+                        logger.warning(
+                            "Groq model/key unavailable; trying fallback "
+                            "(model=%s, key=%d, status=%s, code=%s)",
+                            model,
+                            client_index,
+                            getattr(error, "status_code", None),
+                            _get_error_code(error),
+                        )
+                        continue
+
+                    logger.exception(
+                        "Groq analysis request failed (model=%s, key=%d)",
+                        model,
+                        client_index,
+                    )
+                    yield _sse_error(
+                        "AI analysis is temporarily unavailable. Please try again later."
+                    )
+                    return
+
+        logger.error("All configured Groq model/API-key combinations failed")
+        yield _sse_error(
+            "AI analysis is temporarily unavailable. Please try again later."
+        )
 
 
     async def stream_analysis(self, payload: DailySummaryAnalysisRequest):

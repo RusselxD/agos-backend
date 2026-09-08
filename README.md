@@ -49,6 +49,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 | `DATABASE_URL` | Yes | — | PostgreSQL connection string |
 | `SECRET_KEY` | Yes | — | JWT signing secret |
 | `GROQ_API_KEYS` | Yes | — | Comma-separated Groq API keys for AI analysis |
+| `GROQ_MODELS` | No | `openai/gpt-oss-120b,openai/gpt-oss-20b` | Ordered Groq model fallback list |
 | `VAPID_PRIVATE_KEY` | Yes | — | VAPID private key for Web Push |
 | `VAPID_PUBLIC_KEY` | Yes | — | VAPID public key for Web Push |
 | `VAPID_CLAIM_EMAIL` | Yes | — | VAPID claim email (mailto:) |

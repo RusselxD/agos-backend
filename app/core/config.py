@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     RESPONDER_TOKEN_EXPIRE_DAYS: int = 90
     GROQ_API_KEYS: Union[list[str], str]
+    GROQ_MODELS: Union[list[str], str] = [
+        "openai/gpt-oss-120b",
+        "openai/gpt-oss-20b",
+    ]
     VAPID_PRIVATE_KEY: str
     VAPID_PUBLIC_KEY: str
     VAPID_CLAIM_EMAIL: str
@@ -79,9 +83,9 @@ class Settings(BaseSettings):
             return [item.strip() for item in v.split(",")]
         return v
 
-    @field_validator("GROQ_API_KEYS", mode="before")
+    @field_validator("GROQ_API_KEYS", "GROQ_MODELS", mode="before")
     @classmethod
-    def parse_api_keys(cls, v):
+    def parse_comma_separated_list(cls, v):
         if isinstance(v, str):
             return [item.strip() for item in v.split(",")]
         return v

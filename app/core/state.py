@@ -276,9 +276,12 @@ class FusionAnalysisState:
                 responder_ids=responder_ids,
                 template_id=template.id,
                 custom_notification=None,
+            )
+            await notification_service.send_notification_to_subscribers(
+                payload=payload,
+                db=db,
                 system_initiated=True,
             )
-            await notification_service.send_notification_to_subscribers(payload=payload, db=db)
             print(f"{log_label} Auto-notified {len(responder_ids)} responders (location {self.location_id})")
             return True
 

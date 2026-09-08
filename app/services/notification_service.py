@@ -27,7 +27,13 @@ class PushResult:
 
 class NotificationService:
 
-    async def send_notification_to_subscribers(self, payload: SendNotificationSchema, db: AsyncSession) -> None:
+    async def send_notification_to_subscribers(
+        self,
+        payload: SendNotificationSchema,
+        db: AsyncSession,
+        *,
+        system_initiated: bool = False,
+    ) -> None:
         
         responder_ids = list(dict.fromkeys(payload.responder_ids))
         if not responder_ids:
@@ -36,6 +42,7 @@ class NotificationService:
         notif_title, notif_message, notif_type = await self._resolve_notification_content(
             payload=payload,
             db=db,
+            system_initiated=system_initiated,
         )
         dispatch = await notification_dispatch_crud.create_for_send(
             db=db,
@@ -165,7 +172,13 @@ class NotificationService:
         return dispatch_id, sent_count
 
 
-    async def _resolve_notification_content(self, payload: SendNotificationSchema, db: AsyncSession) -> tuple[str, str, NotificationType]:
+    async def _resolve_notification_content(
+        self,
+        payload: SendNotificationSchema,
+        db: AsyncSession,
+        *,
+        system_initiated: bool = False,
+    ) -> tuple[str, str, NotificationType]:
         
         has_template = payload.template_id is not None
         has_custom_notification = payload.custom_notification is not None
@@ -183,7 +196,7 @@ class NotificationService:
                     status_code=404,
                     detail="Notification template not found",
                 )
-            if template.type != NotificationType.ANNOUNCEMENT:
+            if not system_initiated and template.type != NotificationType.ANNOUNCEMENT:
                 raise HTTPException(
                     status_code=400,
                     detail="Manual notifications are only supported for announcements",
@@ -191,7 +204,7 @@ class NotificationService:
             return template.title, template.message, template.type
 
         custom_notification = payload.custom_notification
-        if not payload.system_initiated and custom_notification.type != NotificationType.ANNOUNCEMENT:
+        if not system_initiated and custom_notification.type != NotificationType.ANNOUNCEMENT:
             raise HTTPException(
                 status_code=400,
                 detail="Custom notifications must be announcement type",
