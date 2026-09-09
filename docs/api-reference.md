@@ -309,7 +309,6 @@ Auth legend: `RESP` = responder JWT token required (issued after OTP verificatio
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/public/alert-thresholds` | — | Public alert threshold values for client display. |
 | GET | `/{key}` | JWT | Get setting object. |
 | GET | `/{key}/value` | JWT | Get setting value only. |
 | PUT | `/{key}` | JWT | Update setting (audit logged). |
