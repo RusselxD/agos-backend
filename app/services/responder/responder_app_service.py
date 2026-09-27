@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 from app.core.config import settings
 from uuid import UUID
-import random
+import secrets
 from app.schemas import ResponderDetails, ResponderOTPVerificationCreate, ResponderOTPVerifyRequest, ResponderSendSMSRequest, ResponderSelfUpdate
 from app.models.responder_related.responders import NotificationPreference
 from app.schemas.responder import ResponderForApproval
@@ -33,14 +33,15 @@ class ResponderAppService:
         if not responder:
             raise HTTPException(status_code=404, detail="Phone number not registered.")
         
-        await self.send_otp(responder=responder, db=db)
+        dev_otp = await self.send_otp(responder=responder, db=db)
 
         return ResponderForApproval(
             responder_id=responder.id,
             first_name=responder.first_name,
             last_name=responder.last_name,
             phone_number=responder.phone_number,
-            status=responder.status
+            status=responder.status,
+            dev_otp=dev_otp,
         )
 
 
@@ -167,11 +168,10 @@ class ResponderAppService:
         await db.commit()
 
 
-    async def send_otp(self, responder: Responder, db: AsyncSession) -> None:
+    async def send_otp(self, responder: Responder, db: AsyncSession) -> str | None:
 
         # Generate OTP
-        otp = "".join(random.choices("0123456789", k=settings.OTP_LENGTH))
-        print(f"[OTP] {responder.phone_number}: {otp}")
+        otp = "".join(secrets.choice("0123456789") for _ in range(settings.OTP_LENGTH))
         otp_hash = get_otp_hash(otp=otp)
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRY_MINUTES)
         
@@ -188,14 +188,16 @@ class ResponderAppService:
             message=f"Your AGOS OTP code is: {otp}"
         )
 
+        return otp if settings.EXPOSE_DEV_OTP else None
 
-    async def resend_otp(self, responder_id: UUID, db: AsyncSession) -> None:
+
+    async def resend_otp(self, responder_id: UUID, db: AsyncSession) -> str | None:
         responder = await responder_crud.get(db=db, id=responder_id)
         
         if not responder:
             raise HTTPException(status_code=404, detail="Responder not found.")
         
-        await self.send_otp(responder=responder, db=db)
+        return await self.send_otp(responder=responder, db=db)
 
 
     async def verify_otp(self, verify_request: ResponderOTPVerifyRequest, db: AsyncSession):

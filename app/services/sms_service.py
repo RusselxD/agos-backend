@@ -17,7 +17,7 @@ class SMSService():
         )
 
     async def send_one_sms(self, phone_number: str, message: str) -> None:
-        logger.info(f"SMS to {phone_number}: {message}")
+        logger.info("Sending SMS to %s", phone_number)
 
         if not settings.SMS_GATEWAY_URL:
             return

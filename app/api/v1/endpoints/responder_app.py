@@ -4,7 +4,7 @@ from app.core.database import get_db
 from fastapi import Depends
 from uuid import UUID
 from app.schemas import ResponderDetails, NotifPreferenceUpdateRequest, AlertPaginatedResponse, ResponderSelfUpdate
-from app.schemas import ResponderForApproval, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderSendSMSRequest, ResponderRegistrationRequest
+from app.schemas import ResponderForApproval, ResponderOTPDispatchResponse, ResponderOTPVerifyRequest, ResponderOTPVerifyResponse, ResponderSendSMSRequest, ResponderRegistrationRequest
 from app.schemas import AcknowledgeNotifRequest, AcknowledgeNotifResponse
 from app.models.responder_related.responders import NotificationPreference
 from app.models.notification_template import NotificationType
@@ -113,10 +113,15 @@ async def get_responder_for_approval(
     return await responder_app_service.get_responder_for_approval(phone_number=payload.phone_number, db=db)
 
 
-@router.post("/resend-otp/{responder_id}", status_code=204)
+@router.post("/resend-otp/{responder_id}", response_model=ResponderOTPDispatchResponse)
 @limiter.limit("3/minute")
-async def resend_otp(request: Request, responder_id: UUID, db: AsyncSession = Depends(get_db)) -> None:
-    await responder_app_service.resend_otp(responder_id=responder_id, db=db)
+async def resend_otp(
+    request: Request,
+    responder_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> ResponderOTPDispatchResponse:
+    dev_otp = await responder_app_service.resend_otp(responder_id=responder_id, db=db)
+    return ResponderOTPDispatchResponse(dev_otp=dev_otp)
 
 
 @router.post("/verify-otp", response_model=ResponderOTPVerifyResponse)

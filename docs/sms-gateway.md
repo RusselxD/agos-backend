@@ -57,8 +57,9 @@ The cloud server acts as a relay: your backend sends the request to `api.sms-gat
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SMS_GATEWAY_URL` | `""` | Gateway URL. Empty = SMS disabled (OTPs logged to console). |
+| `SMS_GATEWAY_URL` | `""` | Gateway URL. Empty = SMS disabled. |
 | `SMS_GATEWAY_API_KEY` | `""` | Credentials as `username:password`. |
+| `EXPOSE_DEV_OTP` | `false` | Development only: return the OTP to Patrol as `dev_otp`. |
 | `SMS_GATEWAY_TIMEOUT_SECONDS` | `30` | HTTP request timeout. |
 | `SMS_BULK_DELAY_SECONDS` | `1.5` | Delay between messages in bulk send (carrier throttle prevention). |
 
@@ -82,7 +83,7 @@ Authentication: HTTP Basic Auth with the username and password from the app.
 
 | Scenario | What happens |
 |----------|-------------|
-| Gateway not configured (`SMS_GATEWAY_URL=""`) | OTP is generated and stored but not sent. Printed to console for dev testing. |
+| Gateway not configured (`SMS_GATEWAY_URL=""`) | OTP is generated and stored but not sent. Set `EXPOSE_DEV_OTP=true` for local demo testing. |
 | Phone offline / app not running | `SMSGatewayUnavailableError` → HTTP 503 returned to client. |
 | HTTP timeout (phone unresponsive) | `SMSGatewayUnavailableError` → HTTP 503 returned to client. |
 | No SIM load / delivery failure | `SMSDeliveryError` → HTTP 503 returned to client. |

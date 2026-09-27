@@ -135,7 +135,7 @@ Auth legend: `RESP` = responder JWT token required (issued after OTP verificatio
 | PUT | `/notif-preferences/{responder_id}` | RESP | Update notification preference (key + value). |
 | GET | `/water-level-trend/{location_id}` | RESP | Last 24h water level trend (~50 data points). |
 | POST | `/for-approval` | — | Phone lookup → sends OTP. |
-| POST | `/resend-otp/{responder_id}` | — | Resend OTP (204). |
+| POST | `/resend-otp/{responder_id}` | — | Resend OTP. Returns nullable `dev_otp` (200). |
 | POST | `/verify-otp` | — | Verify OTP → activate responder. Returns `responder_token` on success. |
 | POST | `/send-sms` | — | Send SMS to multiple responders (204). |
 
@@ -145,7 +145,12 @@ Auth legend: `RESP` = responder JWT token required (issued after OTP verificatio
 { "phone_number": "09171234567" }
 
 // Response 200
-{ "responder_id": "uuid", "first_name": "Jane", "last_name": "Doe", "phone_number": "09171234567", "status": "pending" }
+{ "responder_id": "uuid", "first_name": "Jane", "last_name": "Doe", "phone_number": "09171234567", "status": "pending", "dev_otp": null }
+```
+
+**POST /resend-otp/{responder_id}**
+```json
+{ "dev_otp": null }
 ```
 
 **POST /verify-otp**

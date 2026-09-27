@@ -59,6 +59,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 | `ALGORITHM` | No | `HS256` | JWT signing algorithm |
 | `SMS_GATEWAY_URL` | No | `""` | SMS Gateway URL (local: `http://<ip>:8080`, cloud: `https://api.sms-gate.app`) |
 | `SMS_GATEWAY_API_KEY` | No | `""` | SMS Gateway credentials (`username:password`) |
+| `EXPOSE_DEV_OTP` | No | `false` | Development only: return the OTP to Patrol as `dev_otp` |
 | `CLOUDINARY_CLOUD_NAME` | No | — | Cloudinary cloud name for image uploads |
 | `CLOUDINARY_API_KEY` | No | — | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | No | — | Cloudinary API secret |
@@ -79,7 +80,7 @@ SMS_GATEWAY_URL=https://api.sms-gate.app
 SMS_GATEWAY_API_KEY=username:password
 ```
 
-If `SMS_GATEWAY_URL` is empty, OTPs are logged to the console instead of being sent via SMS.
+If `SMS_GATEWAY_URL` is empty, SMS delivery is disabled. For local demos, set `EXPOSE_DEV_OTP=true` so Patrol displays the code.
 
 ## Project Structure
 

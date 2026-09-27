@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     OTP_ATTEMPT_LIMIT: int = 5
     OTP_EXPIRY_MINUTES: int = 10
     OTP_RESEND_COOLDOWN_SECONDS: int = 60
+    EXPOSE_DEV_OTP: bool = False
 
     # Camera / ML Settings
     FRAME_CAPTURE_INTERVAL_SECONDS: int = 60 * 2  # ML inference throttle interval (seconds)

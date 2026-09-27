@@ -39,6 +39,9 @@ class ResponderOTPVerifyResponse(BaseModel):
     requires_resend: bool  # True = need to request new OTP, False = can retry current OTP
     responder_token: str | None = None
 
+class ResponderOTPDispatchResponse(BaseModel):
+    dev_otp: str | None = None
+
 class ResponderBase(BaseModel):
     first_name: str
     last_name: str
@@ -104,7 +107,7 @@ class ResponderSelfUpdate(BaseModel):
 class ResponderForApproval(ResponderBase):
     responder_id: UUID
     status: ResponderStatus
-    pass
+    dev_otp: str | None = None
 
 class ResponderListItem(BaseModel):
     id: UUID
