@@ -2,13 +2,21 @@ from sqlalchemy import Column, ForeignKey, String, Integer, JSON
 from sqlalchemy.types import TypeDecorator
 from sqlalchemy.orm import relationship
 from ..base import Base
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class SensorConfig(BaseModel):
     installation_height: int
     warning_threshold: int
     critical_threshold: int
+
+    @model_validator(mode="after")
+    def validate_threshold_order(self):
+        if self.warning_threshold >= self.critical_threshold:
+            raise ValueError(
+                "warning_threshold must be lower than critical_threshold"
+            )
+        return self
 
 
 class SensorConfigType(TypeDecorator):
