@@ -136,3 +136,22 @@ app/
 | `/ws` | WebSocket (real-time sensor, weather, blockage, fusion data) |
 | `/iot` | IoT-facing current risk score |
 | `/public` | Anonymous citizen-safe status and server-proxied evacuation routes |
+
+## Daily Summaries
+
+At midnight in the configured application timezone (UTC+8 by default), the
+scheduler summarizes the completed day. Backfill runs daily at 12:30 AM,
+before the 1:00 AM raw-data cleanup. Each run reads the
+current `data_retention_days` setting and checks that many completed days
+for missing summaries. Existing summaries are preserved;
+days without retained raw readings are skipped. A failed backfill is logged;
+missing summaries are checked again on the next scheduled run.
+
+New summaries replay sensor, camera, and weather updates chronologically using
+the shared live risk-scoring and camera-confidence rules, including anomaly
+suppression and the rising-water bonus. Pre-midnight readings seed the trend
+and confidence window. Stale inputs are excluded using the configured source
+warning periods. Reconstruction uses current configuration and retained raw
+data; it is not an exact archive of past live scores or server restart state.
+The summary API accepts inclusive `YYYY-MM-DD` ranges and returns available
+days in the same date-only format.

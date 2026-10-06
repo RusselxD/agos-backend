@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.cloudinary import init_cloudinary
-from app.core.database import AsyncSessionLocal, engine
+from app.core.database import engine
 
 from app.core.rate_limiter import limiter
 from app.middleware.registry import register_middleware

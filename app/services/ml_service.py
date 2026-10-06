@@ -14,6 +14,7 @@ from app.services.websocket_service import websocket_service
 from app.models.data_sources.model_readings import ModelReadings
 from app.core.state import fusion_state_manager
 from app.core.config import settings
+from app.utils.obstruction_utils import calculate_obstruction_confidence, obstruction_status_from_tier
 
 
 logger = logging.getLogger(__name__)
@@ -339,40 +340,11 @@ class MLService:
             self._windows[camera_device_id] = buf
         buf.append(raw_status)
 
-        flagged_in_window = sum(1 for s in buf if s != "clear")
-        weighted = sum(
-            1.0 if s == "blocked"
-            else (settings.OBSTRUCTION_PARTIAL_WEIGHT if s == "partial" else 0.0)
-            for s in buf
-        )
-        fraction = weighted / k
-        window_full = len(buf) >= k
-
-        if window_full and fraction >= settings.OBSTRUCTION_TIER_CONFIRMED:
-            tier = "confirmed"
-        elif window_full and fraction >= settings.OBSTRUCTION_TIER_LIKELY:
-            tier = "likely"
-        elif flagged_in_window >= 1:
-            tier = "possible"
-        else:
-            tier = "clear"
-
-        score = round(min(1.0, fraction * (raw_percentage / 100.0)), 4)
-        return ObstructionConfidence(
-            tier=tier,
-            score=score,
-            window_size=k,
-            flagged_in_window=flagged_in_window,
-        )
+        return calculate_obstruction_confidence(list(buf), raw_percentage)
 
     @staticmethod
     def _status_from_tier(tier: str) -> str:
-        """Map a confidence tier to the coarse fusion status enum."""
-        if tier in ("likely", "confirmed"):
-            return "blocked"
-        if tier == "possible":
-            return "partial"
-        return "clear"
+        return obstruction_status_from_tier(tier)
 
     def _placeholder_inference(self) -> tuple[float, str]:
         status = random.choices(

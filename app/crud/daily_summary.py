@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from app.models.data_sources.daily_summary import DailySummary
@@ -6,13 +6,13 @@ from app.crud.base import CRUDBase
 
 
 class CRUDDailySummary(CRUDBase):
-    
+
     async def get_by_location_and_date(
-            self, 
-            db: AsyncSession, 
-            location_id: int, 
+            self,
+            db: AsyncSession,
+            location_id: int,
             summary_date: date) -> DailySummary | None:
-        
+
         result = await db.execute(
             select(self.model).where(
                 and_(
@@ -25,12 +25,12 @@ class CRUDDailySummary(CRUDBase):
 
 
     async def create_daily_summary(
-            self, 
-            db: AsyncSession, 
-            location_id: int, 
-            summary_date: date, 
+            self,
+            db: AsyncSession,
+            location_id: int,
+            summary_date: date,
             summary_data: dict) -> DailySummary:
-        
+
         db_summary = self.model(
             location_id=location_id,
             summary_date=summary_date,
@@ -43,13 +43,13 @@ class CRUDDailySummary(CRUDBase):
 
 
     async def get_daily_summaries(
-            self, 
-            db: AsyncSession, 
-            location_id: int, 
-            start_date: datetime, 
-            end_date: datetime) -> list[DailySummary]:
-        
-        """Get daily summaries for a location within a datetime range."""
+            self,
+            db: AsyncSession,
+            location_id: int,
+            start_date: date,
+            end_date: date) -> list[DailySummary]:
+
+        """Get daily summaries for a location within an inclusive date range."""
         result = await db.execute(
             select(self.model).where(
                 and_(

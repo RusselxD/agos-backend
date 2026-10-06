@@ -2,11 +2,13 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime, timedelta
+import logging
 from app.core.database import AsyncSessionLocal
 from app.core.config import settings
 
 
 scheduler = AsyncIOScheduler(timezone=settings.APP_TIMEZONE)
+logger = logging.getLogger(__name__)
 
 
 async def midnight_summary_job():
@@ -25,6 +27,18 @@ async def midnight_summary_job():
             print(f"✅ Daily summaries generated: {count} summaries for {target_date}")
     except Exception as e:
         print(f"❌ Error generating daily summaries: {e}")
+
+
+async def daily_summary_backfill_job():
+    """Recover missed summaries at 00:30, before the 01:00 raw-data cleanup."""
+    from app.services import daily_summary_service
+
+    try:
+        async with AsyncSessionLocal() as db:
+            count = await daily_summary_service.backfill_missing_summaries(db)
+            logger.info("Daily summary backfill completed: %d summaries created", count)
+    except Exception:
+        logger.exception("Daily summary backfill failed")
 
 
 async def data_cleanup_job():
@@ -104,6 +118,15 @@ def start_scheduler():
         misfire_grace_time=3600  # Allow job to run up to 1 hour late if missed
     )
     scheduler.add_job(
+        daily_summary_backfill_job,
+        CronTrigger(hour=0, minute=30, timezone=settings.APP_TIMEZONE),
+        id="daily_summary_backfill_job",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=1800,
+    )
+    scheduler.add_job(
         data_cleanup_job,
         CronTrigger(hour=1, minute=0, timezone=settings.APP_TIMEZONE),  # Run at 1:00 AM local time
         id="data_cleanup_job",
@@ -118,7 +141,7 @@ def start_scheduler():
         misfire_grace_time=300,
     )
     scheduler.start()
-    print(f"📅 Scheduler started - Daily summary at midnight, data cleanup at 1:00 AM, escalation every 5 min (UTC{settings.UTC_OFFSET_HOURS:+g})")
+    print(f"📅 Scheduler started - Daily summary at midnight, summary backfill at 12:30 AM, data cleanup at 1:00 AM, escalation every 5 min (UTC{settings.UTC_OFFSET_HOURS:+g})")
 
 
 def shutdown_scheduler():
