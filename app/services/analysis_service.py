@@ -88,6 +88,7 @@ class AnalysisService:
         for model in MODELS:
             for client_index, client in enumerate(clients, start=1):
                 emitted_text = False
+                stream = None
                 try:
                     stream = await client.chat.completions.create(
                         model=model,
@@ -97,13 +98,20 @@ class AnalysisService:
                         temperature=0.4,
                     )
 
+                    finish_reason = None
                     async for chunk in stream:
+                        if not chunk.choices:
+                            continue
+                        finish_reason = getattr(chunk.choices[0], "finish_reason", None) or finish_reason
                         text = chunk.choices[0].delta.content
                         if text:
                             emitted_text = True
                             yield f"data: {json.dumps({'text': text})}\n\n"
 
-                    yield f"data: {json.dumps({'done': True})}\n\n"
+                    if finish_reason != "stop" or not emitted_text:
+                        yield _sse_error("AI analysis was incomplete. Please try again.")
+                        return
+                    yield f"data: {json.dumps({'done': True, 'model': model})}\n\n"
                     return  # success — stop trying
 
                 except Exception as error:
@@ -141,6 +149,15 @@ class AnalysisService:
                     )
                     return
 
+                finally:
+                    if stream is not None:
+                        close = getattr(stream, "close", None) or getattr(stream, "aclose", None)
+                        if close:
+                            try:
+                                await close()
+                            except Exception:
+                                logger.warning("Could not close AI provider stream (model=%s)", model)
+
         logger.error("All configured Groq model/API-key combinations failed")
         yield _sse_error(
             "AI analysis is temporarily unavailable. Please try again later."
@@ -169,7 +186,7 @@ class AnalysisService:
             {"role": "user", "content": prompt},
         ]
 
-        async for chunk in self._stream_with_fallback(messages, max_tokens=1024):
+        async for chunk in self._stream_with_fallback(messages, max_tokens=2048):
             yield chunk
 
 

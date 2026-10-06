@@ -155,3 +155,63 @@ warning periods. Reconstruction uses current configuration and retained raw
 data; it is not an exact archive of past live scores or server restart state.
 The summary API accepts inclusive `YYYY-MM-DD` ranges and returns available
 days in the same date-only format.
+
+## Reading Logs PDF reports
+
+The admin's AI overview creates an owner-scoped report before generating analysis.
+`POST /api/v1/analysis/reports` accepts an idempotency `request_id` UUID plus
+`location_id`, `start_date`, and `end_date`; the server reads and saves the daily
+summaries itself. Dates are inclusive, cover completed days, and are limited to
+366 days. The response supplies the canonical summaries, card statistics, timezone,
+missing dates, and snapshot hash used by the admin and the PDF.
+
+`POST /api/v1/analysis/reports/{id}/stream` analyzes that snapshot. The backend
+persists the exact text and model before signaling completion. Interrupted,
+empty, or token-truncated output cannot be exported. Retries use the same data;
+a completed report returns its saved overview without another AI request.
+`GET /api/v1/analysis/reports/{id}` restores status and completed text.
+`GET /api/v1/analysis/reports/{id}/pdf` returns a private attachment only to its
+creator. The first successful PDF is stored, so subsequent downloads use identical
+bytes even if live summaries change. Closing the drawer keeps a completed report
+for the current page session; changing the location or dates starts a new report.
+
+PDFs contain the selected period, capture/export timestamps in the application's
+timezone, cards, four vector charts, every daily summary, extrema observation times,
+weather codes, missing dates, provenance, and the saved AI overview. Long ranges
+use consecutive 30-day chart panels; missing observations stay as gaps. Tables
+repeat their headers and the A4 layout numbers every page. HTML/AI text is escaped;
+reports contain no scripts or remote assets.
+
+Run `alembic upgrade head` before using these endpoints. The Docker image installs
+Chromium and local fonts; local development needs Chromium 131+ installed and
+`REPORT_CHROMIUM_EXECUTABLE_PATH` set to its executable. Rendering uses the
+[Chrome DevTools print API](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-printToPDF)
+with an isolated temporary profile, an ephemeral loopback-only connection, explicit
+load/font readiness, and CSS page sizing/background printing. Existing `websockets`
+provides the connection; no additional Python package is needed.
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `REPORT_CHROMIUM_EXECUTABLE_PATH` | auto-detect | `/usr/bin/chromium` in Docker |
+| `REPORT_CHROMIUM_NO_SANDBOX` | `false` | Docker sets `true` for its root process; leave `false` for a compatible non-root Chromium sandbox |
+| `REPORT_RETENTION_DAYS` | `30` | Lifetime of snapshots, analysis and cached PDFs; separate from raw-reading retention |
+| `REPORT_MAX_DAYS` | `366` | Maximum inclusive reporting period |
+| `REPORT_ANALYSIS_TIMEOUT_SECONDS` | `120` | Provider time limit; interrupted claims become retryable |
+| `REPORT_PDF_TIMEOUT_SECONDS` | `60` | Whole renderer time limit; process groups and temporary files are cleaned on failure/cancellation |
+
+Report creation and analysis are limited to 6 requests/minute; downloads to
+10/minute using the existing API limiter. One PDF renders per backend worker;
+busy workers return a retryable 503 rather than building an unbounded queue. PDFs
+are capped at 20 MiB. Expired reports are inaccessible immediately and are deleted
+by the existing 01:00 cleanup job. A crashed analysis claim may be recovered after
+its timeout plus a 30-second grace period. For heavier export traffic, use a
+separate bounded worker queue and object storage rather than raising these limits.
+
+Focused validation (no live database or AI requests):
+
+```bash
+venv/bin/python -m pytest app/tests/services/test_reading_report.py app/tests/endpoints/test_reading_report.py app/tests/services/test_analysis_service.py
+# Optional native rendering checks: 1, 31, and 366 days, null metrics, long AI text.
+REPORT_TEST_CHROMIUM=/usr/bin/chromium venv/bin/python -m pytest app/tests/services/test_reading_report.py -k native
+# Native checks also require the pdftotext command (poppler-utils on Debian).
+```

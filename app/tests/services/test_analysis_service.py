@@ -29,12 +29,13 @@ def _not_found_error(model: str) -> NotFoundError:
 
 def _stream_chunk(text: str):
     return SimpleNamespace(
-        choices=[SimpleNamespace(delta=SimpleNamespace(content=text))]
+        choices=[SimpleNamespace(delta=SimpleNamespace(content=text), finish_reason=None)]
     )
 
 
 async def _successful_stream():
     yield _stream_chunk("analysis result")
+    yield SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=None), finish_reason="stop")])
 
 
 class FakeCompletions:
@@ -87,7 +88,7 @@ async def test_model_not_found_uses_next_configured_model(
     assert completions.requested_models == ["retired-model", "working-model"]
     assert [_parse_sse(event) for event in events] == [
         {"text": "analysis result"},
-        {"done": True},
+        {"done": True, "model": "working-model"},
     ]
 
 
@@ -117,3 +118,17 @@ async def test_unexpected_provider_error_is_returned_as_sse(
             "done": True,
         }
     ]
+
+
+@pytest.mark.parametrize("finish_reason", [None, "length", "content_filter"])
+async def test_truncated_provider_output_is_not_success(monkeypatch, finish_reason):
+    async def incomplete():
+        yield _stream_chunk("Partial")
+        yield SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content=None), finish_reason=finish_reason)])
+    completions = FakeCompletions([incomplete()])
+    monkeypatch.setattr(analysis_service_module,"MODELS",["working-model"])
+    monkeypatch.setattr(analysis_service_module,"clients",[_client(completions)])
+    events=[_parse_sse(event) async for event in analysis_service_module.analysis_service._stream_with_fallback([],32)]
+    assert events[0]["text"] == "Partial"
+    assert "error" in events[-1]
+    assert "model" not in events[-1]

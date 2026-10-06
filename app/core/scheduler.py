@@ -50,6 +50,7 @@ async def data_cleanup_job():
     from app.crud.responder_otp_verification import responder_otp_verification_crud
     from app.crud.password_reset_otp import password_reset_otp_crud
     from app.crud.evacuation_event import evacuation_event_crud
+    from app.services.reading_report.service import reading_report_service
 
     print("🗑️ Running data cleanup job...")
 
@@ -86,6 +87,9 @@ async def data_cleanup_job():
                 older_than=alert_cutoff,
                 keep_per_location=alert_retention_max,
             )
+
+            report_count = await reading_report_service.cleanup(db)
+            logger.info("Expired reading reports removed: %d", report_count)
 
             # Expired OTP cleanup
             responder_otp_count = await responder_otp_verification_crud.delete_expired(db, now)

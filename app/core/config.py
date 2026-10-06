@@ -1,12 +1,18 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from typing import Union
 from datetime import timedelta, timezone, tzinfo
 
 
 class Settings(BaseSettings):
     UTC_OFFSET_HOURS: float = 8
+    REPORT_CHROMIUM_EXECUTABLE_PATH: str = ""
+    REPORT_CHROMIUM_NO_SANDBOX: bool = False
+    REPORT_RETENTION_DAYS: int = Field(default=30, ge=1, le=365)
+    REPORT_MAX_DAYS: int = Field(default=366, ge=1, le=366)
+    REPORT_ANALYSIS_TIMEOUT_SECONDS: int = Field(default=120, ge=10, le=300)
+    REPORT_PDF_TIMEOUT_SECONDS: int = Field(default=60, ge=10, le=120)
 
     OTP_LENGTH: int = 6
     OTP_ATTEMPT_LIMIT: int = 5

@@ -4,6 +4,8 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     gcc \
+    chromium \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Set work directory
@@ -12,6 +14,9 @@ WORKDIR /app
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+ENV REPORT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
+ENV REPORT_CHROMIUM_NO_SANDBOX=true
 
 # Copy application code
 COPY . .
