@@ -167,9 +167,19 @@ class AnalysisService:
     async def stream_analysis(self, payload: DailySummaryAnalysisRequest):
         """Initial Analysis - streams SSE chunks"""
         data_block = self._format_summaries(payload.summaries)
+        coverage_note = ""
+        if payload.partial_dates:
+            dates = ", ".join(day.isoformat() for day in payload.partial_dates)
+            coverage_note = (
+                f"Partial days at snapshot capture: {dates}. These days were still in progress. "
+                "Clearly label their analysis as preliminary. Their saved summaries may cover only "
+                "part of the day; do not describe their extrema as final or infer unobserved readings."
+            )
 
         prompt = f"""
             Analyze this daily monitoring data from {payload.start_date} to {payload.end_date}:
+
+            {coverage_note}
 
             {data_block}
 

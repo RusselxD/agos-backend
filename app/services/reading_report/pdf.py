@@ -178,10 +178,18 @@ def build_html(report, generated_at):
         for label, minimum, maximum in (("Risk score", "min_risk_timestamp", "max_risk_timestamp"), ("Water level", "min_water_timestamp", "max_water_timestamp"), ("Precipitation", "min_precip_timestamp", "max_precip_timestamp")):
             details.append('<tr>' + ''.join(f'<td>{escape(value)}</td>' for value in (row["summary_date"], label, timestamp(row[minimum], offset), timestamp(row[maximum], offset))) + '</tr>')
     missing = ", ".join(s["missing_dates"]) or "None"
+    partial_note = ""
+    if s.get("partial_dates"):
+        partial_note = (
+            '<p class="muted"><strong>Partial day: '
+            + escape(", ".join(s["partial_dates"]))
+            + '. This day was still in progress when the data was captured. '
+            'Its saved summary may cover only part of the day; extrema and analysis are preliminary.</strong></p>'
+        )
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'"><title>AGOS Reading Report</title><style>{CSS}</style></head><body>
 <div class="brand">AGOS / WATERWAY MONITORING</div><h1>Reading logs report</h1><h3>{escape(s["location_name"])}</h3>
 <div class="meta"><strong>Reporting period: {report.start_date} to {report.end_date} (inclusive)</strong><p>Data captured: {timestamp(report.created_at.isoformat(),offset)} · {escape(s["timezone"])}</p><p>PDF generated: {timestamp(generated_at.isoformat(),offset)} · {escape(s["timezone"])}</p><p>Coverage: {len(rows)} of {len(chart_rows)} days · {len(s["missing_dates"])} {"missing day" if len(s["missing_dates"]) == 1 else "missing days"}</p></div>
-<div class="cards">{card_html}</div><p class="muted">{escape(s["metric_definitions"])}</p><p class="muted">Potential surface obstruction reflects visible evidence, not confirmed subsurface blockage.</p>
+{partial_note}<div class="cards">{card_html}</div><p class="muted">{escape(s["metric_definitions"])}</p><p class="muted">Potential surface obstruction reflects visible evidence, not confirmed subsurface blockage.</p>
 <h2>AI overview</h2><p class="muted">Completed: {timestamp(report.analysis_completed_at.isoformat() if report.analysis_completed_at else None,offset)} · {escape(s["timezone"])}. Model: {escape(report.analysis_model or "Not recorded")}.</p>{analysis_html(report.analysis_text)}
 <div><div class="chart-intro"><h2>Trends and distribution</h2><p class="muted">Daily minimum and maximum from the saved summaries. Missing readings create gaps. Longer periods use consecutive 30-day panels.</p></div>{''.join(charts)}</div>
 <div class="section"><h2>Daily readings</h2><p class="muted">All {len(rows)} observed days. Values show minimum – maximum; precipitation is in mm, not an accumulated total. Surface obstruction: Clear / Possible / Potential.</p><table><thead><tr><th>Date</th><th>Risk score</th><th>Water (cm)</th><th>Rain (mm)</th><th>Surface obstruction</th><th>Weather (code)</th></tr></thead><tbody>{''.join(table_rows)}</tbody></table></div>

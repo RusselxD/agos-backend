@@ -161,8 +161,11 @@ days in the same date-only format.
 The admin's AI overview creates an owner-scoped report before generating analysis.
 `POST /api/v1/analysis/reports` accepts an idempotency `request_id` UUID plus
 `location_id`, `start_date`, and `end_date`; the server reads and saves the daily
-summaries itself. Dates are inclusive, cover completed days, and are limited to
-366 days. The response supplies the canonical summaries, card statistics, timezone,
+summaries itself. Dates are inclusive, may include today, and are limited to
+366 days; future dates are rejected. Today's date is saved in `partial_dates`
+using the capture time and application timezone. The admin, AI prompt, and PDF
+label that day's saved summary as preliminary. This designation remains fixed
+on retries and downloads, even after midnight. The response supplies the canonical summaries, card statistics, timezone,
 missing dates, and snapshot hash used by the admin and the PDF.
 
 `POST /api/v1/analysis/reports/{id}/stream` analyzes that snapshot. The backend

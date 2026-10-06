@@ -1,7 +1,7 @@
 """Stable report metadata and metrics, all derived from the saved summaries."""
 import hashlib
 import json
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.schemas.daily_summary import DailySummaryResponse
 
@@ -23,17 +23,20 @@ def summary_stats(rows: list[dict]) -> dict:
     }
 
 
-def make_snapshot(location, request, summaries: list[DailySummaryResponse], utc_offset: float) -> dict:
+def make_snapshot(location, request, summaries: list[DailySummaryResponse], utc_offset: float, *, captured_at: datetime | None = None) -> dict:
     rows = sorted((r.model_dump(mode="json") for r in summaries), key=lambda r: r["summary_date"])
     present = {r["summary_date"] for r in rows}
     days = (request.end_date - request.start_date).days + 1
     missing = [(request.start_date + timedelta(days=i)).isoformat() for i in range(days)
                if (request.start_date + timedelta(days=i)).isoformat() not in present]
     timezone_name = "Asia/Manila" if utc_offset == 8 else f"UTC{utc_offset:+g}"
+    captured_at = captured_at or datetime.now(timezone.utc)
+    local_today = captured_at.astimezone(timezone(timedelta(hours=utc_offset))).date()
+    partial_dates = [local_today.isoformat()] if request.start_date <= local_today <= request.end_date else []
     snapshot = {
         "location_id": request.location_id, "start_date": request.start_date.isoformat(), "end_date": request.end_date.isoformat(),
         "location_name": location.name, "timezone": timezone_name, "utc_offset_hours": utc_offset,
-        "summaries": rows, "missing_dates": missing, "stats": summary_stats(rows),
+        "summaries": rows, "missing_dates": missing, "partial_dates": partial_dates, "stats": summary_stats(rows),
         "metric_definitions": "Risk and water: highest daily maxima. Precipitation: mean of daily maxima in mm. Obstruction: days with potential surface obstruction based on the worst smoothed status. Missing values excluded.",
     }
     snapshot["data_hash"] = hashlib.sha256(json.dumps(snapshot, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()

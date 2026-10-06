@@ -21,8 +21,8 @@ class ReadingReportCreate(BaseModel):
             raise ValueError("Start date must be on or before end date")
         if (self.end_date - self.start_date).days + 1 > settings.REPORT_MAX_DAYS:
             raise ValueError(f"Reports support at most {settings.REPORT_MAX_DAYS} days")
-        if self.end_date >= datetime.now(settings.APP_TIMEZONE).date():
-            raise ValueError("Reports cover completed days only")
+        if self.end_date > datetime.now(settings.APP_TIMEZONE).date():
+            raise ValueError("Reports cannot include future dates")
         return self
 
 
@@ -38,6 +38,7 @@ class ReadingReportResponse(BaseModel):
     utc_offset_hours: float
     summaries: list[DailySummaryResponse]
     missing_dates: list[date]
+    partial_dates: list[date] = Field(default_factory=list)
     status: Literal["pending", "streaming", "complete", "error"]
     analysis_text: str
     analysis_error: str | None

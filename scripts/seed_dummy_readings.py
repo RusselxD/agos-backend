@@ -4,11 +4,13 @@ import json
 import random
 import re
 import sys
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
+from time import monotonic
 
 from sqlalchemy import and_, delete, select
 
@@ -47,6 +49,36 @@ SKIP_EXISTING_AT_TIMESTAMP = True
 RANDOM_SEED = 42
 BATCH_SIZE = 1000
 REFRESH_DAILY_SUMMARIES = True
+PROGRESS_INTERVAL_SECONDS = 10
+
+
+def _log(message: str) -> None:
+    print(message, flush=True)
+
+
+@asynccontextmanager
+async def _progress_step(label: str):
+    """Report slow operations without cancelling or retrying their work."""
+    started = monotonic()
+    _log(f"{label}...")
+
+    async def heartbeat():
+        while True:
+            await asyncio.sleep(PROGRESS_INTERVAL_SECONDS)
+            _log(f"  Still waiting: {label} ({monotonic() - started:.0f}s elapsed)")
+
+    task = asyncio.create_task(heartbeat())
+    try:
+        yield
+    except BaseException:
+        _log(f"  Did not complete: {label} ({monotonic() - started:.1f}s)")
+        raise
+    else:
+        _log(f"  Done: {label} ({monotonic() - started:.1f}s)")
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
 
 
 @dataclass
@@ -156,7 +188,9 @@ def _cache_key_for_image(path: Path) -> str:
 
 
 async def _prepare_model_image_assets(images: list[Path]) -> list[ModelImageAsset]:
+    _log(f"Preparing {len(images):,} model images")
     if not UPLOAD_IMAGES_TO_CLOUDINARY:
+        _log("  Using local image paths (Cloudinary uploads disabled in this script)")
         return [
             ModelImageAsset(
                 image_path=_local_image_value(path),
@@ -169,6 +203,8 @@ async def _prepare_model_image_assets(images: list[Path]) -> list[ModelImageAsse
     init_cloudinary()
     cache = _load_url_cache()
     assets: list[ModelImageAsset] = []
+    cached_count = 0
+    uploaded_count = 0
 
     for index, path in enumerate(images, start=1):
         cache_key = _cache_key_for_image(path)
@@ -181,6 +217,9 @@ async def _prepare_model_image_assets(images: list[Path]) -> list[ModelImageAsse
                     blockage_status=str(cached_url.get("blockage_status", "clear")),
                 )
             )
+            cached_count += 1
+            if index % 10 == 0 or index == len(images):
+                _log(f"  Images {index:,}/{len(images):,}: {cached_count:,} cached, {uploaded_count:,} uploaded")
             continue
 
         image_bytes = path.read_bytes()
@@ -189,19 +228,21 @@ async def _prepare_model_image_assets(images: list[Path]) -> list[ModelImageAsse
         upload_bytes = image_bytes
 
         if USE_ML_MODEL_FOR_IMAGES:
-            blockage_percentage, blockage_status, upload_bytes = await ml_service._infer_and_annotate(image_bytes)
+            async with _progress_step(f"Detecting blockage in image {index}/{len(images)}: {path.name}"):
+                blockage_percentage, blockage_status, upload_bytes = await ml_service._infer_and_annotate(image_bytes)
 
-        print(
+        _log(
             f"Uploading dummy image {index}/{len(images)}: {path.name} "
             f"({blockage_status}, {blockage_percentage}%)"
         )
-        result = await upload_image(
-            file=BytesIO(upload_bytes),
-            filename=_image_public_id(path),
-            folder=CLOUDINARY_UPLOAD_FOLDER,
-        )
-        if not result or not result.get("secure_url"):
-            raise RuntimeError(f"Cloudinary upload failed for {path}")
+        async with _progress_step(f"Cloudinary upload {index}/{len(images)}: {path.name}"):
+            result = await upload_image(
+                file=BytesIO(upload_bytes),
+                filename=_image_public_id(path),
+                folder=CLOUDINARY_UPLOAD_FOLDER,
+            )
+            if not result or not result.get("secure_url"):
+                raise RuntimeError(f"Cloudinary upload failed for {path}")
 
         cache[cache_key] = {
             "secure_url": result["secure_url"],
@@ -217,7 +258,9 @@ async def _prepare_model_image_assets(images: list[Path]) -> list[ModelImageAsse
             )
         )
         _save_url_cache(cache)
+        uploaded_count += 1
 
+    _log(f"Images ready: {cached_count:,} reused from cache, {uploaded_count:,} uploaded")
     return assets
 
 
@@ -404,80 +447,105 @@ async def _existing_timestamp_keys(db, model, timestamp_col, *filters) -> set[da
     if not SKIP_EXISTING_AT_TIMESTAMP:
         return set()
 
-    result = await db.execute(select(timestamp_col).where(and_(*filters)))
-    return {_utc_key(row[0]) for row in result.all()}
+    async with _progress_step(f"Checking existing timestamps in {model.__tablename__}"):
+        result = await db.execute(select(timestamp_col).where(and_(*filters)))
+        keys = {_utc_key(row[0]) for row in result.all()}
+    _log(f"  Found {len(keys):,} existing timestamps")
+    return keys
 
 
-async def _insert_in_batches(db, rows: list) -> int:
+async def _insert_in_batches(db, rows: list, label: str) -> int:
     total = 0
+    if not rows:
+        _log(f"{label}: nothing to insert (all timestamps already exist)")
+        return 0
+
+    _log(f"Inserting {len(rows):,} {label} in batches of {BATCH_SIZE:,}")
     for index in range(0, len(rows), BATCH_SIZE):
         batch = rows[index:index + BATCH_SIZE]
-        db.add_all(batch)
-        await db.commit()
+        async with _progress_step(f"Saving {label}: rows {index + 1:,}-{index + len(batch):,}/{len(rows):,}"):
+            db.add_all(batch)
+            await db.commit()
         total += len(batch)
+        _log(f"  {label}: {total:,}/{len(rows):,} committed ({total / len(rows):.0%})")
     return total
 
 
 async def _refresh_daily_summaries(db, start: datetime, end: datetime) -> int:
     if not REFRESH_DAILY_SUMMARIES:
+        _log("Daily summary refresh disabled")
         return 0
 
     start_date = start.astimezone(settings.APP_TIMEZONE).date()
     end_date = end.astimezone(settings.APP_TIMEZONE).date()
 
-    await db.execute(
-        delete(DailySummary).where(
-            DailySummary.location_id == LOCATION_ID,
-            DailySummary.summary_date >= start_date,
-            DailySummary.summary_date <= end_date,
+    days = (end_date - start_date).days + 1
+    _log(f"Refreshing {days} daily summaries ({start_date} to {end_date})")
+    async with _progress_step("Removing existing daily summaries for this range"):
+        await db.execute(
+            delete(DailySummary).where(
+                DailySummary.location_id == LOCATION_ID,
+                DailySummary.summary_date >= start_date,
+                DailySummary.summary_date <= end_date,
+            )
         )
-    )
-    await db.commit()
+        await db.commit()
 
     created = 0
     for target_date in _iter_dates(start_date, end_date):
-        summary_data = await daily_summary_service.generate_summary_for_location(
-            db=db,
-            location_id=LOCATION_ID,
-            target_date=target_date,
-        )
-        await daily_summary_crud.create_daily_summary(
-            db=db,
-            location_id=LOCATION_ID,
-            summary_date=target_date,
-            summary_data=summary_data,
-        )
+        async with _progress_step(f"Daily summary {created + 1}/{days}: {target_date}"):
+            summary_data = await daily_summary_service.generate_summary_for_location(
+                db=db,
+                location_id=LOCATION_ID,
+                target_date=target_date,
+            )
+            await daily_summary_crud.create_daily_summary(
+                db=db,
+                location_id=LOCATION_ID,
+                summary_date=target_date,
+                summary_data=summary_data,
+            )
         created += 1
 
     return created
 
 
 async def seed_dummy_readings() -> None:
+    started = monotonic()
     random.seed(RANDOM_SEED)
 
     end = _utc_now()
     start = _align_down(end - timedelta(days=DAYS_TO_GENERATE), timedelta(hours=1))
+    _log(f"Seeding dummy readings for location {LOCATION_ID}: {start.isoformat()} to {end.isoformat()}")
+    _log(f"Looking for images in {IMAGE_DIR}")
     images = _list_images()
     image_assets = await _prepare_model_image_assets(images)
 
     async with AsyncSessionLocal() as db:
-        sensor_result = await db.execute(
-            select(SensorDevice).where(SensorDevice.location_id == LOCATION_ID)
-        )
+        async with _progress_step(f"Connecting to database and loading sensor for location {LOCATION_ID}"):
+            sensor_result = await db.execute(
+                select(SensorDevice).where(SensorDevice.location_id == LOCATION_ID)
+            )
         sensor_device = sensor_result.scalar_one_or_none()
         if sensor_device is None:
             raise RuntimeError(f"No sensor device found for location_id={LOCATION_ID}")
 
-        camera_result = await db.execute(
-            select(CameraDevice).where(CameraDevice.location_id == LOCATION_ID)
-        )
+        async with _progress_step(f"Loading camera for location {LOCATION_ID}"):
+            camera_result = await db.execute(
+                select(CameraDevice).where(CameraDevice.location_id == LOCATION_ID)
+            )
         camera_device = camera_result.scalar_one_or_none()
         if camera_device is None:
             raise RuntimeError(f"No camera device found for location_id={LOCATION_ID}")
 
         sensor_config = sensor_device.sensor_config
+        _log("Generating weather readings...")
         weather_points = _generate_weather(start, end)
+        _log(f"  Generated {len(weather_points):,} weather readings")
+        _log("Generating model readings...")
         model_points = _generate_model_points(start, end, weather_points, image_assets)
+        _log(f"  Generated {len(model_points):,} model readings")
+        _log("Generating sensor readings...")
         sensor_rows = _generate_sensor_readings(
             start=start,
             end=end,
@@ -488,6 +556,9 @@ async def seed_dummy_readings() -> None:
             weather_points=weather_points,
             model_points=model_points,
         )
+        _log(f"  Generated {len(sensor_rows):,} sensor readings")
+        if not SKIP_EXISTING_AT_TIMESTAMP:
+            _log("Existing timestamp checks disabled")
 
         weather_existing = await _existing_timestamp_keys(
             db,
@@ -514,6 +585,8 @@ async def seed_dummy_readings() -> None:
             SensorReading.timestamp <= end,
         )
 
+        _log("Filtering existing readings and preparing database rows...")
+        generated_sensor_count = len(sensor_rows)
         weather_rows = [
             Weather(
                 location_id=LOCATION_ID,
@@ -544,18 +617,24 @@ async def seed_dummy_readings() -> None:
             row for row in sensor_rows if _utc_key(row.timestamp) not in sensor_existing
         ]
 
-        weather_count = await _insert_in_batches(db, weather_rows)
-        model_count = await _insert_in_batches(db, model_rows)
-        sensor_count = await _insert_in_batches(db, sensor_rows)
+        _log(
+            f"Rows to insert: {len(weather_rows):,} weather, {len(model_rows):,} model, {len(sensor_rows):,} sensor; "
+            f"skipped {len(weather_points) - len(weather_rows):,} weather, "
+            f"{len(model_points) - len(model_rows):,} model, "
+            f"{generated_sensor_count - len(sensor_rows):,} sensor duplicates"
+        )
+        weather_count = await _insert_in_batches(db, weather_rows, "weather readings")
+        model_count = await _insert_in_batches(db, model_rows, "model readings")
+        sensor_count = await _insert_in_batches(db, sensor_rows, "sensor readings")
         summary_count = await _refresh_daily_summaries(db, start, end)
 
-    print("Dummy readings seeded")
-    print(f"  Range: {start.isoformat()} to {end.isoformat()}")
-    print(f"  Location: {LOCATION_ID}")
-    print(f"  Weather rows: {weather_count}")
-    print(f"  Model rows: {model_count}")
-    print(f"  Sensor rows: {sensor_count}")
-    print(f"  Daily summaries refreshed: {summary_count}")
+    _log(f"Dummy readings seeded in {monotonic() - started:.1f}s")
+    _log(f"  Range: {start.isoformat()} to {end.isoformat()}")
+    _log(f"  Location: {LOCATION_ID}")
+    _log(f"  Weather rows: {weather_count}")
+    _log(f"  Model rows: {model_count}")
+    _log(f"  Sensor rows: {sensor_count}")
+    _log(f"  Daily summaries refreshed: {summary_count}")
 
 
 if __name__ == "__main__":

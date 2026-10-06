@@ -286,3 +286,57 @@ def test_card_rounding_matches_admin_number_to_fixed():
     assert one_decimal(2.25) == "2.3"
     assert one_decimal(2.55) == "2.5"
     assert one_decimal(0) == "0.0"
+
+
+def test_range_allows_today_in_app_timezone_but_rejects_tomorrow(monkeypatch):
+    schema = importlib.import_module("app.schemas.reading_report")
+    moment = datetime(2026, 9, 3, 17, tzinfo=timezone.utc)  # Sep 4 in Manila.
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return moment.astimezone(tz or timezone.utc)
+    monkeypatch.setattr(schema, "datetime", Clock)
+    monkeypatch.setattr(settings, "UTC_OFFSET_HOURS", 8)
+    assert request(end_date="2026-09-04").end_date == date(2026, 9, 4)
+    with pytest.raises(ValidationError, match="future dates"):
+        request(end_date="2026-09-05")
+
+
+def test_partial_day_metadata_survives_midnight_and_is_visible_in_pdf():
+    item = report(status="complete", analysis_text="Preliminary overview")
+    item.end_date = date(2026, 9, 4)
+    item.created_at = datetime(2026, 9, 3, 17, tzinfo=timezone.utc)
+    item.snapshot = make_snapshot(SimpleNamespace(name="River"), item,
+        [summary("2026-09-04", max_risk_score=10)], 8, captured_at=item.created_at)
+    assert item.snapshot["partial_dates"] == ["2026-09-04"]
+    assert module.as_response(item).partial_dates == [date(2026, 9, 4)]
+    document = build_html(item, item.created_at + timedelta(days=1))
+    assert "Partial day: 2026-09-04" in document
+    assert "extrema and analysis are preliminary" in document
+    # Once saved, the report keeps this classification rather than using export time.
+    assert item.snapshot["partial_dates"] == ["2026-09-04"]
+
+
+def test_historical_and_legacy_reports_have_no_partial_day_notice():
+    item = report(status="complete", analysis_text="Completed-day overview")
+    item.snapshot = make_snapshot(SimpleNamespace(name="River"), item, [summary()], 8,
+        captured_at=datetime(2026, 9, 4, tzinfo=timezone.utc))
+    assert item.snapshot["partial_dates"] == []
+    item.snapshot.pop("partial_dates")
+    assert module.as_response(item).partial_dates == []
+    assert "Partial day:" not in build_html(item, item.created_at)
+
+
+async def test_report_ai_uses_saved_partial_day_classification(monkeypatch):
+    item = report()
+    item.snapshot["partial_dates"] = ["2026-09-03"]
+    service = module.ReadingReportService()
+    service.save_analysis = AsyncMock()
+    async def stream(payload):
+        assert payload.partial_dates == [date(2026, 9, 3)]
+        yield module.event({"text": "Preliminary result"})
+        yield module.event({"done": True, "model": "test-model"})
+    monkeypatch.setattr(module.analysis_service, "stream_analysis", stream)
+    events = [event async for event in service.stream(item, item.analysis_started_at)]
+    assert json.loads(events[-1][6:])["done"]
+    assert service.save_analysis.await_args.kwargs["status"] == "complete"

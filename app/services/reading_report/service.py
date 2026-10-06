@@ -42,6 +42,7 @@ def as_response(report):
         analysis_text=report.analysis_text, analysis_error=report.analysis_error,
         analysis_completed_at=report.analysis_completed_at, analysis_model=report.analysis_model,
         data_hash=snapshot["data_hash"], stats=snapshot["stats"],
+        partial_dates=snapshot.get("partial_dates", []),
     )
 
 
@@ -78,8 +79,8 @@ class ReadingReportService:
             request_id=request.request_id, created_by=owner, location_id=request.location_id,
             start_date=request.start_date, end_date=request.end_date, created_at=now,
             expires_at=now + timedelta(days=settings.REPORT_RETENTION_DAYS),
-            snapshot=make_snapshot(location, request, summaries, settings.UTC_OFFSET_HOURS),
-            status="pending", analysis_text="", prompt_version="1", template_version="1",
+            snapshot=make_snapshot(location, request, summaries, settings.UTC_OFFSET_HOURS, captured_at=now),
+            status="pending", analysis_text="", prompt_version="2", template_version="2",
         )
         db.add(report)
         try:
@@ -136,6 +137,7 @@ class ReadingReportService:
             payload = DailySummaryAnalysisRequest(
                 start_date=report.start_date, end_date=report.end_date,
                 summaries=[DailySummaryResponse.model_validate(row) for row in report.snapshot["summaries"]],
+                partial_dates=report.snapshot.get("partial_dates", []),
             )
             async with asyncio.timeout(settings.REPORT_ANALYSIS_TIMEOUT_SECONDS), aclosing(analysis_service.stream_analysis(payload)) as source:
                 async for chunk in source:

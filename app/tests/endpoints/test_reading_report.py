@@ -77,3 +77,25 @@ async def test_routes_require_authentication(report_api):
         response=await client.get(f"/api/v1/analysis/reports/{uuid4()}/pdf")
         assert response.status_code in (401,403)
     service.get.assert_not_awaited()
+
+
+async def test_create_accepts_today_and_preserves_partial_dates_in_response(report_api):
+    from datetime import datetime, timedelta
+    from app.core.config import settings
+    app, service, _, _ = report_api
+    today = datetime.now(settings.APP_TIMEZONE).date()
+    item = report()
+    item.start_date = today - timedelta(days=9)
+    item.end_date = today
+    item.snapshot["partial_dates"] = [today.isoformat()]
+    service.create.return_value = item
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        body = {"request_id": str(uuid4()), "location_id": 1,
+            "start_date": item.start_date.isoformat(), "end_date": today.isoformat()}
+        created = await client.post("/api/v1/analysis/reports", json=body)
+        assert created.status_code == 201, created.text
+        assert created.json()["partial_dates"] == [today.isoformat()]
+        future = await client.post("/api/v1/analysis/reports", json={
+            **body, "end_date": (today + timedelta(days=1)).isoformat()})
+        assert future.status_code == 422
+        assert service.create.await_count == 1

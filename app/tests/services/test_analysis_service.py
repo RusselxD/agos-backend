@@ -132,3 +132,21 @@ async def test_truncated_provider_output_is_not_success(monkeypatch, finish_reas
     assert events[0]["text"] == "Partial"
     assert "error" in events[-1]
     assert "model" not in events[-1]
+
+
+async def test_partial_day_prompt_requires_preliminary_analysis(monkeypatch):
+    from datetime import date
+    from app.schemas.daily_summary import DailySummaryAnalysisRequest
+    service = analysis_service_module.AnalysisService()
+    messages = []
+    async def stream(messages_arg, max_tokens):
+        messages.extend(messages_arg)
+        yield 'data: {"done":true}\n\n'
+    monkeypatch.setattr(service, "_stream_with_fallback", stream)
+    payload = DailySummaryAnalysisRequest(start_date=date(2026,9,1), end_date=date(2026,9,3),
+        summaries=[], partial_dates=[date(2026,9,3)])
+    _ = [event async for event in service.stream_analysis(payload)]
+    prompt = messages[-1]["content"]
+    assert "Partial days at snapshot capture: 2026-09-03" in prompt
+    assert "preliminary" in prompt
+    assert "do not describe their extrema as final" in prompt

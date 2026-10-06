@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import date, datetime
 
 
@@ -36,3 +36,4 @@ class DailySummaryAnalysisRequest(BaseModel):
     start_date: date
     end_date: date
     summaries: list[DailySummaryResponse]
+    partial_dates: list[date] = Field(default_factory=list)
